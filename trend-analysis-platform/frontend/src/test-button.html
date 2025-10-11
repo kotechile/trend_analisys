@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Trending Topics Button</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 15px 30px; margin: 10px; font-size: 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1565c0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 4px; }
+        .error { color: red; background: #ffebee; }
+        .success { color: green; background: #e8f5e8; }
+        .loading { color: blue; background: #e3f2fd; }
+        .debug { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Trending Topics Discovery</h1>
+    
+    <div>
+        <h3>Step 1: Enter Search Term</h3>
+        <input type="text" id="searchTerm" value="sustainable living" style="width: 300px; padding: 8px; font-size: 16px;">
+    </div>
+    
+    <div>
+        <h3>Step 2: Select Programs (comma-separated IDs)</h3>
+        <input type="text" id="selectedPrograms" value="1,2,3" style="width: 300px; padding: 8px; font-size: 16px;">
+    </div>
+    
+    <div>
+        <h3>Step 3: Test the Button</h3>
+        <button id="testButton" onclick="testTrendingTopics()">🔍 Discover Trending Topics</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="debug" class="debug" style="display: none;">
+        <h4>Debug Log:</h4>
+        <div id="debugContent"></div>
+    </div>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>API Response:</h3>
+        <pre id="resultContent"></pre>
+    </div>
+
+    <script>
+        function log(message) {
+            console.log(message);
+            const debugDiv = document.getElementById('debug');
+            const debugContent = document.getElementById('debugContent');
+            debugContent.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            debugDiv.style.display = 'block';
+        }
+
+        function clearResults() {
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('debug').style.display = 'none';
+            document.getElementById('debugContent').innerHTML = '';
+        }
+
+        async function testTrendingTopics() {
+            const searchTerm = document.getElementById('searchTerm').value;
+            const selectedPrograms = document.getElementById('selectedPrograms').value.split(',').map(s => s.trim());
+            const resultDiv = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+            const testButton = document.getElementById('testButton');
+            
+            log('🚀 Starting trending topics discovery test...');
+            log('Search term: ' + searchTerm);
+            log('Selected programs: ' + JSON.stringify(selectedPrograms));
+            
+            if (selectedPrograms.length === 0) {
+                log('❌ No programs selected!');
+                return;
+            }
+            
+            // Show loading state
+            testButton.textContent = '⏳ Discovering...';
+            testButton.disabled = true;
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultContent.textContent = 'Making API request...';
+            
+            try {
+                log('📡 Making API request to: http://localhost:8000/api/trend-analysis/discover-trends');
+                
+                const response = await fetch('http://localhost:8000/api/trend-analysis/discover-trends', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_term: searchTerm,
+                        selected_programs: selectedPrograms,
+                        user_id: 'test-user'
+                    })
+                });
+                
+                log('📊 Response status: ' + response.status);
+                log('📊 Response headers: ' + JSON.stringify([...response.headers.entries()]));
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Success! Received ' + (data.data?.trending_topics?.length || 0) + ' trending topics');
+                    resultContent.textContent = JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    const errorText = await response.text();
+                    log('❌ Error response: ' + errorText);
+                    resultContent.textContent = `Error ${response.status}: ${errorText}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                log('💥 Request failed: ' + error.message);
+                resultContent.textContent = `Request failed: ${error.message}`;
+                resultDiv.className = 'result error';
+            } finally {
+                testButton.textContent = '🔍 Discover Trending Topics';
+                testButton.disabled = false;
+            }
+        }
+
+        // Test on page load
+        window.onload = function() {
+            log('📄 Test page loaded successfully');
+            log('🌐 Current URL: ' + window.location.href);
+        };
+    </script>
+</body>
+</html>
+
+

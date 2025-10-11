@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Callback Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 OAuth Callback Test</h1>
+        <p>This page simulates the OAuth callback to test if the frontend handles it correctly.</p>
+        
+        <div id="status" class="status info">
+            Analyzing current URL...
+        </div>
+        
+        <div id="urlInfo"></div>
+        <div id="testResults"></div>
+        
+        <div style="margin-top: 30px;">
+            <h3>🧪 Test OAuth Callback</h3>
+            <p>Click the button below to simulate the OAuth callback:</p>
+            <button onclick="simulateCallback()" style="
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 16px;
+            ">
+                🔄 Simulate OAuth Callback
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function analyzeURL() {
+            const url = window.location.href;
+            const pathname = window.location.pathname;
+            const hash = window.location.hash;
+            const search = window.location.search;
+            
+            document.getElementById('urlInfo').innerHTML = `
+                <div class="code">
+                    <strong>Current URL:</strong><br>
+                    ${url}<br><br>
+                    <strong>Pathname:</strong> ${pathname}<br>
+                    <strong>Hash:</strong> ${hash || 'None'}<br>
+                    <strong>Search:</strong> ${search || 'None'}<br>
+                </div>
+            `;
+            
+            // Check if this looks like an OAuth callback
+            const isCallback = pathname === '/auth/callback' || 
+                              pathname === '/auth/callback#' ||
+                              url.includes('/auth/callback') ||
+                              url.includes('code=') ||
+                              url.includes('error=');
+            
+            if (isCallback) {
+                updateStatus('✅ This appears to be an OAuth callback URL!', 'success');
+                document.getElementById('testResults').innerHTML = `
+                    <div class="status success">
+                        <strong>OAuth Callback Detected!</strong><br>
+                        The frontend should handle this URL and process the authentication.
+                    </div>
+                `;
+            } else {
+                updateStatus('ℹ️ This is not an OAuth callback URL', 'info');
+                document.getElementById('testResults').innerHTML = `
+                    <div class="status info">
+                        <strong>Not a callback URL</strong><br>
+                        This is a normal page. Click "Simulate OAuth Callback" to test the callback handling.
+                    </div>
+                `;
+            }
+        }
+        
+        function simulateCallback() {
+            // Simulate the OAuth callback by redirecting to the callback URL
+            const callbackUrl = 'http://localhost:3000/auth/callback#access_token=mock_token&token_type=bearer&expires_in=3600&refresh_token=mock_refresh&provider_token=mock_provider&provider_refresh_token=mock_provider_refresh&user=%7B%22id%22%3A%22mock-user-id%22%2C%22email%22%3A%22test%40example.com%22%2C%22user_metadata%22%3A%7B%22full_name%22%3A%22Test%20User%22%2C%22avatar_url%22%3A%22https%3A//example.com/avatar.jpg%22%7D%7D';
+            
+            updateStatus('🔄 Redirecting to OAuth callback...', 'info');
+            
+            setTimeout(() => {
+                window.location.href = callbackUrl;
+            }, 1000);
+        }
+        
+        // Initialize
+        window.onload = function() {
+            analyzeURL();
+        };
+    </script>
+</body>
+</html>
+
+

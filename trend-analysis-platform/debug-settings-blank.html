@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Blank Page Debug</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Settings Blank Page Debug</h1>
+        <p>This page helps debug why the Settings page appears blank.</p>
+        
+        <div class="status warning">
+            <strong>Issue:</strong> Settings page appears blank when clicked
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: Check Browser Console</h3>
+            <p>Open browser developer tools and check for JavaScript errors:</p>
+            <ol>
+                <li>Press <strong>F12</strong> or right-click → Inspect</li>
+                <li>Go to <strong>Console</strong> tab</li>
+                <li>Look for red error messages</li>
+                <li>Take a screenshot of any errors</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3>Step 2: Test Different Settings Versions</h3>
+            <p>I've created multiple Settings page versions to test:</p>
+            <ul>
+                <li><strong>Settings.minimal.tsx</strong> - Basic test page</li>
+                <li><strong>Settings.simple.tsx</strong> - Simple version</li>
+                <li><strong>Settings.working.tsx</strong> - Full featured version</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h3>Step 3: Check Component Imports</h3>
+            <p>Common issues that cause blank pages:</p>
+            <ul>
+                <li>Missing component imports</li>
+                <li>Circular import dependencies</li>
+                <li>TypeScript compilation errors</li>
+                <li>Missing Material-UI components</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h3>Step 4: Test Settings Tab Navigation</h3>
+            <p>Try these steps:</p>
+            <ol>
+                <li>Go to <code>http://localhost:3000</code></li>
+                <li>Sign in with Google OAuth</li>
+                <li>Click the <strong>Settings</strong> tab</li>
+                <li>Check if the page content appears</li>
+                <li>If blank, check browser console for errors</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3>Step 5: Manual Component Test</h3>
+            <p>Test the Settings component directly:</p>
+            <button class="button" onclick="testSettingsComponent()">Test Settings Component</button>
+            <div id="testResults"></div>
+        </div>
+        
+        <div class="code">
+            <strong>Current App Configuration:</strong><br>
+            App.oauth-fixed.tsx → Settings.minimal.tsx<br>
+            <br>
+            <strong>Expected Behavior:</strong><br>
+            Settings tab should show a minimal test page with:<br>
+            - "Settings (Minimal Test)" heading<br>
+            - Success alert message<br>
+            - Test section with button<br>
+            - LLM Management section
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #d1ecf1; border-radius: 5px;">
+            <h3>🔧 Quick Fixes to Try:</h3>
+            <ol>
+                <li><strong>Hard Refresh:</strong> Ctrl+F5 or Cmd+Shift+R</li>
+                <li><strong>Clear Cache:</strong> Clear browser cache and cookies</li>
+                <li><strong>Check Network:</strong> Ensure backend is running on port 8000</li>
+                <li><strong>Restart Frontend:</strong> Restart Docker container</li>
+            </ol>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 20px; background: #fff3cd; border-radius: 5px;">
+            <h3>⚠️ If Still Blank:</h3>
+            <p>Please share:</p>
+            <ul>
+                <li>Screenshot of the blank page</li>
+                <li>Browser console errors (F12 → Console)</li>
+                <li>Network tab errors (F12 → Network)</li>
+                <li>Which browser you're using</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function testSettingsComponent() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<div class="status info">Testing Settings component...</div>';
+            
+            // Test if the main app loads
+            fetch('http://localhost:3000')
+                .then(response => {
+                    if (response.ok) {
+                        results.innerHTML += '<div class="status success">✅ Main app loads successfully</div>';
+                        
+                        // Test if we can access the Settings tab
+                        setTimeout(() => {
+                            results.innerHTML += '<div class="status info">ℹ️ Navigate to Settings tab to test component rendering</div>';
+                        }, 1000);
+                    } else {
+                        results.innerHTML += '<div class="status error">❌ Main app failed to load: ' + response.status + '</div>';
+                    }
+                })
+                .catch(error => {
+                    results.innerHTML += '<div class="status error">❌ Error testing main app: ' + error.message + '</div>';
+                });
+        }
+        
+        // Auto-test on page load
+        window.onload = function() {
+            testSettingsComponent();
+        };
+    </script>
+</body>
+</html>
+
+

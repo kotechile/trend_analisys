@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Trending Topics Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1565c0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .topic { margin: 10px 0; padding: 10px; border: 1px solid #e0e0e0; border-radius: 4px; background: #f9f9f9; }
+        .chip { display: inline-block; padding: 2px 6px; margin: 2px; background: #e3f2fd; color: #1976d2; border-radius: 10px; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Minimal Trending Topics Test</h1>
+        
+        <div>
+            <h3>Step 1: Search for affiliate programs</h3>
+            <input type="text" id="searchInput" value="sustainable living" placeholder="Enter search term" style="width: 200px; padding: 5px;">
+            <button onclick="searchPrograms()">Search Programs</button>
+        </div>
+        
+        <div id="programs" style="display: none;">
+            <h3>Step 2: Select programs</h3>
+            <div id="programsList"></div>
+            <button id="discoverBtn" onclick="discoverTrends()" disabled>Discover Trending Topics</button>
+        </div>
+        
+        <div id="trends" style="display: none;">
+            <h3>Step 3: Trending Topics Found</h3>
+            <div id="trendsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPrograms = [];
+        
+        async function searchPrograms() {
+            const searchTerm = document.getElementById('searchInput').value;
+            console.log('Searching for programs:', searchTerm);
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/affiliate-research/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        search_term: searchTerm,
+                        topic: searchTerm
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Programs found:', data.data.programs.length);
+                    displayPrograms(data.data.programs);
+                } else {
+                    console.error('Search failed:', response.statusText);
+                    // Use mock data
+                    displayPrograms([
+                        { id: '1', name: 'EcoHome Solutions', description: 'Sustainable products' },
+                        { id: '2', name: 'GreenTech Pro', description: 'Eco-friendly technology' },
+                        { id: '3', name: 'Sustainable Living Co', description: 'Green lifestyle products' }
+                    ]);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                // Use mock data
+                displayPrograms([
+                    { id: '1', name: 'EcoHome Solutions', description: 'Sustainable products' },
+                    { id: '2', name: 'GreenTech Pro', description: 'Eco-friendly technology' },
+                    { id: '3', name: 'Sustainable Living Co', description: 'Green lifestyle products' }
+                ]);
+            }
+        }
+        
+        function displayPrograms(programs) {
+            const programsDiv = document.getElementById('programs');
+            const programsList = document.getElementById('programsList');
+            
+            programsList.innerHTML = '';
+            programs.forEach(program => {
+                const programDiv = document.createElement('div');
+                programDiv.innerHTML = `
+                    <label style="display: block; margin: 5px 0;">
+                        <input type="checkbox" value="${program.id}" onchange="toggleProgram('${program.id}')">
+                        <strong>${program.name}</strong> - ${program.description}
+                    </label>
+                `;
+                programsList.appendChild(programDiv);
+            });
+            
+            programsDiv.style.display = 'block';
+        }
+        
+        function toggleProgram(programId) {
+            if (selectedPrograms.includes(programId)) {
+                selectedPrograms = selectedPrograms.filter(id => id !== programId);
+            } else {
+                selectedPrograms.push(programId);
+            }
+            
+            const discoverBtn = document.getElementById('discoverBtn');
+            discoverBtn.disabled = selectedPrograms.length === 0;
+            discoverBtn.textContent = selectedPrograms.length > 0 ? 
+                `Discover Trending Topics (${selectedPrograms.length} selected)` : 
+                'Discover Trending Topics';
+            
+            console.log('Selected programs:', selectedPrograms);
+        }
+        
+        async function discoverTrends() {
+            if (selectedPrograms.length === 0) {
+                alert('Please select at least one program');
+                return;
+            }
+            
+            const searchTerm = document.getElementById('searchInput').value;
+            const discoverBtn = document.getElementById('discoverBtn');
+            
+            console.log('Discovering trends for:', searchTerm, 'with programs:', selectedPrograms);
+            
+            discoverBtn.textContent = 'Discovering...';
+            discoverBtn.disabled = true;
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/trend-analysis/discover-trends', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        search_term: searchTerm,
+                        selected_programs: selectedPrograms,
+                        user_id: 'test-user'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Trends discovered:', data.data.trending_topics.length);
+                    displayTrends(data.data.trending_topics);
+                } else {
+                    console.error('Trend discovery failed:', response.statusText);
+                    alert('Failed to discover trends: ' + response.statusText);
+                }
+            } catch (error) {
+                console.error('Trend discovery error:', error);
+                alert('Error discovering trends: ' + error.message);
+            } finally {
+                discoverBtn.textContent = `Discover Trending Topics (${selectedPrograms.length} selected)`;
+                discoverBtn.disabled = false;
+            }
+        }
+        
+        function displayTrends(trends) {
+            const trendsDiv = document.getElementById('trends');
+            const trendsList = document.getElementById('trendsList');
+            
+            trendsList.innerHTML = '';
+            trends.forEach(trend => {
+                const trendDiv = document.createElement('div');
+                trendDiv.className = 'topic';
+                trendDiv.innerHTML = `
+                    <h4>${trend.topic}</h4>
+                    <div>
+                        <span class="chip">${trend.search_volume.toLocaleString()} searches</span>
+                        <span class="chip">${trend.trend_direction} trend</span>
+                        <span class="chip">${trend.competition} competition</span>
+                        <span class="chip">${trend.opportunity_score}% opportunity</span>
+                    </div>
+                    <p><strong>Keywords:</strong> ${trend.related_keywords.join(', ')}</p>
+                    <p><strong>Content Ideas:</strong></p>
+                    <ul>
+                        ${trend.content_ideas.slice(0, 3).map(idea => `<li>${idea}</li>`).join('')}
+                    </ul>
+                `;
+                trendsList.appendChild(trendDiv);
+            });
+            
+            trendsDiv.style.display = 'block';
+        }
+        
+        // Auto-search on page load
+        window.onload = function() {
+            console.log('Page loaded, auto-searching...');
+            searchPrograms();
+        };
+    </script>
+</body>
+</html>
+
+

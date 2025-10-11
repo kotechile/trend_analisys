@@ -1,0 +1,358 @@
+/**
+ * CSS styles for the ErrorBoundary component.
+ */
+
+/* =============================================================================
+   ERROR BOUNDARY CONTAINER
+   ============================================================================= */
+
+.error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: #f9fafb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.error-boundary-container {
+  max-width: 600px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+/* =============================================================================
+   ERROR BOUNDARY HEADER
+   ============================================================================= */
+
+.error-boundary-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+}
+
+.error-boundary-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.error-boundary-title h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+}
+
+.error-boundary-subtitle {
+  font-size: 1rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+}
+
+/* =============================================================================
+   ERROR BOUNDARY CONTENT
+   ============================================================================= */
+
+.error-boundary-content {
+  padding: 2rem;
+}
+
+.error-boundary-message {
+  margin-bottom: 2rem;
+}
+
+.error-boundary-message p {
+  font-size: 1rem;
+  color: #374151;
+  margin: 0 0 1rem 0;
+  line-height: 1.6;
+}
+
+.error-boundary-suggestions {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f3f4f6;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.error-boundary-suggestions h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.error-boundary-suggestions ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #4b5563;
+}
+
+.error-boundary-suggestions li {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* =============================================================================
+   ERROR BOUNDARY DETAILS
+   ============================================================================= */
+
+.error-boundary-details {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.error-boundary-details details {
+  cursor: pointer;
+}
+
+.error-boundary-details summary {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+}
+
+.error-boundary-stack {
+  margin-top: 1rem;
+}
+
+.error-boundary-stack h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.error-boundary-stack pre {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #ffffff;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 1rem;
+}
+
+/* =============================================================================
+   ERROR BOUNDARY ACTIONS
+   ============================================================================= */
+
+.error-boundary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.error-boundary-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.error-boundary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-boundary-button-primary {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.error-boundary-button-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.error-boundary-button-primary:active:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.error-boundary-button-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.error-boundary-button-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.error-boundary-button-secondary:active:not(:disabled) {
+  background: #d1d5db;
+}
+
+/* =============================================================================
+   ERROR BOUNDARY RETRY INFO
+   ============================================================================= */
+
+.error-boundary-retry-info {
+  padding: 1rem;
+  background: #fef3c7;
+  border-radius: 8px;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+
+.error-boundary-retry-info p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.error-boundary-retry-info p:last-child {
+  margin-bottom: 0;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+@media (max-width: 640px) {
+  .error-boundary {
+    padding: 1rem;
+  }
+  
+  .error-boundary-container {
+    max-width: 100%;
+  }
+  
+  .error-boundary-header {
+    padding: 1.5rem;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .error-boundary-content {
+    padding: 1.5rem;
+  }
+  
+  .error-boundary-actions {
+    flex-direction: column;
+  }
+  
+  .error-boundary-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .error-boundary-button {
+    transition: none;
+  }
+}
+
+/* =============================================================================
+   DARK MODE
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .error-boundary {
+    background: #1f2937;
+  }
+  
+  .error-boundary-container {
+    background: #374151;
+    color: #f9fafb;
+  }
+  
+  .error-boundary-title h2 {
+    color: #f9fafb;
+  }
+  
+  .error-boundary-subtitle {
+    color: #d1d5db;
+  }
+  
+  .error-boundary-message p {
+    color: #d1d5db;
+  }
+  
+  .error-boundary-suggestions {
+    background: #4b5563;
+    border-left-color: #60a5fa;
+  }
+  
+  .error-boundary-suggestions h4 {
+    color: #f9fafb;
+  }
+  
+  .error-boundary-suggestions ul {
+    color: #d1d5db;
+  }
+  
+  .error-boundary-details {
+    background: #4b5563;
+    border-color: #6b7280;
+  }
+  
+  .error-boundary-details summary {
+    background: #374151;
+    border-color: #6b7280;
+    color: #f9fafb;
+  }
+  
+  .error-boundary-stack h4 {
+    color: #f9fafb;
+  }
+  
+  .error-boundary-stack pre {
+    background: #374151;
+    border-color: #6b7280;
+    color: #d1d5db;
+  }
+  
+  .error-boundary-button-secondary {
+    background: #4b5563;
+    color: #f9fafb;
+    border-color: #6b7280;
+  }
+  
+  .error-boundary-button-secondary:hover:not(:disabled) {
+    background: #6b7280;
+    border-color: #9ca3af;
+  }
+  
+  .error-boundary-button-secondary:active:not(:disabled) {
+    background: #9ca3af;
+  }
+  
+  .error-boundary-retry-info {
+    background: #78350f;
+    border-color: #f59e0b;
+    color: #fde68a;
+  }
+}

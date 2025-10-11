@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Backend API (Uses local Redis)
+  backend:
+    image: python:3.13-slim
+    container_name: trendtap-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://postgres:hobnE8-pumqet-sywxab@db.bvsqnmkvbbvtrcomtvnc.supabase.co:5432/postgres
+      - REDIS_URL=redis://host.docker.internal:6379/0
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+    working_dir: /app
+    command: >
+      sh -c "
+        apt-get update && apt-get install -y gcc g++ make libpq-dev curl &&
+        pip install --break-system-packages -r requirements-ultra-minimal.txt &&
+        echo 'Skipping Alembic - using existing Supabase database' &&
+        uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    image: node:18-alpine
+    container_name: trendtap-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_APP_NAME=TrendTap
+      - VITE_DEBUG=true
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: >
+      sh -c "
+        npm install &&
+        npm run dev -- --host 0.0.0.0 --port 3000
+      "
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  backend_logs:
+
+networks:
+  default:
+    name: trendtap-network

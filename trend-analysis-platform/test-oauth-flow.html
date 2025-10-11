@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrendTap OAuth Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .google-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 20px 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .google-btn:hover {
+            background: #3367d6;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .user-info {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 TrendTap Google OAuth Test</h1>
+        <p>This page tests the actual Google OAuth flow with your Supabase configuration.</p>
+        
+        <div id="status" class="status info">
+            Initializing Supabase client...
+        </div>
+        
+        <div id="userInfo" class="user-info" style="display: none;">
+            <h3>✅ User Information:</h3>
+            <div id="userDetails"></div>
+        </div>
+        
+        <button id="googleBtn" class="google-btn" onclick="signInWithGoogle()" style="display: none;">
+            🔍 Test Google Sign-In
+        </button>
+        
+        <button id="signOutBtn" class="google-btn" onclick="signOut()" style="display: none; background: #dc3545;">
+            🚪 Sign Out
+        </button>
+        
+        <div id="debugInfo" style="margin-top: 30px; text-align: left; font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+            <h4>Debug Information:</h4>
+            <div id="debugContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://bvsqnmkvbbvtrcomtvnc.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2c3FubWt2YmJ2dHJjb210dm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1MDYyMTQsImV4cCI6MjA3NTA4MjIxNH0.Vg6_r6djVh9vhwP6QNvg3HS5X4AI6Ic3EGp1BlHOeig';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function updateDebug(message) {
+            const debug = document.getElementById('debugContent');
+            debug.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+        }
+        
+        async function checkAuthStatus() {
+            try {
+                updateStatus('Checking authentication status...', 'info');
+                updateDebug('Checking current session...');
+                
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    updateStatus('❌ Error checking session: ' + error.message, 'error');
+                    updateDebug('Session error: ' + JSON.stringify(error));
+                    return;
+                }
+                
+                if (session && session.user) {
+                    updateStatus('✅ User is already signed in!', 'success');
+                    updateDebug('User found: ' + session.user.email);
+                    showUserInfo(session.user);
+                    document.getElementById('signOutBtn').style.display = 'inline-block';
+                } else {
+                    updateStatus('Ready to test Google OAuth...', 'info');
+                    updateDebug('No active session found');
+                    document.getElementById('googleBtn').style.display = 'inline-block';
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+                updateDebug('Exception: ' + error.message);
+            }
+        }
+        
+        async function signInWithGoogle() {
+            try {
+                updateStatus('Initiating Google OAuth...', 'info');
+                updateDebug('Starting Google OAuth flow...');
+                
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: `${window.location.origin}/test-oauth-flow.html`,
+                        queryParams: {
+                            access_type: 'offline',
+                            prompt: 'consent',
+                        },
+                    },
+                });
+                
+                if (error) {
+                    updateStatus('❌ Google OAuth error: ' + error.message, 'error');
+                    updateDebug('OAuth error: ' + JSON.stringify(error));
+                } else {
+                    updateStatus('🔄 Redirecting to Google...', 'info');
+                    updateDebug('OAuth initiated successfully');
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+                updateDebug('Exception during OAuth: ' + error.message);
+            }
+        }
+        
+        async function signOut() {
+            try {
+                updateStatus('Signing out...', 'info');
+                updateDebug('Starting sign out...');
+                
+                const { error } = await supabase.auth.signOut();
+                
+                if (error) {
+                    updateStatus('❌ Sign out error: ' + error.message, 'error');
+                    updateDebug('Sign out error: ' + JSON.stringify(error));
+                } else {
+                    updateStatus('✅ Signed out successfully!', 'success');
+                    updateDebug('Sign out successful');
+                    document.getElementById('userInfo').style.display = 'none';
+                    document.getElementById('googleBtn').style.display = 'inline-block';
+                    document.getElementById('signOutBtn').style.display = 'none';
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+                updateDebug('Exception during sign out: ' + error.message);
+            }
+        }
+        
+        function showUserInfo(user) {
+            const userInfo = document.getElementById('userInfo');
+            const userDetails = document.getElementById('userDetails');
+            
+            userDetails.innerHTML = `
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Name:</strong> ${user.user_metadata?.full_name || 'Not provided'}</p>
+                <p><strong>Avatar:</strong> ${user.user_metadata?.avatar_url ? '✅ Provided' : 'Not provided'}</p>
+                <p><strong>Provider:</strong> ${user.app_metadata?.provider || 'Unknown'}</p>
+                <p><strong>User ID:</strong> ${user.id}</p>
+            `;
+            
+            userInfo.style.display = 'block';
+        }
+        
+        // Listen for auth state changes
+        supabase.auth.onAuthStateChange((event, session) => {
+            updateDebug(`Auth state change: ${event}`);
+            
+            if (event === 'SIGNED_IN' && session) {
+                updateStatus('✅ Successfully signed in with Google!', 'success');
+                showUserInfo(session.user);
+                document.getElementById('googleBtn').style.display = 'none';
+                document.getElementById('signOutBtn').style.display = 'inline-block';
+            } else if (event === 'SIGNED_OUT') {
+                updateStatus('✅ Successfully signed out!', 'success');
+                document.getElementById('userInfo').style.display = 'none';
+                document.getElementById('googleBtn').style.display = 'inline-block';
+                document.getElementById('signOutBtn').style.display = 'none';
+            }
+        });
+        
+        // Initialize
+        window.onload = function() {
+            updateDebug('Page loaded, initializing...');
+            checkAuthStatus();
+        };
+    </script>
+</body>
+</html>
+
+

@@ -1,0 +1,598 @@
+/**
+ * UserList Component Styles
+ * 
+ * This file contains all styles for the UserList component,
+ * providing a clean and modern table-based user list interface.
+ */
+
+/* =============================================================================
+   USER LIST CONTAINER
+   ============================================================================= */
+
+.user-list {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.user-list-table-container {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+/* =============================================================================
+   USER LIST TABLE
+   ============================================================================= */
+
+.user-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.user-list-table th,
+.user-list-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.user-list-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.user-list-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.user-list-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.user-list-table tbody tr.selected {
+  background-color: #eff6ff;
+}
+
+.user-list-table tbody tr.hovered {
+  background-color: #f3f4f6;
+}
+
+/* =============================================================================
+   TABLE COLUMNS
+   ============================================================================= */
+
+.user-checkbox {
+  width: 40px;
+  text-align: center;
+}
+
+.user-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.user-email {
+  width: 200px;
+  min-width: 200px;
+}
+
+.user-name {
+  width: 180px;
+  min-width: 180px;
+}
+
+.user-role {
+  width: 100px;
+  min-width: 100px;
+}
+
+.user-status {
+  width: 100px;
+  min-width: 100px;
+}
+
+.user-verified {
+  width: 120px;
+  min-width: 120px;
+}
+
+.user-created {
+  width: 140px;
+  min-width: 140px;
+}
+
+.user-last-login {
+  width: 140px;
+  min-width: 140px;
+}
+
+.user-actions {
+  width: 80px;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* =============================================================================
+   SORTABLE HEADERS
+   ============================================================================= */
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.sortable:hover {
+  background-color: #f3f4f6;
+}
+
+.sortable.asc::after,
+.sortable.desc::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.sortable.asc::after {
+  border-bottom: 6px solid #6b7280;
+}
+
+.sortable.desc::after {
+  border-top: 6px solid #6b7280;
+}
+
+/* =============================================================================
+   USER CONTENT
+   ============================================================================= */
+
+.user-email-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.email-text {
+  font-weight: 500;
+  color: #111827;
+  word-break: break-word;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+}
+
+.user-name-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name-text {
+  font-weight: 500;
+  color: #111827;
+}
+
+.user-bio {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.date-text {
+  font-weight: 500;
+  color: #111827;
+  font-size: 13px;
+}
+
+.time-text {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.never-text {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* =============================================================================
+   BADGES
+   ============================================================================= */
+
+.role-badge,
+.status-badge,
+.verified-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.role-badge {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.role-badge.role-admin {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.role-badge.role-user {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.status-badge.status-active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.status-inactive {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.verified-badge {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.verified-badge.verified-yes {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.verified-badge.verified-no {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* =============================================================================
+   ACTION BUTTONS
+   ============================================================================= */
+
+.action-buttons {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.action-button:hover {
+  background-color: #f3f4f6;
+}
+
+.menu-button {
+  font-size: 18px;
+  font-weight: bold;
+  color: #6b7280;
+}
+
+.menu-button:hover {
+  color: #374151;
+}
+
+/* =============================================================================
+   ACTIONS MENU
+   ============================================================================= */
+
+.actions-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  transition: background-color 0.2s ease;
+}
+
+.action-menu-item:hover {
+  background-color: #f9fafb;
+}
+
+.action-menu-item.edit-action:hover {
+  background-color: #eff6ff;
+  color: #1e40af;
+}
+
+.action-menu-item.delete-action:hover {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.action-menu-item.view-action:hover {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
+
+/* =============================================================================
+   EMPTY STATES
+   ============================================================================= */
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  background-color: #f9fafb;
+}
+
+.loading-container,
+.error-container,
+.no-users-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-icon {
+  font-size: 32px;
+}
+
+.error-message {
+  color: #dc2626;
+  font-weight: 500;
+  margin: 0;
+}
+
+.retry-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.retry-button:hover {
+  background-color: #2563eb;
+}
+
+.no-users-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.no-users-message {
+  font-size: 18px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0;
+}
+
+.no-users-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .user-list-table {
+    font-size: 12px;
+  }
+  
+  .user-list-table th,
+  .user-list-table td {
+    padding: 8px 12px;
+  }
+  
+  .user-email,
+  .user-name {
+    min-width: 150px;
+  }
+  
+  .user-created,
+  .user-last-login {
+    min-width: 120px;
+  }
+  
+  .user-bio {
+    max-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-list-table {
+    font-size: 11px;
+  }
+  
+  .user-list-table th,
+  .user-list-table td {
+    padding: 6px 8px;
+  }
+  
+  .user-email,
+  .user-name {
+    min-width: 120px;
+  }
+  
+  .user-created,
+  .user-last-login {
+    min-width: 100px;
+  }
+  
+  .user-bio {
+    display: none;
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+.user-list-table th:focus,
+.user-list-table td:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.action-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.action-menu-item:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* =============================================================================
+   DARK MODE SUPPORT
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .user-list {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+  
+  .user-list-table th {
+    background-color: #374151;
+    color: #f9fafb;
+  }
+  
+  .user-list-table th,
+  .user-list-table td {
+    border-bottom-color: #4b5563;
+  }
+  
+  .user-list-table tbody tr:hover {
+    background-color: #374151;
+  }
+  
+  .user-list-table tbody tr.selected {
+    background-color: #1e3a8a;
+  }
+  
+  .user-list-table tbody tr.hovered {
+    background-color: #4b5563;
+  }
+  
+  .sortable:hover {
+    background-color: #4b5563;
+  }
+  
+  .email-text,
+  .name-text,
+  .date-text {
+    color: #f9fafb;
+  }
+  
+  .user-bio,
+  .time-text {
+    color: #9ca3af;
+  }
+  
+  .actions-menu {
+    background: #1f2937;
+    border-color: #4b5563;
+  }
+  
+  .action-menu-item {
+    color: #f9fafb;
+  }
+  
+  .action-menu-item:hover {
+    background-color: #374151;
+  }
+  
+  .empty-state {
+    background-color: #374151;
+  }
+  
+  .no-users-message {
+    color: #f9fafb;
+  }
+  
+  .no-users-subtitle {
+    color: #9ca3af;
+  }
+}

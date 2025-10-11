@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Working Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover { background: #0056b3; }
+        .iframe-container {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 App Working Test</h1>
+        <p>This page tests if the TrendTap app is working correctly.</p>
+        
+        <div class="status info">
+            <strong>Test:</strong> Check if the React app loads and Settings tab works
+        </div>
+        
+        <div class="status success">
+            <strong>✅ Fixed:</strong> Created a simplified working App component without OAuth complexity
+        </div>
+        
+        <h3>🎯 What You Should See:</h3>
+        <ul>
+            <li><strong>App loads successfully</strong> with blue navigation bar</li>
+            <li><strong>Three tabs:</strong> Dashboard, Affiliate Research, Settings</li>
+            <li><strong>Settings tab works:</strong> Click Settings to see the Settings page</li>
+            <li><strong>Console messages:</strong> Check browser console (F12) for debug logs</li>
+        </ul>
+        
+        <h3>🔍 Test Steps:</h3>
+        <ol>
+            <li>Click the button below to open the app</li>
+            <li>Look for the blue navigation bar with "🚀 TrendTap"</li>
+            <li>Click the "Settings" tab</li>
+            <li>You should see "⚙️ Settings" page with blue success message</li>
+            <li>Check browser console (F12) for debug messages</li>
+        </ol>
+        
+        <button class="button" onclick="openApp()">Open TrendTap App</button>
+        
+        <div class="iframe-container">
+            <iframe 
+                src="http://localhost:3000" 
+                width="100%" 
+                height="100%"
+                frameborder="0"
+                title="TrendTap App"
+            ></iframe>
+        </div>
+        
+        <div class="status info">
+            <strong>Debug Console Messages:</strong><br>
+            When you click Settings tab, you should see:<br>
+            <code>App.working component rendering, current tab: 2</code><br>
+            <code>Tab changing from 0 to 2</code><br>
+            <code>Rendering page for tab: 2</code>
+        </div>
+        
+        <div class="status success">
+            <strong>✅ Success Indicators:</strong><br>
+            - App loads without errors<br>
+            - Navigation tabs are visible and clickable<br>
+            - Settings page shows "Settings Page is Working!" message<br>
+            - No JavaScript errors in console
+        </div>
+    </div>
+
+    <script>
+        function openApp() {
+            window.open('http://localhost:3000', '_blank');
+        }
+        
+        // Auto-refresh iframe every 30 seconds
+        setInterval(() => {
+            const iframe = document.querySelector('iframe');
+            if (iframe) {
+                iframe.src = iframe.src;
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+
+

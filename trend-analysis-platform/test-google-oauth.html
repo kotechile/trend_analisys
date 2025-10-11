@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrendTap Google OAuth Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .google-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 20px 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .google-btn:hover {
+            background: #3367d6;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 TrendTap Google OAuth Test</h1>
+        <p>Test your Google OAuth configuration before using the main app.</p>
+        
+        <div id="status" class="status info">
+            Ready to test Google OAuth...
+        </div>
+        
+        <button id="googleBtn" class="google-btn" onclick="testGoogleAuth()">
+            🔍 Test Google Sign-In
+        </button>
+        
+        <div id="result"></div>
+        
+        <div style="margin-top: 30px; text-align: left;">
+            <h3>Configuration Checklist:</h3>
+            <ul>
+                <li>✅ Supabase project configured</li>
+                <li>✅ Google Cloud Console project created</li>
+                <li>✅ Google+ API enabled</li>
+                <li>✅ OAuth consent screen configured</li>
+                <li>✅ OAuth 2.0 credentials created</li>
+                <li>✅ Redirect URIs added</li>
+                <li>✅ Supabase Google provider enabled</li>
+                <li>✅ Client ID and Secret added to Supabase</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function testGoogleAuth() {
+            updateStatus('Testing Google OAuth configuration...', 'info');
+            
+            // Test if we can reach the Supabase auth endpoint
+            fetch('https://bvsqnmkvbbvtrcomtvnc.supabase.co/auth/v1/settings', {
+                method: 'GET',
+                headers: {
+                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2c3FubWt2YmJ2dHJjb210dm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1MDYyMTQsImV4cCI6MjA3NTA4MjIxNH0.Vg6_r6djVh9vhwP6QNvg3HS5X4AI6Ic3EGp1BlHOeig'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.external && data.external.google) {
+                    updateStatus('✅ Google OAuth is configured in Supabase!', 'success');
+                    document.getElementById('result').innerHTML = `
+                        <div class="status success">
+                            <strong>Google Provider Status:</strong><br>
+                            Enabled: ${data.external.google.enabled ? 'Yes' : 'No'}<br>
+                            Client ID: ${data.external.google.client_id ? 'Set' : 'Not Set'}<br>
+                            Callback URL: ${data.external.google.redirect_uri || 'Not Set'}
+                        </div>
+                    `;
+                } else {
+                    updateStatus('❌ Google OAuth not configured in Supabase', 'error');
+                }
+            })
+            .catch(error => {
+                updateStatus('❌ Error testing Supabase connection: ' + error.message, 'error');
+            });
+        }
+        
+        // Auto-test on page load
+        window.onload = function() {
+            setTimeout(testGoogleAuth, 1000);
+        };
+    </script>
+</body>
+</html>
+
+

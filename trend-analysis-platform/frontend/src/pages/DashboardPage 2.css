@@ -1,0 +1,747 @@
+/**
+ * DashboardPage Component Styles
+ *
+ * This file contains all styles for the DashboardPage component,
+ * providing a modern and responsive dashboard interface.
+ */
+
+/* =============================================================================
+   DASHBOARD PAGE LAYOUT
+   ============================================================================= */
+
+.dashboard-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+
+.dashboard-page__header {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 2rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-page__header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard-page__welcome {
+  flex: 1;
+}
+
+.dashboard-page__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.5rem 0;
+}
+
+.dashboard-page__subtitle {
+  font-size: 1rem;
+  color: #718096;
+  margin: 0;
+}
+
+.dashboard-page__actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.dashboard-page__action-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dashboard-page__action-btn--primary {
+  background: #667eea;
+  color: #ffffff;
+}
+
+.dashboard-page__action-btn--primary:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* =============================================================================
+   MAIN CONTENT
+   ============================================================================= */
+
+.dashboard-page__main {
+  flex: 1;
+  padding: 2rem 0;
+}
+
+.dashboard-page__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* =============================================================================
+   STATS SECTION
+   ============================================================================= */
+
+.dashboard-page__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.dashboard-page__stat-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.dashboard-page__stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-page__stat-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.dashboard-page__stat-content {
+  flex: 1;
+}
+
+.dashboard-page__stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.25rem 0;
+  line-height: 1;
+}
+
+.dashboard-page__stat-label {
+  font-size: 0.875rem;
+  color: #718096;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* =============================================================================
+   CONTENT LAYOUT
+   ============================================================================= */
+
+.dashboard-page__content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.dashboard-page__content-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-page__content-right {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* =============================================================================
+   SECTIONS
+   ============================================================================= */
+
+.dashboard-page__section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.dashboard-page__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dashboard-page__section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0;
+}
+
+.dashboard-page__section-action {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  transition: color 0.2s ease;
+}
+
+.dashboard-page__section-action:hover {
+  color: #5a67d8;
+}
+
+/* =============================================================================
+   ANALYSES LIST
+   ============================================================================= */
+
+.dashboard-page__analyses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboard-page__analysis-card {
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard-page__analysis-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.dashboard-page__analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-page__analysis-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0;
+  flex: 1;
+}
+
+.dashboard-page__analysis-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-page__analysis-status--completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.dashboard-page__analysis-status--in_progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-page__analysis-status--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dashboard-page__analysis-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-page__topic-tag {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.dashboard-page__analysis-insights {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 0.75rem 0;
+  font-style: italic;
+}
+
+.dashboard-page__analysis-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard-page__analysis-date {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* =============================================================================
+   CONTENT CALENDAR
+   ============================================================================= */
+
+.dashboard-page__calendar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboard-page__calendar-item {
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard-page__calendar-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.dashboard-page__calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-page__calendar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0;
+  flex: 1;
+}
+
+.dashboard-page__calendar-priority {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-page__calendar-priority--high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dashboard-page__calendar-priority--medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-page__calendar-priority--low {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.dashboard-page__calendar-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard-page__calendar-date {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dashboard-page__calendar-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-page__calendar-status--scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.dashboard-page__calendar-status--in_progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-page__calendar-status--published {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.dashboard-page__calendar-status--cancelled {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* =============================================================================
+   ACTIVITY LIST
+   ============================================================================= */
+
+.dashboard-page__activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboard-page__activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.dashboard-page__activity-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.dashboard-page__activity-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  margin-top: 0.125rem;
+}
+
+.dashboard-page__activity-content {
+  flex: 1;
+}
+
+.dashboard-page__activity-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0 0 0.25rem 0;
+}
+
+.dashboard-page__activity-description {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.dashboard-page__activity-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.dashboard-page__activity-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-page__activity-status--completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.dashboard-page__activity-status--in_progress {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-page__activity-status--pending {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.dashboard-page__activity-status--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* =============================================================================
+   LOADING AND ERROR STATES
+   ============================================================================= */
+
+.dashboard-page__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 1rem;
+}
+
+.dashboard-page__loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.dashboard-page__loading-text {
+  color: #64748b;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.dashboard-page__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 1rem;
+  text-align: center;
+}
+
+.dashboard-page__error-icon {
+  font-size: 3rem;
+}
+
+.dashboard-page__error-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0;
+}
+
+.dashboard-page__error-message {
+  color: #64748b;
+  margin: 0;
+  max-width: 400px;
+}
+
+.dashboard-page__error-retry {
+  background: #667eea;
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.dashboard-page__error-retry:hover {
+  background: #5a67d8;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+  .dashboard-page__content {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-page__stats {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-page__header-content {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .dashboard-page__welcome {
+    width: 100%;
+  }
+
+  .dashboard-page__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dashboard-page__stats {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .dashboard-page__container {
+    padding: 0 1rem;
+  }
+
+  .dashboard-page__section {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-page__title {
+    font-size: 1.5rem;
+  }
+
+  .dashboard-page__stat-card {
+    padding: 1rem;
+  }
+
+  .dashboard-page__stat-number {
+    font-size: 1.5rem;
+  }
+
+  .dashboard-page__analysis-header,
+  .dashboard-page__calendar-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .dashboard-page__analysis-meta,
+  .dashboard-page__calendar-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}
+
+/* =============================================================================
+   DARK MODE SUPPORT
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-page {
+    background: #1a202c;
+  }
+
+  .dashboard-page__header {
+    background: #2d3748;
+    border-bottom-color: #4a5568;
+  }
+
+  .dashboard-page__title {
+    color: #ffffff;
+  }
+
+  .dashboard-page__subtitle {
+    color: #a0aec0;
+  }
+
+  .dashboard-page__section {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+
+  .dashboard-page__section-title {
+    color: #ffffff;
+  }
+
+  .dashboard-page__stat-card {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+
+  .dashboard-page__stat-number {
+    color: #ffffff;
+  }
+
+  .dashboard-page__stat-label {
+    color: #a0aec0;
+  }
+
+  .dashboard-page__analysis-card,
+  .dashboard-page__calendar-item,
+  .dashboard-page__activity-item {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+
+  .dashboard-page__analysis-title,
+  .dashboard-page__calendar-title,
+  .dashboard-page__activity-title {
+    color: #ffffff;
+  }
+
+  .dashboard-page__analysis-insights,
+  .dashboard-page__activity-description {
+    color: #a0aec0;
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page__stat-card,
+  .dashboard-page__analysis-card,
+  .dashboard-page__calendar-item,
+  .dashboard-page__activity-item {
+    transition: none;
+  }
+
+  .dashboard-page__loading-spinner {
+    animation: none;
+  }
+}
+
+/* =============================================================================
+   PRINT STYLES
+   ============================================================================= */
+
+@media print {
+  .dashboard-page__header {
+    box-shadow: none;
+    border-bottom: 1px solid #000;
+  }
+
+  .dashboard-page__action-btn {
+    display: none;
+  }
+
+  .dashboard-page__section {
+    box-shadow: none;
+    border: 1px solid #000;
+    break-inside: avoid;
+  }
+}

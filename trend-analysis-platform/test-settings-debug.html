@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Debug Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover { background: #0056b3; }
+        .button.success { background: #28a745; }
+        .button.warning { background: #ffc107; color: #000; }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            white-space: pre-wrap;
+        }
+        .debug-output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Settings Page Debug Test</h1>
+        <p>This page helps debug why the Settings page appears blank.</p>
+        
+        <div class="status warning">
+            <strong>Current Issue:</strong> Settings page appears blank when clicked
+        </div>
+        
+        <div class="step">
+            <h3>🧪 Test 1: Basic App Loading</h3>
+            <p>First, let's test if the main app loads:</p>
+            <button class="button" onclick="testAppLoading()">Test App Loading</button>
+            <div id="appTestResults"></div>
+        </div>
+        
+        <div class="step">
+            <h3>🧪 Test 2: Settings Tab Navigation</h3>
+            <p>Test if the Settings tab can be clicked and renders content:</p>
+            <button class="button" onclick="testSettingsTab()">Test Settings Tab</button>
+            <div id="settingsTestResults"></div>
+        </div>
+        
+        <div class="step">
+            <h3>🧪 Test 3: Component Debugging</h3>
+            <p>Check browser console for debug messages:</p>
+            <button class="button warning" onclick="showConsoleInstructions()">Show Console Instructions</button>
+            <div id="consoleInstructions"></div>
+        </div>
+        
+        <div class="step">
+            <h3>🧪 Test 4: Direct Settings Test</h3>
+            <p>Test the Settings component directly:</p>
+            <button class="button success" onclick="openSettingsDirectly()">Open Settings Directly</button>
+            <div id="directTestResults"></div>
+        </div>
+        
+        <div class="code">
+<strong>Expected Debug Output in Console:</strong>
+When you click the Settings tab, you should see:
+1. "Rendering page for tab: 6"
+2. "Rendering Settings component" 
+3. "SettingsTest component rendering"
+
+If you don't see these messages, there's a JavaScript error preventing execution.
+        </div>
+        
+        <div class="step">
+            <h3>🔧 Quick Fixes to Try</h3>
+            <ol>
+                <li><strong>Hard Refresh:</strong> Press Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)</li>
+                <li><strong>Clear Cache:</strong> Clear browser cache and cookies</li>
+                <li><strong>Check Console:</strong> Press F12 → Console tab for errors</li>
+                <li><strong>Restart Frontend:</strong> Restart Docker container if needed</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3>📋 Debug Checklist</h3>
+            <div id="debugChecklist">
+                <label><input type="checkbox" id="check1"> Main app loads successfully</label><br>
+                <label><input type="checkbox" id="check2"> Can sign in with Google OAuth</label><br>
+                <label><input type="checkbox" id="check3"> Settings tab is visible in navigation</label><br>
+                <label><input type="checkbox" id="check4"> Settings tab can be clicked</label><br>
+                <label><input type="checkbox" id="check5"> Settings content appears after clicking</label><br>
+                <label><input type="checkbox" id="check6"> No JavaScript errors in console</label><br>
+            </div>
+        </div>
+        
+        <div id="debugOutput" class="debug-output" style="display: none;">
+            <div>Debug output will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('debugOutput');
+            output.style.display = 'block';
+            output.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        }
+        
+        function testAppLoading() {
+            const results = document.getElementById('appTestResults');
+            results.innerHTML = '<div class="status info">Testing app loading...</div>';
+            
+            fetch('http://localhost:3000')
+                .then(response => {
+                    if (response.ok) {
+                        results.innerHTML += '<div class="status success">✅ Main app loads successfully</div>';
+                        document.getElementById('check1').checked = true;
+                        log('Main app loads successfully');
+                    } else {
+                        results.innerHTML += '<div class="status error">❌ Main app failed to load: ' + response.status + '</div>';
+                        log('Main app failed to load: ' + response.status);
+                    }
+                })
+                .catch(error => {
+                    results.innerHTML += '<div class="status error">❌ Error loading app: ' + error.message + '</div>';
+                    log('Error loading app: ' + error.message);
+                });
+        }
+        
+        function testSettingsTab() {
+            const results = document.getElementById('settingsTestResults');
+            results.innerHTML = '<div class="status info">Testing Settings tab...</div>';
+            
+            // Open the app in a new window
+            const newWindow = window.open('http://localhost:3000', '_blank');
+            
+            results.innerHTML += '<div class="status info">ℹ️ Opened app in new window. Please:</div>';
+            results.innerHTML += '<ol>';
+            results.innerHTML += '<li>Sign in with Google OAuth</li>';
+            results.innerHTML += '<li>Click the Settings tab</li>';
+            results.innerHTML += '<li>Check if content appears</li>';
+            results.innerHTML += '<li>Check browser console (F12) for debug messages</li>';
+            results.innerHTML += '</ol>';
+            
+            log('Settings tab test initiated - check new window');
+        }
+        
+        function showConsoleInstructions() {
+            const results = document.getElementById('consoleInstructions');
+            results.innerHTML = '<div class="status info">';
+            results.innerHTML += '<h4>How to Check Browser Console:</h4>';
+            results.innerHTML += '<ol>';
+            results.innerHTML += '<li>Press <strong>F12</strong> or right-click → Inspect</li>';
+            results.innerHTML += '<li>Click the <strong>Console</strong> tab</li>';
+            results.innerHTML += '<li>Look for these debug messages when clicking Settings tab:</li>';
+            results.innerHTML += '<ul>';
+            results.innerHTML += '<li>"Rendering page for tab: 6"</li>';
+            results.innerHTML += '<li>"Rendering Settings component"</li>';
+            results.innerHTML += '<li>"SettingsTest component rendering"</li>';
+            results.innerHTML += '</ul>';
+            results.innerHTML += '<li>If you see red error messages, those are the problem!</li>';
+            results.innerHTML += '</ol>';
+            results.innerHTML += '</div>';
+        }
+        
+        function openSettingsDirectly() {
+            const results = document.getElementById('directTestResults');
+            results.innerHTML = '<div class="status info">Opening Settings directly...</div>';
+            
+            // Try to open the app and navigate to Settings
+            const newWindow = window.open('http://localhost:3000', '_blank');
+            
+            results.innerHTML += '<div class="status success">✅ Opened app in new window</div>';
+            results.innerHTML += '<div class="status info">ℹ️ After signing in, click Settings tab and check console</div>';
+            
+            log('Direct Settings test - new window opened');
+        }
+        
+        // Auto-run basic test
+        window.onload = function() {
+            log('Debug test page loaded');
+            testAppLoading();
+        };
+    </script>
+</body>
+</html>
+
+

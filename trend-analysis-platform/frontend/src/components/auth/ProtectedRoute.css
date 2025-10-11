@@ -1,0 +1,289 @@
+/**
+ * CSS styles for the ProtectedRoute component.
+ */
+
+/* =============================================================================
+   LOADING STATE
+   ============================================================================= */
+
+.protected-route-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 2rem;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #6b7280;
+}
+
+.loading-spinner .spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =============================================================================
+   UNAUTHORIZED STATE
+   ============================================================================= */
+
+.protected-route-unauthorized {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+  background: #f9fafb;
+}
+
+.unauthorized-content {
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.unauthorized-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.unauthorized-content p {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.login-button {
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.login-button:hover {
+  background: #2563eb;
+}
+
+.login-button:active {
+  background: #1d4ed8;
+}
+
+/* =============================================================================
+   FORBIDDEN STATE
+   ============================================================================= */
+
+.protected-route-forbidden {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+  background: #f9fafb;
+}
+
+.forbidden-content {
+  text-align: center;
+  max-width: 500px;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.forbidden-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #dc2626;
+  margin: 0 0 1rem 0;
+}
+
+.forbidden-content p {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.role-required {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+  background: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+}
+
+.current-role {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0.5rem 0 1.5rem 0;
+}
+
+.back-button {
+  padding: 0.75rem 1.5rem;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.back-button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.back-button:active {
+  background: #d1d5db;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+@media (max-width: 640px) {
+  .protected-route-loading,
+  .protected-route-unauthorized,
+  .protected-route-forbidden {
+    padding: 1rem;
+  }
+  
+  .unauthorized-content,
+  .forbidden-content {
+    padding: 1.5rem;
+  }
+  
+  .unauthorized-content h2,
+  .forbidden-content h2 {
+    font-size: 1.25rem;
+  }
+  
+  .unauthorized-content p,
+  .forbidden-content p {
+    font-size: 0.875rem;
+  }
+  
+  .login-button,
+  .back-button {
+    width: 100%;
+    padding: 0.875rem 1rem;
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner .spinner {
+    animation: none;
+  }
+  
+  .login-button,
+  .back-button {
+    transition: none;
+  }
+}
+
+/* =============================================================================
+   DARK MODE
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .protected-route-unauthorized,
+  .protected-route-forbidden {
+    background: #1f2937;
+  }
+  
+  .unauthorized-content,
+  .forbidden-content {
+    background: #374151;
+    color: #f9fafb;
+  }
+  
+  .unauthorized-content h2 {
+    color: #f9fafb;
+  }
+  
+  .unauthorized-content p {
+    color: #d1d5db;
+  }
+  
+  .forbidden-content h2 {
+    color: #fca5a5;
+  }
+  
+  .forbidden-content p {
+    color: #d1d5db;
+  }
+  
+  .role-required {
+    color: #e5e7eb;
+    background: #4b5563;
+  }
+  
+  .current-role {
+    color: #9ca3af;
+  }
+  
+  .login-button {
+    background: #3b82f6;
+  }
+  
+  .login-button:hover {
+    background: #2563eb;
+  }
+  
+  .login-button:active {
+    background: #1d4ed8;
+  }
+  
+  .back-button {
+    background: #4b5563;
+    color: #e5e7eb;
+    border-color: #6b7280;
+  }
+  
+  .back-button:hover {
+    background: #6b7280;
+    border-color: #9ca3af;
+  }
+  
+  .back-button:active {
+    background: #9ca3af;
+  }
+}

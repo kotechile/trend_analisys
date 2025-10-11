@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Settings Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover { background: #0056b3; }
+        .button.success { background: #28a745; }
+        .feature-list {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .iframe-container {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Enhanced Settings Test</h1>
+        <p>Test the enhanced Settings page with real LLM provider data.</p>
+        
+        <div class="status success">
+            <strong>✅ Success:</strong> Basic Settings page is working! Now testing enhanced features.
+        </div>
+        
+        <div class="feature-list">
+            <h3>🎯 New Features Added:</h3>
+            <ul>
+                <li><strong>✅ Real LLM Data:</strong> Fetches actual providers from backend API</li>
+                <li><strong>✅ Provider Cards:</strong> Shows each LLM provider with details</li>
+                <li><strong>✅ Default Indicator:</strong> Marks which provider is currently default</li>
+                <li><strong>✅ Status Information:</strong> Shows active/inactive status and priority</li>
+                <li><strong>✅ Usage Statistics:</strong> Displays request counts and costs</li>
+                <li><strong>✅ Loading State:</strong> Shows loading indicator while fetching data</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h3>🧪 Test Steps:</h3>
+            <ol>
+                <li>Click the button below to open the enhanced app</li>
+                <li>Click the <strong>"Settings"</strong> tab</li>
+                <li>Look for the <strong>"LLM Provider Management"</strong> section</li>
+                <li>Verify you see <strong>4 LLM providers</strong> listed</li>
+                <li>Check that <strong>GPT-5 Mini</strong> is marked as "(Default)"</li>
+                <li>Verify each provider shows type, model, status, and usage stats</li>
+            </ol>
+        </div>
+        
+        <button class="button success" onclick="openEnhancedApp()">Open Enhanced Settings</button>
+        
+        <div class="iframe-container">
+            <iframe 
+                src="http://localhost:3000" 
+                width="100%" 
+                height="100%"
+                frameborder="0"
+                title="Enhanced TrendTap App"
+            ></iframe>
+        </div>
+        
+        <div class="step">
+            <h3>🔍 What You Should See in Settings:</h3>
+            <ul>
+                <li><strong>Success Message:</strong> "Settings Page is Working!"</li>
+                <li><strong>LLM Section:</strong> "LLM Provider Management"</li>
+                <li><strong>Provider Count:</strong> "Found 4 LLM providers:"</li>
+                <li><strong>Provider Cards:</strong> Each with name, type, model, status</li>
+                <li><strong>Default Provider:</strong> GPT-5 Mini marked as "(Default)"</li>
+                <li><strong>Usage Stats:</strong> Request counts and costs for each provider</li>
+            </ul>
+        </div>
+        
+        <div class="status info">
+            <strong>🔧 Backend Integration:</strong><br>
+            The Settings page now fetches real data from:<br>
+            <code>http://localhost:8000/api/admin/llm/providers</code><br>
+            This shows the 4 configured LLM providers with their current status.
+        </div>
+        
+        <div class="status warning">
+            <strong>⚠️ If You Don't See LLM Data:</strong><br>
+            - Check that backend is running on port 8000<br>
+            - Look for JavaScript errors in browser console (F12)<br>
+            - Verify the API endpoint is accessible
+        </div>
+        
+        <div class="feature-list">
+            <h3>🎉 Next Steps Available:</h3>
+            <ul>
+                <li><strong>Edit Functionality:</strong> Add edit buttons for each provider</li>
+                <li><strong>Default Switching:</strong> Allow changing default provider</li>
+                <li><strong>Provider Testing:</strong> Add test buttons for each provider</li>
+                <li><strong>Add New Providers:</strong> Form to add new LLM providers</li>
+                <li><strong>Real-time Updates:</strong> Live updates when providers change</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function openEnhancedApp() {
+            window.open('http://localhost:3000', '_blank');
+        }
+        
+        // Auto-refresh iframe every 30 seconds
+        setInterval(() => {
+            const iframe = document.querySelector('iframe');
+            if (iframe) {
+                iframe.src = iframe.src;
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+
+

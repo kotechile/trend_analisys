@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Trending Topics</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        .result { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Debug Trending Topics Discovery</h1>
+    
+    <div>
+        <label>Search Term: </label>
+        <input type="text" id="searchTerm" value="sustainable living" style="width: 200px; padding: 5px;">
+    </div>
+    
+    <div>
+        <label>Selected Programs: </label>
+        <input type="text" id="selectedPrograms" value="1,2" style="width: 200px; padding: 5px;">
+    </div>
+    
+    <button onclick="testTrendingTopics()">Test Trending Topics Discovery</button>
+    
+    <div id="result" class="result" style="display: none;">
+        <h3>Result:</h3>
+        <pre id="resultContent"></pre>
+    </div>
+
+    <script>
+        async function testTrendingTopics() {
+            const searchTerm = document.getElementById('searchTerm').value;
+            const selectedPrograms = document.getElementById('selectedPrograms').value.split(',').map(s => s.trim());
+            const resultDiv = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+            
+            console.log('Testing trending topics discovery...');
+            console.log('Search term:', searchTerm);
+            console.log('Selected programs:', selectedPrograms);
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/trend-analysis/discover-trends', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_term: searchTerm,
+                        selected_programs: selectedPrograms,
+                        user_id: 'test-user'
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Response data:', data);
+                    resultContent.textContent = JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    resultContent.textContent = `Error ${response.status}: ${errorText}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                console.error('Request failed:', error);
+                resultContent.textContent = `Request failed: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+
+

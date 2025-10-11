@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirect URI Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .google-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 20px 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .google-btn:hover {
+            background: #3367d6;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Redirect URI Test</h1>
+        <p>This page tests if the Google OAuth redirect URI is properly configured.</p>
+        
+        <div class="status warning">
+            <strong>⚠️ Current Error:</strong><br>
+            Error 400: redirect_uri_mismatch<br>
+            <small>The redirect URI in Google Cloud Console doesn't match what Supabase is sending.</small>
+        </div>
+        
+        <div class="code">
+            <strong>Required Redirect URI:</strong><br>
+            https://bvsqnmkvbbvtrcomtvnc.supabase.co/auth/v1/callback
+        </div>
+        
+        <div id="status" class="status info">
+            Ready to test Google OAuth with correct redirect URI...
+        </div>
+        
+        <button id="googleBtn" class="google-btn" onclick="testGoogleAuth()">
+            🔍 Test Google OAuth
+        </button>
+        
+        <div id="result"></div>
+        
+        <div style="margin-top: 30px; text-align: left;">
+            <h3>📋 Steps to Fix:</h3>
+            <ol>
+                <li><strong>Go to Google Cloud Console</strong></li>
+                <li><strong>Select your TestGemini project</strong></li>
+                <li><strong>Go to APIs & Services → Credentials</strong></li>
+                <li><strong>Click on your OAuth 2.0 Client ID</strong></li>
+                <li><strong>In "Authorized redirect URIs", add:</strong>
+                    <div class="code">https://bvsqnmkvbbvtrcomtvnc.supabase.co/auth/v1/callback</div>
+                </li>
+                <li><strong>Click "Save"</strong></li>
+                <li><strong>Come back and test again</strong></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://bvsqnmkvbbvtrcomtvnc.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2c3FubWt2YmJ2dHJjb210dm5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1MDYyMTQsImV4cCI6MjA3NTA4MjIxNH0.Vg6_r6djVh9vhwP6QNvg3HS5X4AI6Ic3EGp1BlHOeig';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        async function testGoogleAuth() {
+            try {
+                updateStatus('Testing Google OAuth with correct redirect URI...', 'info');
+                
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: 'https://bvsqnmkvbbvtrcomtvnc.supabase.co/auth/v1/callback',
+                        queryParams: {
+                            access_type: 'offline',
+                            prompt: 'consent',
+                        },
+                    },
+                });
+                
+                if (error) {
+                    updateStatus('❌ Error: ' + error.message, 'error');
+                    document.getElementById('result').innerHTML = `
+                        <div class="status error">
+                            <strong>OAuth Error:</strong><br>
+                            ${error.message}<br><br>
+                            <strong>This usually means:</strong><br>
+                            • The redirect URI is not added to Google Cloud Console<br>
+                            • The redirect URI doesn't match exactly<br>
+                            • There's a typo in the URI
+                        </div>
+                    `;
+                } else {
+                    updateStatus('🔄 Redirecting to Google...', 'info');
+                    document.getElementById('result').innerHTML = `
+                        <div class="status success">
+                            <strong>✅ OAuth initiated successfully!</strong><br>
+                            You should be redirected to Google for authentication.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                updateStatus('❌ Unexpected error: ' + error.message, 'error');
+                document.getElementById('result').innerHTML = `
+                    <div class="status error">
+                        <strong>Unexpected Error:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Check if we're returning from OAuth
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('code') || urlParams.get('error')) {
+                updateStatus('🔄 Processing OAuth callback...', 'info');
+                
+                // Check if we have a user session
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (session && session.user) {
+                        updateStatus('✅ Successfully authenticated with Google!', 'success');
+                        document.getElementById('result').innerHTML = `
+                            <div class="status success">
+                                <strong>🎉 Authentication Successful!</strong><br>
+                                <strong>User:</strong> ${session.user.email}<br>
+                                <strong>Name:</strong> ${session.user.user_metadata?.full_name || 'Not provided'}<br>
+                                <strong>Provider:</strong> ${session.user.app_metadata?.provider || 'Unknown'}
+                            </div>
+                        `;
+                    } else {
+                        updateStatus('❌ Authentication failed', 'error');
+                    }
+                });
+            } else {
+                updateStatus('Ready to test Google OAuth...', 'info');
+            }
+        };
+    </script>
+</body>
+</html>
+
+

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug User ID</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Debug User ID</h1>
+    <div id="output"></div>
+    
+    <script>
+        // Initialize Supabase client (you'll need to replace with your actual keys)
+        const supabaseUrl = 'https://dgcsqiaciyqvprtpopxg.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnY3NxaWFjaXlxdnBydHBvcHhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0NDQ0MDAsImV4cCI6MjA1MjAyMDQwMH0.YourAnonKey'; // Replace with your actual anon key
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        async function debugUser() {
+            const output = document.getElementById('output');
+            
+            try {
+                // Get current user
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    output.innerHTML = `<p style="color: red;">Error getting user: ${error.message}</p>`;
+                    return;
+                }
+                
+                if (!user) {
+                    output.innerHTML = '<p style="color: orange;">No user authenticated. Please log in first.</p>';
+                    return;
+                }
+                
+                output.innerHTML = `
+                    <h2>Current User Info:</h2>
+                    <p><strong>User ID:</strong> ${user.id}</p>
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>Created At:</strong> ${user.created_at}</p>
+                    <p><strong>Last Sign In:</strong> ${user.last_sign_in_at}</p>
+                    
+                    <h3>Test Research Topic Creation:</h3>
+                    <button onclick="testCreateTopic()">Test Create Topic</button>
+                    <div id="testResult"></div>
+                `;
+                
+                // Store user ID globally for testing
+                window.currentUserId = user.id;
+                
+            } catch (error) {
+                output.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testCreateTopic() {
+            const testResult = document.getElementById('testResult');
+            
+            if (!window.currentUserId) {
+                testResult.innerHTML = '<p style="color: red;">No user ID available</p>';
+                return;
+            }
+            
+            try {
+                const topicData = {
+                    title: 'Debug Test Topic',
+                    description: 'Test description',
+                    status: 'active',
+                    user_id: window.currentUserId,
+                    version: 1
+                };
+                
+                const { data, error } = await supabase
+                    .from('research_topics')
+                    .insert([topicData])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    testResult.innerHTML = `<p style="color: red;">Error creating topic: ${error.message}</p>`;
+                    console.error('Full error:', error);
+                } else {
+                    testResult.innerHTML = `<p style="color: green;">Success! Topic created: ${data.title}</p>`;
+                }
+                
+            } catch (error) {
+                testResult.innerHTML = `<p style="color: red;">Exception: ${error.message}</p>`;
+            }
+        }
+        
+        // Run debug on page load
+        debugUser();
+    </script>
+</body>
+</html>
+
+

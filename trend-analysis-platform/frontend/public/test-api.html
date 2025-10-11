@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #1976d2;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        .category {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .subtopic {
+            background-color: #f0f8ff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+        }
+        .program {
+            background-color: #fff8e1;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 TrendTap - LLM API Test</h1>
+        <p>Test the AI-powered affiliate research system</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🧠 Manual Test</h2>
+        <div class="input-group">
+            <input type="text" id="searchTerm" placeholder="Enter search term (e.g., weekend by the lake)" value="weekend by the lake">
+            <input type="text" id="niche" placeholder="Niche (optional)" value="outdoor recreation">
+            <button onclick="testAPI()" id="testBtn">Test LLM API</button>
+        </div>
+        <div id="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Predefined Tests</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">
+            <button onclick="runTest('weekend by the lake', 'outdoor recreation')">Outdoor: Weekend by the Lake</button>
+            <button onclick="runTest('best pizza recipes', 'cooking')">Food: Pizza Recipes</button>
+            <button onclick="runTest('smart home automation', 'technology')">Tech: Smart Home</button>
+            <button onclick="runTest('fitness apps for beginners', 'health')">Health: Fitness Apps</button>
+            <button onclick="runTest('homemade bread baking', 'cooking')">Food: Bread Baking</button>
+            <button onclick="runTest('mountain hiking gear', 'outdoor')">Outdoor: Hiking Gear</button>
+        </div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const searchTerm = document.getElementById('searchTerm').value;
+            const niche = document.getElementById('niche').value;
+            const resultDiv = document.getElementById('result');
+            const testBtn = document.getElementById('testBtn');
+            
+            if (!searchTerm.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter a search term</div>';
+                return;
+            }
+            
+            testBtn.disabled = true;
+            testBtn.textContent = 'Testing...';
+            resultDiv.innerHTML = '<div class="result">Testing API...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/affiliate-research/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_term: searchTerm,
+                        niche: niche || null,
+                        budget_range: 'any'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayResults(data);
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<div class="result error">Error: ${errorData.detail || response.statusText}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = 'Test LLM API';
+            }
+        }
+        
+        function runTest(term, niche) {
+            document.getElementById('searchTerm').value = term;
+            document.getElementById('niche').value = niche;
+            testAPI();
+        }
+        
+        function displayResults(data) {
+            const resultDiv = document.getElementById('result');
+            
+            let html = `
+                <div class="result success">
+                    <h3>✅ Test Successful!</h3>
+                    <p><strong>Search Term:</strong> ${data.data.search_term}</p>
+                    <p><strong>Category:</strong> <span class="category">${data.data.analysis.category}</span></p>
+                    <p><strong>Target Audience:</strong> ${data.data.analysis.target_audience}</p>
+                    <p><strong>Competition Level:</strong> ${data.data.analysis.competition_level}</p>
+                    <p><strong>Earnings Potential:</strong> ${data.data.analysis.earnings_potential}</p>
+                </div>
+            `;
+            
+            // Content Opportunities
+            if (data.data.analysis.content_opportunities) {
+                html += `
+                    <div class="result">
+                        <h4>📊 Content Opportunities:</h4>
+                        ${data.data.analysis.content_opportunities.map(opp => `<div class="subtopic">• ${opp}</div>`).join('')}
+                    </div>
+                `;
+            }
+            
+            // AI-Generated Subtopics
+            if (data.data.analysis.related_areas) {
+                html += `
+                    <div class="result">
+                        <h4>🎯 AI-Generated Subtopics:</h4>
+                        ${data.data.analysis.related_areas.map(area => `
+                            <div class="subtopic">
+                                <strong>${area.area}</strong><br>
+                                <small>${area.description} • ${Math.round(area.relevance_score * 100)}% relevant</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            // Affiliate Programs
+            if (data.data.programs) {
+                html += `
+                    <div class="result">
+                        <h4>💰 Affiliate Programs (${data.data.total_programs} found):</h4>
+                        ${data.data.programs.slice(0, 3).map(program => `
+                            <div class="program">
+                                <strong>${program.name}</strong><br>
+                                <small>${program.commission} • ${program.difficulty} • ${program.affiliate_network}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        // Auto-test on page load
+        window.onload = function() {
+            testAPI();
+        };
+    </script>
+</body>
+</html>

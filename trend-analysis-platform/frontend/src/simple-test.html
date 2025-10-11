@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Trending Topics Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 12px 24px; margin: 10px; font-size: 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1565c0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
+        .error { border-color: #f44336; background: #ffebee; }
+        .success { border-color: #4caf50; background: #e8f5e8; }
+        .loading { border-color: #2196f3; background: #e3f2fd; }
+        .debug { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px; border-radius: 4px; }
+        .topic { margin: 10px 0; padding: 15px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fff8e1; }
+        .topic h4 { margin: 0 0 10px 0; color: #1976d2; }
+        .chip { display: inline-block; padding: 4px 8px; margin: 2px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Trending Topics Discovery Test</h1>
+        
+        <div>
+            <h3>Test Configuration:</h3>
+            <p><strong>Search Term:</strong> <span id="searchTermDisplay">sustainable living</span></p>
+            <p><strong>Selected Programs:</strong> <span id="programsDisplay">1, 2, 3</span></p>
+        </div>
+        
+        <div>
+            <button id="testButton" onclick="testAPI()">🚀 Test Trending Topics API</button>
+            <button onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+        
+        <div id="debug" class="debug" style="display: none;">
+            <h4>Debug Log:</h4>
+            <div id="debugContent"></div>
+        </div>
+        
+        <div id="result" class="result" style="display: none;">
+            <h3>API Response:</h3>
+            <div id="resultContent"></div>
+        </div>
+        
+        <div id="topics" style="display: none;">
+            <h3>📈 Trending Topics Found:</h3>
+            <div id="topicsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            console.log(message);
+            const debugDiv = document.getElementById('debug');
+            const debugContent = document.getElementById('debugContent');
+            debugContent.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            debugDiv.style.display = 'block';
+        }
+
+        function clearResults() {
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('debug').style.display = 'none';
+            document.getElementById('topics').style.display = 'none';
+            document.getElementById('debugContent').innerHTML = '';
+            document.getElementById('resultContent').innerHTML = '';
+            document.getElementById('topicsContent').innerHTML = '';
+        }
+
+        async function testAPI() {
+            const searchTerm = 'sustainable living';
+            const selectedPrograms = ['1', '2', '3'];
+            const resultDiv = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+            const topicsDiv = document.getElementById('topics');
+            const topicsContent = document.getElementById('topicsContent');
+            const testButton = document.getElementById('testButton');
+            
+            log('🚀 Starting API test...');
+            log('Search term: ' + searchTerm);
+            log('Selected programs: ' + JSON.stringify(selectedPrograms));
+            
+            // Show loading state
+            testButton.textContent = '⏳ Testing API...';
+            testButton.disabled = true;
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultContent.innerHTML = 'Making API request to backend...';
+            
+            try {
+                log('📡 Fetching: http://localhost:8000/api/trend-analysis/discover-trends');
+                
+                const response = await fetch('http://localhost:8000/api/trend-analysis/discover-trends', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_term: searchTerm,
+                        selected_programs: selectedPrograms,
+                        user_id: 'test-user'
+                    })
+                });
+                
+                log('📊 Response status: ' + response.status);
+                log('📊 Response ok: ' + response.ok);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Success! Received data: ' + JSON.stringify(data).substring(0, 100) + '...');
+                    
+                    // Show raw response
+                    resultContent.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    resultDiv.className = 'result success';
+                    
+                    // Show formatted topics
+                    if (data.data && data.data.trending_topics) {
+                        displayTopics(data.data.trending_topics);
+                    }
+                } else {
+                    const errorText = await response.text();
+                    log('❌ Error response: ' + errorText);
+                    resultContent.innerHTML = `<strong>Error ${response.status}:</strong><br><pre>${errorText}</pre>`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                log('💥 Request failed: ' + error.message);
+                resultContent.innerHTML = `<strong>Request failed:</strong><br><pre>${error.message}</pre>`;
+                resultDiv.className = 'result error';
+            } finally {
+                testButton.textContent = '🚀 Test Trending Topics API';
+                testButton.disabled = false;
+            }
+        }
+
+        function displayTopics(topics) {
+            const topicsDiv = document.getElementById('topics');
+            const topicsContent = document.getElementById('topicsContent');
+            
+            topicsContent.innerHTML = '';
+            
+            topics.forEach((topic, index) => {
+                const topicDiv = document.createElement('div');
+                topicDiv.className = 'topic';
+                topicDiv.innerHTML = `
+                    <h4>${topic.topic}</h4>
+                    <div>
+                        <span class="chip">${topic.search_volume.toLocaleString()} searches</span>
+                        <span class="chip">${topic.trend_direction} trend</span>
+                        <span class="chip">${topic.competition} competition</span>
+                        <span class="chip">${topic.opportunity_score}% opportunity</span>
+                    </div>
+                    <p><strong>Keywords:</strong> ${topic.related_keywords.join(', ')}</p>
+                    <p><strong>Content Ideas:</strong></p>
+                    <ul>
+                        ${topic.content_ideas.map(idea => `<li>${idea}</li>`).join('')}
+                    </ul>
+                `;
+                topicsContent.appendChild(topicDiv);
+            });
+            
+            topicsDiv.style.display = 'block';
+        }
+
+        // Test on page load
+        window.onload = function() {
+            log('📄 Test page loaded');
+            log('🌐 URL: ' + window.location.href);
+            log('🔧 Ready to test trending topics API');
+        };
+    </script>
+</body>
+</html>
+
+

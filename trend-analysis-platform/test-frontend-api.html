@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend API Integration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .subtopic { margin: 5px 0; padding: 5px; background: white; border-left: 3px solid #007bff; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Test Frontend API Integration</h1>
+    <button onclick="testAPI()">Test Topic Decomposition API</button>
+    <div id="result" class="result" style="display: none;">
+        <h3>API Response:</h3>
+        <div id="subtopics"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            const subtopicsDiv = document.getElementById('subtopics');
+            
+            resultDiv.style.display = 'block';
+            subtopicsDiv.innerHTML = 'Loading...';
+            
+            try {
+                console.log('Testing enhanced API...');
+                const response = await fetch('http://localhost:8000/api/enhanced-topic-decomposition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_query: 'Eco Friendly Homes',
+                        user_id: 'test-user',
+                        max_subtopics: 8,
+                        use_autocomplete: true,
+                        use_llm: true
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.subtopics && Array.isArray(data.subtopics)) {
+                    subtopicsDiv.innerHTML = data.subtopics.map(subtopic => 
+                        `<div class="subtopic">${subtopic}</div>`
+                    ).join('');
+                } else {
+                    subtopicsDiv.innerHTML = 'No subtopics found in response';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                subtopicsDiv.innerHTML = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
+
+

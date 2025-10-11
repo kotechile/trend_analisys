@@ -1,0 +1,492 @@
+/**
+ * RegisterPage Component Styles
+ *
+ * This file contains all styles for the RegisterPage component,
+ * providing a modern and responsive registration interface.
+ */
+
+/* =============================================================================
+   REGISTER PAGE LAYOUT
+   ============================================================================= */
+
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow-x: hidden;
+}
+
+.register-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+
+.register-page__header {
+  padding: 2rem 0;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.register-page__header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.register-page__logo {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.register-page__tagline {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-weight: 300;
+}
+
+/* =============================================================================
+   MAIN CONTENT
+   ============================================================================= */
+
+.register-page__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+  position: relative;
+  z-index: 1;
+}
+
+.register-page__container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.register-page__content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 3rem;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* =============================================================================
+   FORM SECTION
+   ============================================================================= */
+
+.register-page__form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.register-page__form-header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.register-page__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.5rem 0;
+}
+
+.register-page__subtitle {
+  font-size: 1rem;
+  color: #718096;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.register-page__form-container {
+  width: 100%;
+}
+
+/* =============================================================================
+   INFO SECTION
+   ============================================================================= */
+
+.register-page__info-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.register-page__info-content {
+  width: 100%;
+  max-width: 400px;
+}
+
+.register-page__info-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0 0 2rem 0;
+  text-align: center;
+}
+
+.register-page__info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.register-page__info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  transition: all 0.2s ease;
+}
+
+.register-page__info-item:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.register-page__info-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.register-page__info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.register-page__info-text strong {
+  font-weight: 600;
+  color: #1a202c;
+  font-size: 1rem;
+}
+
+.register-page__info-text span {
+  font-size: 0.875rem;
+  color: #718096;
+  line-height: 1.4;
+}
+
+/* =============================================================================
+   FEATURES HIGHLIGHT
+   ============================================================================= */
+
+.register-page__features-highlight {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.register-page__feature-stat {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.register-page__stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+  margin: 0 0 0.25rem 0;
+  line-height: 1;
+}
+
+.register-page__stat-label {
+  font-size: 0.75rem;
+  color: #718096;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* =============================================================================
+   LOADING STATE
+   ============================================================================= */
+
+.register-page__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 1rem;
+}
+
+.register-page__loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.register-page__loading-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  margin: 0;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   FOOTER
+   ============================================================================= */
+
+.register-page__footer {
+  padding: 2rem 0;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.register-page__footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.register-page__copyright {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+}
+
+.register-page__footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.register-page__footer-link {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s ease;
+}
+
+.register-page__footer-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .register-page__content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 2rem;
+    margin: 0 1rem;
+  }
+
+  .register-page__header {
+    padding: 1.5rem 0;
+  }
+
+  .register-page__logo {
+    font-size: 2rem;
+  }
+
+  .register-page__tagline {
+    font-size: 1rem;
+  }
+
+  .register-page__title {
+    font-size: 1.75rem;
+  }
+
+  .register-page__info-section {
+    order: -1;
+    padding: 0;
+  }
+
+  .register-page__info-title {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .register-page__info-list {
+    gap: 1rem;
+  }
+
+  .register-page__info-item {
+    padding: 0.75rem;
+  }
+
+  .register-page__features-highlight {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
+  }
+
+  .register-page__footer-links {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-page__content {
+    padding: 1.5rem;
+    margin: 0 0.5rem;
+  }
+
+  .register-page__header-content,
+  .register-page__footer-content {
+    padding: 0 1rem;
+  }
+
+  .register-page__logo {
+    font-size: 1.75rem;
+  }
+
+  .register-page__title {
+    font-size: 1.5rem;
+  }
+
+  .register-page__info-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+
+  .register-page__info-icon {
+    font-size: 1.25rem;
+  }
+
+  .register-page__features-highlight {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* =============================================================================
+   DARK MODE SUPPORT
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  .register-page__content {
+    background: rgba(26, 32, 44, 0.95);
+    color: #ffffff;
+  }
+
+  .register-page__title,
+  .register-page__info-text strong {
+    color: #ffffff;
+  }
+
+  .register-page__subtitle {
+    color: #a0aec0;
+  }
+
+  .register-page__info-text span {
+    color: #a0aec0;
+  }
+
+  .register-page__info-item {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: rgba(102, 126, 234, 0.2);
+  }
+
+  .register-page__info-item:hover {
+    background: rgba(102, 126, 234, 0.2);
+  }
+
+  .register-page__features-highlight {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+    border-color: rgba(102, 126, 234, 0.3);
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .register-page__info-item {
+    transition: none;
+  }
+
+  .register-page__info-item:hover {
+    transform: none;
+  }
+
+  .register-page__loading-spinner {
+    animation: none;
+  }
+}
+
+/* =============================================================================
+   PRINT STYLES
+   ============================================================================= */
+
+@media print {
+  .register-page {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .register-page::before {
+    display: none;
+  }
+
+  .register-page__content {
+    background: #ffffff;
+    box-shadow: none;
+    border: 1px solid #e2e8f0;
+  }
+
+  .register-page__info-section {
+    display: none;
+  }
+}

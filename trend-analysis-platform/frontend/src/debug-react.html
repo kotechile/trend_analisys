@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug React App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1565c0; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
+        .error { border-color: #f44336; background: #ffebee; }
+        .success { border-color: #4caf50; background: #e8f5e8; }
+        .debug { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Debug React App</h1>
+        
+        <div>
+            <h3>Test 1: Check if React app is accessible</h3>
+            <button onclick="testReactApp()">Test React App</button>
+        </div>
+        
+        <div>
+            <h3>Test 2: Check if main page loads</h3>
+            <button onclick="testMainPage()">Test Main Page</button>
+        </div>
+        
+        <div>
+            <h3>Test 3: Check console for errors</h3>
+            <button onclick="checkConsole()">Check Console</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;">
+            <h3>Test Results:</h3>
+            <div id="resultContent"></div>
+        </div>
+        
+        <div id="debug" class="debug" style="display: none;">
+            <h4>Debug Log:</h4>
+            <div id="debugContent"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            console.log(message);
+            const debugDiv = document.getElementById('debug');
+            const debugContent = document.getElementById('debugContent');
+            debugContent.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            debugDiv.style.display = 'block';
+        }
+
+        function showResult(message, isError = false) {
+            const resultDiv = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+            resultContent.innerHTML = message;
+            resultDiv.className = 'result ' + (isError ? 'error' : 'success');
+            resultDiv.style.display = 'block';
+        }
+
+        async function testReactApp() {
+            log('Testing React app accessibility...');
+            try {
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    const html = await response.text();
+                    if (html.includes('TrendTap') && html.includes('root')) {
+                        showResult('✅ React app is accessible and serving content');
+                        log('React app HTML contains expected elements');
+                    } else {
+                        showResult('⚠️ React app accessible but content seems incomplete', true);
+                        log('React app HTML: ' + html.substring(0, 200) + '...');
+                    }
+                } else {
+                    showResult('❌ React app not accessible: ' + response.status, true);
+                }
+            } catch (error) {
+                showResult('❌ Error accessing React app: ' + error.message, true);
+                log('Error: ' + error.message);
+            }
+        }
+
+        async function testMainPage() {
+            log('Testing main page functionality...');
+            try {
+                // Test if we can access the main page
+                const response = await fetch('http://localhost:3000');
+                const html = await response.text();
+                
+                // Check for specific elements
+                const hasTitle = html.includes('TrendTap');
+                const hasRoot = html.includes('root');
+                const hasScripts = html.includes('main.tsx');
+                
+                let result = 'Main page analysis:\n';
+                result += '• Title: ' + (hasTitle ? '✅' : '❌') + '\n';
+                result += '• Root div: ' + (hasRoot ? '✅' : '❌') + '\n';
+                result += '• Scripts: ' + (hasScripts ? '✅' : '❌') + '\n';
+                
+                if (hasTitle && hasRoot && hasScripts) {
+                    showResult('✅ Main page structure looks correct');
+                } else {
+                    showResult('⚠️ Main page has some issues:\n' + result, true);
+                }
+                
+                log('Main page HTML preview: ' + html.substring(0, 300) + '...');
+            } catch (error) {
+                showResult('❌ Error testing main page: ' + error.message, true);
+                log('Error: ' + error.message);
+            }
+        }
+
+        function checkConsole() {
+            log('Checking browser console...');
+            
+            // Override console methods to capture errors
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            const errors = [];
+            const warnings = [];
+            
+            console.error = function(...args) {
+                errors.push(args.join(' '));
+                originalError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                warnings.push(args.join(' '));
+                originalWarn.apply(console, args);
+            };
+            
+            // Test a simple operation that might trigger errors
+            try {
+                // Try to access the React app
+                fetch('http://localhost:3000').then(response => {
+                    if (response.ok) {
+                        log('✅ No console errors during basic fetch');
+                    }
+                }).catch(error => {
+                    log('❌ Console error during fetch: ' + error.message);
+                });
+                
+                // Check for common React errors
+                if (errors.length > 0) {
+                    showResult('❌ Console errors found:\n' + errors.join('\n'), true);
+                } else if (warnings.length > 0) {
+                    showResult('⚠️ Console warnings found:\n' + warnings.join('\n'));
+                } else {
+                    showResult('✅ No console errors or warnings detected');
+                }
+            } catch (error) {
+                showResult('❌ Error checking console: ' + error.message, true);
+            }
+        }
+
+        // Auto-run tests on page load
+        window.onload = function() {
+            log('Debug page loaded');
+            log('Current URL: ' + window.location.href);
+            log('Ready to debug React app');
+        };
+    </script>
+</body>
+</html>
+
+

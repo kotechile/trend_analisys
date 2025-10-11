@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Debug</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Settings Page Debug</h1>
+        <p>This page helps debug the Settings page loading issue.</p>
+        
+        <div id="status" class="status info">
+            Testing Settings page access...
+        </div>
+        
+        <div id="testResults"></div>
+        
+        <h3>🧪 Test Steps:</h3>
+        <ol>
+            <li>Click "Test Main App" to verify the main app loads</li>
+            <li>Click "Test Settings Tab" to check if Settings tab is accessible</li>
+            <li>Click "Test LLM API" to verify backend LLM API is working</li>
+            <li>Check browser console for any JavaScript errors</li>
+        </ol>
+        
+        <div style="margin: 20px 0;">
+            <button class="button" onclick="testMainApp()">Test Main App</button>
+            <button class="button" onclick="testSettingsTab()">Test Settings Tab</button>
+            <button class="button" onclick="testLLMAPI()">Test LLM API</button>
+            <button class="button" onclick="openSettings()">Open Settings Page</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            results.appendChild(div);
+        }
+        
+        async function testMainApp() {
+            try {
+                updateStatus('Testing main app...', 'info');
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    addResult('✅ Main app is accessible', 'success');
+                } else {
+                    addResult(`❌ Main app returned status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Main app error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testSettingsTab() {
+            try {
+                updateStatus('Testing Settings tab access...', 'info');
+                // This would test if the Settings component can be loaded
+                addResult('ℹ️ Settings tab test - check browser console for component errors', 'info');
+            } catch (error) {
+                addResult(`❌ Settings tab error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testLLMAPI() {
+            try {
+                updateStatus('Testing LLM API...', 'info');
+                const response = await fetch('http://localhost:8000/api/admin/llm/providers');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ LLM API working - ${data.length} providers found`, 'success');
+                } else {
+                    addResult(`❌ LLM API returned status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ LLM API error: ${error.message}`, 'error');
+            }
+        }
+        
+        function openSettings() {
+            updateStatus('Opening Settings page...', 'info');
+            window.open('http://localhost:3000', '_blank');
+            addResult('ℹ️ Opened main app in new tab - navigate to Settings tab', 'info');
+        }
+        
+        // Auto-run tests on page load
+        window.onload = function() {
+            addResult('🔍 Starting Settings page debug...', 'info');
+            testMainApp();
+            testLLMAPI();
+        };
+    </script>
+</body>
+</html>
+
+

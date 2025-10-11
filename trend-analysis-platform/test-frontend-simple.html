@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Frontend API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .subtopic { margin: 5px 0; padding: 5px; background: white; border-left: 3px solid #007bff; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .log { background: #000; color: #0f0; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Simple Frontend API Test</h1>
+    <button onclick="testEnhancedAPI()">Test Enhanced API</button>
+    <button onclick="testBasicAPI()">Test Basic API</button>
+    <button onclick="clearLog()">Clear Log</button>
+    
+    <div id="log" class="log"></div>
+    <div id="result" class="result" style="display: none;">
+        <h3>API Response:</h3>
+        <div id="subtopics"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        async function testEnhancedAPI() {
+            log('Testing Enhanced API...');
+            try {
+                const response = await fetch('http://localhost:8000/api/enhanced-topic-decomposition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_query: 'Eco Friendly Homes',
+                        user_id: 'test-user',
+                        max_subtopics: 8,
+                        use_autocomplete: true,
+                        use_llm: true
+                    })
+                });
+                
+                log(`Response status: ${response.status}`);
+                log(`Response headers: ${JSON.stringify([...response.headers.entries()])}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log(`Response data: ${JSON.stringify(data, null, 2)}`);
+                
+                if (data.subtopics && Array.isArray(data.subtopics)) {
+                    log(`✅ Success! Found ${data.subtopics.length} subtopics`);
+                    displayResults(data.subtopics);
+                } else {
+                    log('❌ No subtopics found in response');
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function testBasicAPI() {
+            log('Testing Basic API...');
+            try {
+                const response = await fetch('http://localhost:8000/api/topic-decomposition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        search_query: 'Eco Friendly Homes',
+                        user_id: 'test-user',
+                        max_subtopics: 8,
+                        use_autocomplete: true,
+                        use_llm: true
+                    })
+                });
+                
+                log(`Response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log(`Response data: ${JSON.stringify(data, null, 2)}`);
+                
+                if (data.subtopics && Array.isArray(data.subtopics)) {
+                    log(`✅ Success! Found ${data.subtopics.length} subtopics`);
+                    displayResults(data.subtopics);
+                } else {
+                    log('❌ No subtopics found in response');
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function displayResults(subtopics) {
+            const resultDiv = document.getElementById('result');
+            const subtopicsDiv = document.getElementById('subtopics');
+            
+            resultDiv.style.display = 'block';
+            subtopicsDiv.innerHTML = subtopics.map(subtopic => 
+                `<div class="subtopic">${subtopic}</div>`
+            ).join('');
+        }
+    </script>
+</body>
+</html>
+
+

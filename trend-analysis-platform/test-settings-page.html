@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Page Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Settings Page Test</h1>
+        <p>This page helps you test if the Settings page is working correctly.</p>
+        
+        <div class="status info">
+            <strong>Instructions:</strong> Follow the steps below to test the Settings page functionality.
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: Access the Main App</h3>
+            <p>Click the button below to open TrendTap in a new tab:</p>
+            <button class="button" onclick="openMainApp()">Open TrendTap</button>
+        </div>
+        
+        <div class="step">
+            <h3>Step 2: Sign In with Google</h3>
+            <p>If you're not already signed in:</p>
+            <ol>
+                <li>Click "Continue with Google" on the login page</li>
+                <li>Complete the Google OAuth flow</li>
+                <li>You should be redirected to the TrendTap dashboard</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3>Step 3: Navigate to Settings</h3>
+            <p>Once signed in:</p>
+            <ol>
+                <li>Look for the "Settings" tab in the navigation</li>
+                <li>Click on the "Settings" tab</li>
+                <li>The Settings page should load with multiple tabs</li>
+            </ol>
+        </div>
+        
+        <div class="step">
+            <h3>Step 4: Test Settings Tabs</h3>
+            <p>In the Settings page, test these tabs:</p>
+            <ul>
+                <li><strong>Profile:</strong> Should show personal information form</li>
+                <li><strong>Security:</strong> Should show security options</li>
+                <li><strong>LLM Providers:</strong> Should show LLM management table</li>
+                <li><strong>Notifications:</strong> Should show notification preferences</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h3>Step 5: Test LLM Providers</h3>
+            <p>In the LLM Providers tab, you should see:</p>
+            <ul>
+                <li>Statistics cards (Total Providers, Active Providers, etc.)</li>
+                <li>A table with 4 LLM providers (GPT-5 Mini, Gemini 2.5 Flash Lite, etc.)</li>
+                <li>Test and Edit buttons for each provider</li>
+                <li>An "Add Provider" button</li>
+            </ul>
+        </div>
+        
+        <div id="testResults"></div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #e8f5e8; border-radius: 5px;">
+            <h3>✅ Expected Results:</h3>
+            <ul>
+                <li>Settings page loads without errors</li>
+                <li>All tabs are clickable and functional</li>
+                <li>LLM Providers tab shows real data from the backend</li>
+                <li>No JavaScript errors in browser console</li>
+                <li>UI is responsive and professional-looking</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 20px; background: #fff3cd; border-radius: 5px;">
+            <h3>⚠️ If Settings Page Doesn't Load:</h3>
+            <ol>
+                <li>Check browser console for JavaScript errors (F12 → Console)</li>
+                <li>Try refreshing the page</li>
+                <li>Check if you're signed in with Google</li>
+                <li>Verify the backend is running (http://localhost:8000)</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function openMainApp() {
+            window.open('http://localhost:3000', '_blank');
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            results.appendChild(div);
+        }
+        
+        // Auto-test backend connectivity
+        window.onload = function() {
+            addResult('🔍 Testing backend connectivity...', 'info');
+            
+            fetch('http://localhost:8000/api/admin/llm/providers')
+                .then(response => response.json())
+                .then(data => {
+                    addResult(`✅ Backend LLM API working - ${data.length} providers found`, 'success');
+                })
+                .catch(error => {
+                    addResult(`❌ Backend LLM API error: ${error.message}`, 'error');
+                });
+        };
+    </script>
+</body>
+</html>
+
+

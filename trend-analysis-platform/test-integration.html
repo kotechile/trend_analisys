@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrendTap Integration Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .loading { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚀 TrendTap Integration Test</h1>
+    <p>Testing the complete data flow from frontend to backend using Supabase SDK</p>
+
+    <div class="test-section" id="backend-test">
+        <h3>Backend Health Check</h3>
+        <button onclick="testBackendHealth()">Test Backend</button>
+        <div id="backend-result"></div>
+    </div>
+
+    <div class="test-section" id="topic-test">
+        <h3>Topic Decomposition Test</h3>
+        <button onclick="testTopicDecomposition()">Test Topic Decomposition</button>
+        <div id="topic-result"></div>
+    </div>
+
+    <div class="test-section" id="affiliate-test">
+        <h3>Affiliate Research Test</h3>
+        <button onclick="testAffiliateResearch()">Test Affiliate Research</button>
+        <div id="affiliate-result"></div>
+    </div>
+
+    <div class="test-section" id="trend-test">
+        <h3>Trend Analysis Test</h3>
+        <button onclick="testTrendAnalysis()">Test Trend Analysis</button>
+        <div id="trend-result"></div>
+    </div>
+
+    <div class="test-section" id="content-test">
+        <h3>Content Generation Test</h3>
+        <button onclick="testContentGeneration()">Test Content Generation</button>
+        <div id="content-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = '<p class="loading">Testing backend health...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health/`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Backend is healthy!</h4>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Backend health check failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testTopicDecomposition() {
+            const resultDiv = document.getElementById('topic-result');
+            resultDiv.innerHTML = '<p class="loading">Testing topic decomposition...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/topic-decomposition`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ search_query: 'eco friendly homes' })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Topic decomposition successful!</h4>
+                            <p><strong>Subtopics found:</strong> ${data.subtopics.join(', ')}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Topic decomposition failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testAffiliateResearch() {
+            const resultDiv = document.getElementById('affiliate-result');
+            resultDiv.innerHTML = '<p class="loading">Testing affiliate research...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/affiliate-research`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        search_term: 'eco friendly',
+                        topic: 'sustainable living'
+                    })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Affiliate research successful!</h4>
+                            <p><strong>Programs found:</strong> ${data.programs.length}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Affiliate research failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testTrendAnalysis() {
+            const resultDiv = document.getElementById('trend-result');
+            resultDiv.innerHTML = '<p class="loading">Testing trend analysis...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/trend-analysis`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        analysis_name: 'Eco Friendly Homes Analysis',
+                        keywords: ['eco friendly homes'],
+                        timeframe: '12m',
+                        geo: 'US'
+                    })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Trend analysis successful!</h4>
+                            <p><strong>Topic:</strong> ${data.topic}</p>
+                            <p><strong>Interest Score:</strong> ${data.interest_score}</p>
+                            <p><strong>Trend Direction:</strong> ${data.trend_direction}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Trend analysis failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testContentGeneration() {
+            const resultDiv = document.getElementById('content-result');
+            resultDiv.innerHTML = '<p class="loading">Testing content generation...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/content/generate`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: 'eco friendly homes',
+                        content_type: 'blog_post',
+                        keywords: ['eco friendly', 'sustainable'],
+                        max_ideas: 3
+                    })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Content generation successful!</h4>
+                            <p><strong>Ideas generated:</strong> ${data.ideas.length}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Content generation failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run backend health check on page load
+        window.onload = function() {
+            testBackendHealth();
+        };
+    </script>
+</body>
+</html>
