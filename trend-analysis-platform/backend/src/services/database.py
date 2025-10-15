@@ -9,13 +9,13 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 from supabase import create_client, Client
-from backend.src.models.keyword import Keyword
-from backend.src.models.analysis_report import KeywordAnalysisReport
-from backend.src.models.content_opportunity import ContentOpportunity
-from backend.src.models.seo_content_idea import SEOContentIdea
-from backend.src.models.ahrefs_export_file import AhrefsExportFile
-from backend.src.models.idea_burst_session import IdeaBurstSession
-from backend.src.models.selection_indicator import SelectionIndicator
+from ..models.keyword import Keyword
+from ..models.analysis_report import KeywordAnalysisReport
+from ..models.content_opportunity import ContentOpportunity
+from ..models.seo_content_idea import SEOContentIdea
+from ..models.ahrefs_export_file import AhrefsExportFile
+from ..models.idea_burst_session import IdeaBurstSession
+from ..models.selection_indicator import SelectionIndicator
 
 class DatabaseService:
     def __init__(self):

@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 import structlog
 from pydantic import BaseModel
 
-from ..core.supabase_database_service import get_supabase_db, SupabaseDatabaseService
+from ..core.supabase_database_service import get_database_service, SupabaseDatabaseService
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api", tags=["main"])
@@ -75,7 +75,7 @@ async def root():
 @router.post("/topic-decomposition", response_model=TopicDecompositionResponse)
 async def topic_decomposition(
     request: TopicDecompositionRequest,
-    db: SupabaseDatabaseService = Depends(get_supabase_db)
+    db: SupabaseDatabaseService = Depends(get_database_service)
 ):
     """Decompose topic into subtopics using LLM"""
     try:
@@ -173,12 +173,11 @@ async def topic_decomposition(
 @router.post("/affiliate-research", response_model=AffiliateResearchResponse)
 async def affiliate_research(
     request: AffiliateResearchRequest,
-    db: SupabaseDatabaseService = Depends(get_supabase_db)
+    db: SupabaseDatabaseService = Depends(get_database_service)
 ):
     """Search for affiliate programs using real Linkup API and LLM analysis"""
     try:
         from ..services.affiliate_research_service import AffiliateResearchService
-from src.core.supabase_database_service import SupabaseDatabaseService
         
         # Initialize the real affiliate research service
         affiliate_service = AffiliateResearchService()
@@ -257,7 +256,7 @@ from src.core.supabase_database_service import SupabaseDatabaseService
 @router.post("/trend-analysis", response_model=TrendAnalysisResponse)
 async def trend_analysis(
     request: TrendAnalysisRequest,
-    db: SupabaseDatabaseService = Depends(get_supabase_db)
+    db: SupabaseDatabaseService = Depends(get_database_service)
 ):
     """Analyze trends for given keywords"""
     try:
@@ -282,7 +281,7 @@ async def trend_analysis(
 @router.post("/content/generate", response_model=ContentGenerationResponse)
 async def generate_content(
     request: ContentGenerationRequest,
-    db: SupabaseDatabaseService = Depends(get_supabase_db)
+    db: SupabaseDatabaseService = Depends(get_database_service)
 ):
     """Generate content ideas"""
     try:

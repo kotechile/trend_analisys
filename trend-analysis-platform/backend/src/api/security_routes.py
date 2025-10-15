@@ -3,12 +3,13 @@ Security-related API routes for password validation and account lockout
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import logging
 
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..core.supabase_auth import get_current_user
+from src.core.supabase_database_service import SupabaseDatabaseService
 from ..models.user import User
 from ..services.password_validation import PasswordValidator, PasswordRequirements, validate_password_strength
 from ..services.account_lockout import AccountLockoutService
@@ -77,7 +78,6 @@ async def generate_password(
     """Generate a strong password"""
     try:
         from ..services.password_validation import generate_strong_password
-from src.core.supabase_database_service import SupabaseDatabaseService
         
         password = generate_strong_password(
             length=request.length,

@@ -40,7 +40,7 @@ async def generate_ideas_with_ahrefs(
     """
     try:
         # Get analyzed keywords from the file
-        keywords = await db_service.get_keywords(file_id)
+        keywords = await database_service.get_keywords(file_id)
         if not keywords:
             raise HTTPException(
                 status_code=404,
@@ -48,7 +48,7 @@ async def generate_ideas_with_ahrefs(
             )
         
         # Get content opportunities
-        content_opportunities = await db_service.get_content_opportunities(file_id)
+        content_opportunities = await database_service.get_content_opportunities(file_id)
         
         # Generate article ideas using Ahrefs keywords
         article_ideas = content_idea_generator.generate_content_ideas(
@@ -64,7 +64,7 @@ async def generate_ideas_with_ahrefs(
         
         # Save ideas to database
         all_ideas = article_ideas + software_ideas
-        await db_service.save_seo_content_ideas(all_ideas)
+        await database_service.save_seo_content_ideas(all_ideas)
         
         # Organize by sub-topics
         subtopic_organization = _organize_ideas_by_subtopic(article_ideas)

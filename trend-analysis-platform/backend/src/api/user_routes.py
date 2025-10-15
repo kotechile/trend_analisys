@@ -262,7 +262,7 @@ async def get_user_analytics(
     try:
         analytics = await user_service.get_user_analytics(current_user.id)
         
-        return UserAnalyticsResponse(
+        return UserResponse(
             total_activities=analytics["total_activities"],
             activity_breakdown=analytics["activity_breakdown"],
             monthly_activity=analytics["monthly_activity"],

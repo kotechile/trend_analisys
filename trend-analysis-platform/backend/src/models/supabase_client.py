@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 SupabaseClient Model
 
 This module defines the SupabaseClient data model for tracking client instances,

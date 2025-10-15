@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import logging
 from ..models.keyword import Keyword
-from ..config import settings
+from ..core.config import settings
 from .database import DatabaseService
 
 logger = logging.getLogger(__name__)

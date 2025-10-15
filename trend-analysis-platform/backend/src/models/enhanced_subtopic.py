@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 EnhancedSubtopic model for Google Autocomplete integration
 Represents a topic subdivision enhanced with autocomplete validation and relevance scoring
 """

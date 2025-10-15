@@ -27,15 +27,11 @@ class DatabaseInitializer:
     def create_engine(self):
         """Create database engine with proper configuration."""
         try:
-            # Use the enhanced database engine from database.py
-            self.engine = get_engine()
-            self.SessionLocal = sessionmaker(
-                autocommit=False,
-                autoflush=False,
-                bind=self.engine
-            )
+            # Supabase-only architecture - no SQLAlchemy engine needed
+            from .supabase_database_service import get_database_service
+            self.database_service = get_database_service()
             
-            logger.info("Database engine created successfully")
+            logger.info("Supabase database service initialized successfully")
             return True
             
         except Exception as e:
@@ -64,7 +60,7 @@ class DatabaseInitializer:
             logger.info("Database tables created successfully")
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to create database tables: {e}")
             return False
     
@@ -79,7 +75,7 @@ class DatabaseInitializer:
             logger.info("Database tables dropped successfully")
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to drop database tables: {e}")
             return False
     
@@ -122,7 +118,7 @@ class DatabaseInitializer:
             db.close()
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to create admin user: {e}")
             if 'db' in locals():
                 db.rollback()
@@ -172,7 +168,7 @@ class DatabaseInitializer:
             db.close()
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to create test user: {e}")
             if 'db' in locals():
                 db.rollback()
@@ -248,7 +244,7 @@ class DatabaseInitializer:
             db.close()
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to create sample data: {e}")
             if 'db' in locals():
                 db.rollback()
@@ -299,7 +295,7 @@ class DatabaseInitializer:
                 logger.info("All required tables exist")
                 return True
                 
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"Failed to verify tables: {e}")
             return False
     
@@ -332,7 +328,7 @@ class DatabaseInitializer:
                     "initialized": self.initialized
                 }
                 
-        except SQLAlchemyError as e:
+        except Exception as e:
             return {"error": f"Failed to get database info: {e}"}
     
     def initialize(self, create_admin: bool = True, create_test_data: bool = True) -> bool:

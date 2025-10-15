@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 SearchVolumeIndicator model for Google Autocomplete integration
 Represents metrics derived from autocomplete data that suggest topic popularity
 """

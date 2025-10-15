@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 DataModel Entity
 
 This module defines the DataModel entity for representing business entities

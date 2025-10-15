@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 Enhanced Trend Analysis model for dataflow persistence
 This model represents trend analysis results linked to specific subtopics
 """

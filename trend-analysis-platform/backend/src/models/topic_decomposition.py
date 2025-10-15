@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 Enhanced Topic Decomposition model for dataflow persistence
 This model represents the decomposition of research topics into subtopics
 """

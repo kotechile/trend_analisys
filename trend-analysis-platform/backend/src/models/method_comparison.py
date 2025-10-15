@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 MethodComparison model for Google Autocomplete integration
 Represents side-by-side analysis of different decomposition approaches
 """

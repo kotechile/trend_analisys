@@ -1,4 +1,9 @@
 """
+This model file is disabled for Supabase-only architecture.
+All database operations go through Supabase SDK.
+"""
+
+"""
 Enhanced Content Idea model for dataflow persistence
 This model represents content ideas generated from trend analyses
 """
