@@ -89,3 +89,7 @@ COMMENT ON COLUMN content_ideas.traffic_potential_score IS 'Traffic potential sc
 COMMENT ON COLUMN content_ideas.viral_potential_score IS 'Viral potential score (0-100)';
 COMMENT ON COLUMN content_ideas.competition_score IS 'Competition difficulty score (0-100)';
 
+
+
+
+

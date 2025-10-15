@@ -1,0 +1,54 @@
+# Trend Analysis & Content Generation Platform Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2025-01-27
+
+## Active Technologies
+- **Backend**: Python 3.11, FastAPI, Supabase, PostgreSQL
+- **Frontend**: React 18, TypeScript 5.0+, Material-UI, Node.js 18+
+- **External APIs**: OpenAI/Anthropic APIs, Google Trends, Linkup API
+- **Database**: PostgreSQL via Supabase with Row Level Security
+- **Testing**: pytest, Jest, Playwright
+- **Deployment**: Docker, Vercel, Render
+
+## Project Structure
+```
+trend-analysis-platform/
+├── frontend/                 # React frontend application
+│   ├── src/
+│   │   ├── components/       # Reusable UI components
+│   │   ├── pages/           # Page components
+│   │   ├── services/        # API service layer
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── utils/           # Utility functions
+│   │   └── types/           # TypeScript type definitions
+│   └── tests/               # Frontend tests
+├── backend/                  # FastAPI backend application
+│   ├── src/
+│   │   ├── models/          # Database models
+│   │   ├── services/        # Business logic services
+│   │   ├── api/             # API endpoints
+│   │   ├── core/            # Core configuration
+│   │   └── tests/           # Backend tests
+├── shared/                   # Shared types, utilities, and configurations
+└── docs/                     # Project documentation
+```
+
+## Commands
+- **Backend**: `uvicorn main:app --reload` (development)
+- **Frontend**: `npm run dev` (development)
+- **Testing**: `pytest` (backend), `npm test` (frontend)
+- **Database**: `supabase start` (local), `supabase db reset` (reset)
+
+## Code Style
+- **Python**: Black formatter, isort imports, type hints required
+- **TypeScript**: ESLint + Prettier, strict mode enabled
+- **React**: Functional components with hooks, TypeScript interfaces
+- **FastAPI**: Async/await patterns, Pydantic models, OpenAPI docs
+
+## Recent Changes
+- **Feature 002**: Added comprehensive implementation plan for Trend Analysis & Content Generation Platform
+- **Feature 001**: Created baseline specification with 48 functional requirements
+- **Constitution**: Established project principles and governance framework
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

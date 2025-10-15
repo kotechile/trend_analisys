@@ -159,3 +159,7 @@ For issues or questions about the publish functionality:
 3. Verify Supabase connection and permissions
 4. Contact development team for technical support
 
+
+
+
+

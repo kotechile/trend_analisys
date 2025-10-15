@@ -1,5 +1,5 @@
 """
-Configuration management for TrendTap
+Configuration management for Idea Burst
 """
 
 from pydantic_settings import BaseSettings
@@ -12,16 +12,13 @@ class Settings(BaseSettings):
     """Application settings"""
     
     # Application
-    app_name: str = "TrendTap API"
+    app_name: str = "Idea Burst API"
     app_version: str = "1.0.0"
     debug: bool = Field(default=False, env="DEBUG")
     environment: str = Field(default="development", env="ENVIRONMENT")
     
-    # Database
-    database_url: str = Field(
-        default="postgresql://trendtap:password@localhost:5432/trendtap",
-        env="DATABASE_URL"
-    )
+    # Database (Supabase cloud - no local database)
+    # Note: All database operations go through Supabase SDK
     sql_echo: bool = Field(default=False, env="SQL_ECHO")
     
     # Redis
@@ -40,7 +37,7 @@ class Settings(BaseSettings):
     
     # CORS
     allowed_origins: List[str] = Field(
-        default=["http://localhost:3000", "https://trendtap.com"],
+        default=["http://localhost:3000", "https://idea-burst.com"],
         env="ALLOWED_ORIGINS"
     )
     

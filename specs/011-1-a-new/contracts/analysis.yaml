@@ -1,0 +1,361 @@
+openapi: 3.0.3
+info:
+  title: Keyword Analysis API
+  description: API for analyzing keywords and generating opportunity reports
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+paths:
+  /analysis/{file_id}/start:
+    post:
+      summary: Start keyword analysis
+      description: Begin analysis of uploaded keywords to calculate opportunity scores
+      tags:
+        - Analysis
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the uploaded file
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scoring_weights:
+                  type: object
+                  properties:
+                    search_volume:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.4
+                    keyword_difficulty:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.3
+                    cpc:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.2
+                    search_intent:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.1
+                  description: Custom weights for scoring algorithm
+      responses:
+        '200':
+          description: Analysis started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis_id:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the analysis
+                  file_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [started, processing, completed, failed]
+                  estimated_completion:
+                    type: string
+                    format: date-time
+                    description: Estimated time for completion
+                  message:
+                    type: string
+                    description: Status message
+        '400':
+          description: Bad request - invalid file or parameters
+        '404':
+          description: File not found
+        '409':
+          description: Analysis already in progress
+
+  /analysis/{analysis_id}/status:
+    get:
+      summary: Get analysis status
+      description: Check the current status of keyword analysis
+      tags:
+        - Analysis
+      parameters:
+        - name: analysis_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the analysis
+      responses:
+        '200':
+          description: Current analysis status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [started, processing, completed, failed]
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                    description: Analysis progress percentage
+                  keywords_analyzed:
+                    type: integer
+                    description: Number of keywords analyzed so far
+                  total_keywords:
+                    type: integer
+                    description: Total number of keywords to analyze
+                  started_at:
+                    type: string
+                    format: date-time
+                  completed_at:
+                    type: string
+                    format: date-time
+                  error_message:
+                    type: string
+                    description: Error message if analysis failed
+
+  /analysis/{analysis_id}/results:
+    get:
+      summary: Get analysis results
+      description: Retrieve the complete analysis results including opportunity scores and recommendations
+      tags:
+        - Analysis
+      parameters:
+        - name: analysis_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the analysis
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+          description: Maximum number of keywords to return
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [high, medium, low, all]
+            default: all
+          description: Filter by opportunity category
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [opportunity_score, search_volume, keyword_difficulty, cpc]
+            default: opportunity_score
+          description: Sort order for results
+        - name: sort_order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Sort direction
+      responses:
+        '200':
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis_id:
+                    type: string
+                    format: uuid
+                  summary:
+                    type: object
+                    properties:
+                      total_keywords:
+                        type: integer
+                      high_opportunity_count:
+                        type: integer
+                      medium_opportunity_count:
+                        type: integer
+                      low_opportunity_count:
+                        type: integer
+                      total_search_volume:
+                        type: integer
+                      average_difficulty:
+                        type: number
+                      average_cpc:
+                        type: number
+                  top_opportunities:
+                    type: object
+                    properties:
+                      high_opportunity_keywords:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/KeywordResult'
+                      quick_wins:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/KeywordResult'
+                      high_volume_targets:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/KeywordResult'
+                  content_recommendations:
+                    type: object
+                    properties:
+                      how_to_guides:
+                        type: array
+                        items:
+                          type: string
+                      comparison_posts:
+                        type: array
+                        items:
+                          type: string
+                      list_articles:
+                        type: array
+                        items:
+                          type: string
+                      beginner_guides:
+                        type: array
+                        items:
+                          type: string
+                      tool_reviews:
+                        type: array
+                        items:
+                          type: string
+                  seo_content_ideas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SEOContentIdea'
+                  insights:
+                    type: array
+                    items:
+                      type: string
+                  next_steps:
+                    type: array
+                    items:
+                      type: string
+                  keywords:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KeywordResult'
+        '404':
+          description: Analysis not found
+        '409':
+          description: Analysis not completed yet
+
+components:
+  schemas:
+    KeywordResult:
+      type: object
+      properties:
+        keyword:
+          type: string
+        search_volume:
+          type: integer
+        keyword_difficulty:
+          type: number
+        cpc:
+          type: number
+          nullable: true
+        search_intent:
+          type: string
+          description: Original Ahrefs intent tags
+        primary_intent:
+          type: string
+          enum: [Informational, Commercial, Navigational, Transactional]
+        opportunity_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        category:
+          type: string
+          enum: [high, medium, low]
+        content_format:
+          type: string
+          enum: [how-to-guide, comparison-post, list-article, beginner-guide, tool-review]
+        seo_score:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    SEOContentIdea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Content idea title
+        content_type:
+          type: string
+          enum: [article, software-review, comparison, how-to-guide, list-article, beginner-guide]
+        primary_keywords:
+          type: array
+          items:
+            type: string
+          minItems: 5
+          maxItems: 10
+          description: Main target keywords (5-10)
+        secondary_keywords:
+          type: array
+          items:
+            type: string
+          minItems: 3
+          maxItems: 8
+          description: Supporting terms (3-8)
+        seo_optimization_score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: SEO optimization score
+        traffic_potential_score:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Traffic potential score
+        total_search_volume:
+          type: integer
+          description: Combined search volume of selected keywords
+        average_difficulty:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Average difficulty of selected keywords
+        average_cpc:
+          type: number
+          minimum: 0
+          description: Average CPC of selected keywords
+        optimization_tips:
+          type: array
+          items:
+            type: string
+          description: Actionable optimization guidance
+        content_outline:
+          type: string
+          description: Suggested content structure

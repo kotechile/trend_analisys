@@ -1,0 +1,159 @@
+openapi: 3.0.3
+info:
+  title: Keyword Analysis Upload API
+  description: API for uploading and processing Ahrefs TSV keyword export files
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+paths:
+  /upload:
+    post:
+      summary: Upload Ahrefs TSV keyword export file
+      description: Upload a TSV file containing keyword data from Ahrefs for analysis
+      tags:
+        - Upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: TSV file containing keyword data
+                user_id:
+                  type: string
+                  format: uuid
+                  description: ID of the user uploading the file
+              required:
+                - file
+                - user_id
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_id:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the uploaded file
+                  filename:
+                    type: string
+                    description: Original filename
+                  file_size:
+                    type: integer
+                    description: File size in bytes
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, failed]
+                    description: Current processing status
+                  message:
+                    type: string
+                    description: Status message
+        '400':
+          description: Bad request - invalid file or missing parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                  details:
+                    type: string
+                    description: Additional error details
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: File size exceeds maximum limit
+                  max_size:
+                    type: integer
+                    description: Maximum allowed file size in bytes (10MB)
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: File type not supported
+                  supported_types:
+                    type: array
+                    items:
+                      type: string
+                    description: List of supported file types (text/tab-separated-values)
+
+  /upload/{file_id}/status:
+    get:
+      summary: Get upload processing status
+      description: Check the current status of TSV file processing
+      tags:
+        - Upload
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the uploaded file
+      responses:
+        '200':
+          description: Current processing status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, failed]
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                    description: Processing progress percentage
+                  keywords_processed:
+                    type: integer
+                    description: Number of keywords processed so far
+                  total_keywords:
+                    type: integer
+                    description: Total number of keywords in file
+                  error_message:
+                    type: string
+                    description: Error message if processing failed
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: File not found

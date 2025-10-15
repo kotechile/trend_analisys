@@ -1,7 +1,7 @@
 {
-  "name": "trendtap-monorepo",
+  "name": "idea-burst-monorepo",
   "version": "1.0.0",
-  "description": "TrendTap AI Research Workspace - Monorepo",
+  "description": "Idea Burst AI Research Workspace - Monorepo",
   "private": true,
   "workspaces": [
     "backend",

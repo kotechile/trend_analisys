@@ -1,0 +1,1032 @@
+openapi: 3.0.3
+info:
+  title: Enhanced Research Workflow API
+  description: API for enhanced research workflow with topic decomposition and affiliate integration
+  version: 1.0.0
+  contact:
+    name: TrendTap API Support
+    email: support@trendtap.com
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+  - url: https://api.trendtap.com/api
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Topic Decomposition Endpoints
+  /topics/decompose:
+    post:
+      summary: Decompose search query into subtopics
+      description: Use LLM to decompose a search query into related subtopics
+      tags:
+        - Topic Decomposition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - search_query
+                - user_id
+              properties:
+                search_query:
+                  type: string
+                  description: The search query to decompose
+                  example: "Cars for the east coast"
+                user_id:
+                  type: string
+                  format: uuid
+                  description: User ID
+                max_subtopics:
+                  type: integer
+                  minimum: 3
+                  maximum: 20
+                  default: 10
+                  description: Maximum number of subtopics to generate
+      responses:
+        '200':
+          description: Successful decomposition
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "123e4567-e89b-12d3-a456-426614174000"
+                      search_query:
+                        type: string
+                        example: "Cars for the east coast"
+                      subtopics:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: "Electric cars in California"
+                            description:
+                              type: string
+                              example: "EV market trends and opportunities in California"
+                            relevance_score:
+                              type: number
+                              minimum: 0
+                              maximum: 1
+                              example: 0.95
+                            category:
+                              type: string
+                              example: "automotive"
+                      created_at:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /topics/decompositions/{id}:
+    get:
+      summary: Get topic decomposition by ID
+      description: Retrieve a specific topic decomposition
+      tags:
+        - Topic Decomposition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/TopicDecomposition'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+    delete:
+      summary: Delete topic decomposition
+      description: Delete a topic decomposition and related data
+      tags:
+        - Topic Decomposition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully deleted
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  # Affiliate Offer Endpoints
+  /affiliate/offers:
+    post:
+      summary: Create affiliate offer
+      description: Store a new affiliate offer
+      tags:
+        - Affiliate Offers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - offer_name
+                - workflow_session_id
+                - user_id
+              properties:
+                offer_name:
+                  type: string
+                  example: "Tesla Model 3 Affiliate Program"
+                offer_description:
+                  type: string
+                  example: "Earn commission on Tesla Model 3 referrals"
+                commission_rate:
+                  type: number
+                  format: decimal
+                  example: 2.5
+                access_instructions:
+                  type: string
+                  example: "Apply at tesla.com/affiliate"
+                subtopic_id:
+                  type: string
+                  format: uuid
+                linkup_data:
+                  type: object
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AffiliateOffer'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /affiliate/offers/{workflow_session_id}:
+    get:
+      summary: Get affiliate offers for workflow session
+      description: Retrieve all affiliate offers for a specific workflow session
+      tags:
+        - Affiliate Offers
+      parameters:
+        - name: workflow_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AffiliateOffer'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  /affiliate/offers/{id}:
+    put:
+      summary: Update affiliate offer
+      description: Update an existing affiliate offer
+      tags:
+        - Affiliate Offers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offer_name:
+                  type: string
+                offer_description:
+                  type: string
+                commission_rate:
+                  type: number
+                  format: decimal
+                access_instructions:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive, expired]
+      responses:
+        '200':
+          description: Successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AffiliateOffer'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+    delete:
+      summary: Delete affiliate offer
+      description: Delete an affiliate offer
+      tags:
+        - Affiliate Offers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully deleted
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  # Google Trends Endpoints
+  /trends/google:
+    post:
+      summary: Analyze trends using Google Trends
+      description: Get trend data for subtopics using Google Trends API
+      tags:
+        - Trend Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subtopics
+                - workflow_session_id
+                - user_id
+              properties:
+                subtopics:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Electric cars in California", "Car dealers"]
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                time_range:
+                  type: string
+                  enum: [1h, 4h, 1d, 7d, 30d, 90d, 12m, 5y, all]
+                  default: "12m"
+      responses:
+        '200':
+          description: Successful trend analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      workflow_session_id:
+                        type: string
+                        format: uuid
+                      trend_analyses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrendAnalysis'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /trends/csv-upload:
+    post:
+      summary: Upload CSV trend data
+      description: Upload CSV file with trend data as fallback
+      tags:
+        - Trend Analysis
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - workflow_session_id
+                - user_id
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with trend data
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                format:
+                  type: string
+                  enum: [google_trends, custom]
+                  default: "google_trends"
+      responses:
+        '200':
+          description: Successfully uploaded and processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      workflow_session_id:
+                        type: string
+                        format: uuid
+                      processed_rows:
+                        type: integer
+                      trend_analyses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrendAnalysis'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  # Content Generation Endpoints
+  /content/generate-enhanced:
+    post:
+      summary: Generate enhanced content ideas
+      description: Generate content ideas with keyword clustering and affiliate integration
+      tags:
+        - Content Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - selected_trends
+                - workflow_session_id
+                - user_id
+              properties:
+                selected_trends:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Electric cars in California", "Car parts"]
+                affiliate_offers:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["123e4567-e89b-12d3-a456-426614174000"]
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                content_types:
+                  type: array
+                  items:
+                    type: string
+                    enum: [blog, software, video, podcast]
+                  default: ["blog", "software"]
+                max_ideas:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+      responses:
+        '200':
+          description: Successfully generated content ideas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      workflow_session_id:
+                        type: string
+                        format: uuid
+                      content_ideas:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ContentIdea'
+                      total_ideas:
+                        type: integer
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /content/ideas/{workflow_session_id}:
+    get:
+      summary: Get content ideas for workflow session
+      description: Retrieve all content ideas for a specific workflow session
+      tags:
+        - Content Generation
+      parameters:
+        - name: workflow_session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentIdea'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  # External Tool Integration Endpoints
+  /external/semrush:
+    post:
+      summary: Import Semrush data
+      description: Import keyword data from Semrush API
+      tags:
+        - External Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - keywords
+                - workflow_session_id
+                - user_id
+              properties:
+                keywords:
+                  type: array
+                  items:
+                    type: string
+                  example: ["electric cars california", "ev incentives california"]
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                country:
+                  type: string
+                  default: "us"
+                database:
+                  type: string
+                  default: "us"
+      responses:
+        '200':
+          description: Successfully imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ExternalToolResult'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /external/ahrefs:
+    post:
+      summary: Import Ahrefs data
+      description: Import keyword data from Ahrefs API
+      tags:
+        - External Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - keywords
+                - workflow_session_id
+                - user_id
+              properties:
+                keywords:
+                  type: array
+                  items:
+                    type: string
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                country:
+                  type: string
+                  default: "us"
+      responses:
+        '200':
+          description: Successfully imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ExternalToolResult'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /external/import-results:
+    post:
+      summary: Import external tool results from CSV
+      description: Import keyword data from external tools via CSV upload
+      tags:
+        - External Tools
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - tool_name
+                - workflow_session_id
+                - user_id
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with keyword data
+                tool_name:
+                  type: string
+                  enum: [semrush, ahrefs, ubersuggest]
+                workflow_session_id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Successfully imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ExternalToolResult'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /external/export-keywords:
+    get:
+      summary: Export seed keywords
+      description: Export seed keywords for external tools
+      tags:
+        - External Tools
+      parameters:
+        - name: workflow_session_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, json, txt]
+            default: "csv"
+      responses:
+        '200':
+          description: Successfully exported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      workflow_session_id:
+                        type: string
+                        format: uuid
+                      seed_keywords:
+                        type: array
+                        items:
+                          type: string
+                      export_formats:
+                        type: object
+                        properties:
+                          csv:
+                            type: string
+                          json:
+                            type: string
+                          txt:
+                            type: string
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+  # Workflow Session Endpoints
+  /workflow/sessions/{session_id}/complete:
+    get:
+      summary: Get complete workflow results
+      description: Retrieve complete workflow results with all data
+      tags:
+        - Workflow
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/CompleteWorkflowResult'
+        '404':
+          description: Not found
+        '401':
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TopicDecomposition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        search_query:
+          type: string
+        subtopics:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              relevance_score:
+                type: number
+                minimum: 0
+                maximum: 1
+              category:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AffiliateOffer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        workflow_session_id:
+          type: string
+          format: uuid
+        offer_name:
+          type: string
+        offer_description:
+          type: string
+        commission_rate:
+          type: number
+          format: decimal
+        access_instructions:
+          type: string
+        subtopic_id:
+          type: string
+          format: uuid
+        linkup_data:
+          type: object
+        status:
+          type: string
+          enum: [active, inactive, expired]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TrendAnalysis:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        workflow_session_id:
+          type: string
+          format: uuid
+        subtopic_id:
+          type: string
+          format: uuid
+        trend_data:
+          type: object
+          properties:
+            search_volume:
+              type: integer
+            trend_score:
+              type: number
+            growth_rate:
+              type: number
+            seasonality:
+              type: string
+            related_queries:
+              type: array
+              items:
+                type: string
+        source:
+          type: string
+          enum: [google_trends, csv_upload, manual]
+        analysis_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ContentIdea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        workflow_session_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        content_type:
+          type: string
+          enum: [blog, software, video, podcast]
+        target_keywords:
+          type: array
+          items:
+            type: object
+            properties:
+              keyword:
+                type: string
+              search_volume:
+                type: integer
+              difficulty:
+                type: number
+              cpc:
+                type: number
+        affiliate_offers:
+          type: array
+          items:
+            type: string
+            format: uuid
+        keyword_clusters:
+          type: array
+          items:
+            type: string
+            format: uuid
+        priority_score:
+          type: number
+          format: decimal
+        estimated_traffic:
+          type: integer
+        difficulty_score:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ExternalToolResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        workflow_session_id:
+          type: string
+          format: uuid
+        tool_name:
+          type: string
+          enum: [semrush, ahrefs, ubersuggest]
+        keywords_data:
+          type: object
+        raw_data:
+          type: object
+        import_date:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CompleteWorkflowResult:
+      type: object
+      properties:
+        workflow_session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, completed, failed, paused]
+        progress_percentage:
+          type: integer
+        completed_steps:
+          type: array
+          items:
+            type: string
+        final_results:
+          type: object
+          properties:
+            search_query:
+              type: string
+            subtopics:
+              type: integer
+            affiliate_offers:
+              type: integer
+            trend_analyses:
+              type: integer
+            content_ideas:
+              type: integer
+            enhanced_keywords:
+              type: integer
+            estimated_monthly_traffic:
+              type: integer
+            estimated_monthly_revenue:
+              type: number
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time

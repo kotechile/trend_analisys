@@ -1,0 +1,10 @@
+node_modules/
+.npm
+*.log
+.log.*
+.env
+cache/
+*.cache
+dist/
+build/
+EOF

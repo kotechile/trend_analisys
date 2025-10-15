@@ -4,10 +4,10 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: trendtap-postgres
+    container_name: idea-burst-postgres
     environment:
-      POSTGRES_DB: trendtap
-      POSTGRES_USER: trendtap
+      POSTGRES_DB: idea_burst
+      POSTGRES_USER: idea_burst
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
@@ -15,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trendtap -d trendtap"]
+      test: ["CMD-SHELL", "pg_isready -U idea_burst -d idea_burst"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,7 +23,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: trendtap-redis
+    container_name: idea-burst-redis
     ports:
       - "6379:6379"
     volumes:
@@ -39,11 +39,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: trendtap-backend
+    container_name: idea-burst-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://trendtap:password@postgres:5432/trendtap
+      - DATABASE_URL=postgresql://idea_burst:password@postgres:5432/idea_burst
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production
       - JWT_ALGORITHM=HS256
@@ -71,12 +71,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: trendtap-frontend
+    container_name: idea-burst-frontend
     ports:
       - "3000:3000"
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
-      - VITE_APP_NAME=TrendTap
+      - VITE_APP_NAME=Idea Burst
       - VITE_DEBUG=true
     depends_on:
       - backend
@@ -93,7 +93,7 @@ services:
   # Nginx Reverse Proxy (Optional)
   nginx:
     image: nginx:alpine
-    container_name: trendtap-nginx
+    container_name: idea-burst-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -112,4 +112,4 @@ volumes:
 
 networks:
   default:
-    name: trendtap-network
+    name: idea-burst-network

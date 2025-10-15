@@ -4,7 +4,7 @@ services:
   # Backend API (Uses local Redis)
   backend:
     image: python:3.13-slim
-    container_name: trendtap-backend
+    container_name: idea-burst-backend
     ports:
       - "8000:8000"
     environment:
@@ -39,12 +39,12 @@ services:
   # Frontend
   frontend:
     image: node:18-alpine
-    container_name: trendtap-frontend
+    container_name: idea-burst-frontend
     ports:
       - "3000:3000"
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
-      - VITE_APP_NAME=TrendTap
+      - VITE_APP_NAME=Idea Burst
       - VITE_DEBUG=true
     depends_on:
       - backend
@@ -69,4 +69,4 @@ volumes:
 
 networks:
   default:
-    name: trendtap-network
+    name: idea-burst-network

@@ -1,0 +1,622 @@
+openapi: 3.0.3
+info:
+  title: Documentation Review API
+  description: API for managing migration guide documentation review process
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform Team
+    email: team@trendanalysis.com
+
+servers:
+  - url: https://api.trendanalysis.com/v1
+    description: Production server
+  - url: https://staging-api.trendanalysis.com/v1
+    description: Staging server
+
+paths:
+  /reviews:
+    get:
+      summary: List all documentation reviews
+      description: Retrieve a paginated list of all documentation reviews
+      tags:
+        - Reviews
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Filter by review status
+          required: false
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, failed]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reviews:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentationReview'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a new documentation review
+      description: Start a new documentation review process
+      tags:
+        - Reviews
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Review created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentationReview'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reviews/{reviewId}:
+    get:
+      summary: Get documentation review by ID
+      description: Retrieve a specific documentation review by its ID
+      tags:
+        - Reviews
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          description: Unique identifier for the review
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentationReview'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update documentation review
+      description: Update an existing documentation review
+      tags:
+        - Reviews
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          description: Unique identifier for the review
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+      responses:
+        '200':
+          description: Review updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentationReview'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reviews/{reviewId}/gaps:
+    get:
+      summary: Get documentation gaps for a review
+      description: Retrieve all documentation gaps identified in a specific review
+      tags:
+        - Gaps
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          description: Unique identifier for the review
+          schema:
+            type: string
+            format: uuid
+        - name: severity
+          in: query
+          description: Filter by gap severity
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gaps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentationGap'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reviews/{reviewId}/requirements:
+    get:
+      summary: Get update requirements for a review
+      description: Retrieve all update requirements generated from a specific review
+      tags:
+        - Requirements
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          description: Unique identifier for the review
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by requirement status
+          required: false
+          schema:
+            type: string
+            enum: [identified, planned, in_progress, completed, rejected]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requirements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UpdateRequirement'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /migration-guide:
+    get:
+      summary: Get migration guide information
+      description: Retrieve information about the current migration guide
+      tags:
+        - Migration Guide
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationGuide'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update migration guide
+      description: Update the migration guide with new content
+      tags:
+        - Migration Guide
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMigrationGuideRequest'
+      responses:
+        '200':
+          description: Migration guide updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationGuide'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    DocumentationReview:
+      type: object
+      required:
+        - review_id
+        - review_date
+        - reviewer
+        - status
+        - scope
+        - findings_count
+        - updates_required
+      properties:
+        review_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the review
+        review_date:
+          type: string
+          format: date-time
+          description: Timestamp when review was conducted
+        reviewer:
+          type: string
+          description: Person or system conducting the review
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+          description: Current status of the review
+        scope:
+          type: string
+          enum: [full, partial, specific_sections]
+          description: Scope of the review
+        findings_count:
+          type: integer
+          minimum: 0
+          description: Number of issues identified
+        updates_required:
+          type: integer
+          minimum: 0
+          description: Number of updates needed
+
+    CreateReviewRequest:
+      type: object
+      required:
+        - reviewer
+        - scope
+      properties:
+        reviewer:
+          type: string
+          description: Person or system conducting the review
+        scope:
+          type: string
+          enum: [full, partial, specific_sections]
+          description: Scope of the review
+
+    UpdateReviewRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+          description: New status for the review
+        findings_count:
+          type: integer
+          minimum: 0
+          description: Updated number of issues identified
+        updates_required:
+          type: integer
+          minimum: 0
+          description: Updated number of updates needed
+
+    DocumentationGap:
+      type: object
+      required:
+        - gap_id
+        - gap_type
+        - severity
+        - description
+        - location
+        - affected_sections
+        - impact_assessment
+        - resolution_priority
+      properties:
+        gap_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the gap
+        gap_type:
+          type: string
+          enum: [missing, outdated, inconsistent, incorrect]
+          description: Type of gap identified
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+          description: Severity level of the gap
+        description:
+          type: string
+          description: Detailed description of the gap
+        location:
+          type: string
+          description: Specific location where gap was found
+        affected_sections:
+          type: array
+          items:
+            type: string
+          description: List of sections affected by the gap
+        impact_assessment:
+          type: string
+          description: Assessment of the impact of the gap
+        resolution_priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Priority for resolving the gap
+
+    UpdateRequirement:
+      type: object
+      required:
+        - requirement_id
+        - requirement_type
+        - description
+        - target_file
+        - target_section
+        - current_content
+        - proposed_content
+        - justification
+        - implementation_effort
+      properties:
+        requirement_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the requirement
+        requirement_type:
+          type: string
+          enum: [content_update, structure_change, reference_update, format_update, link_update]
+          description: Type of update required
+        description:
+          type: string
+          description: Detailed description of the required update
+        target_file:
+          type: string
+          description: File that needs to be updated
+        target_section:
+          type: string
+          description: Specific section that needs updating
+        current_content:
+          type: string
+          description: Current content that needs to be changed
+        proposed_content:
+          type: string
+          description: Proposed new content
+        justification:
+          type: string
+          description: Rationale for the update
+        implementation_effort:
+          type: number
+          minimum: 0
+          description: Estimated effort to implement (hours)
+        dependencies:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of other requirements this depends on
+
+    MigrationGuide:
+      type: object
+      required:
+        - guide_id
+        - version
+        - last_updated
+        - file_path
+        - file_size
+        - line_count
+        - sections
+        - references
+      properties:
+        guide_id:
+          type: string
+          format: uuid
+          description: Unique identifier for the migration guide
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+          description: Current version of the migration guide
+        last_updated:
+          type: string
+          format: date-time
+          description: Timestamp of last update
+        file_path:
+          type: string
+          description: Path to the migration guide file
+        file_size:
+          type: integer
+          minimum: 1
+          description: Size of the migration guide file
+        line_count:
+          type: integer
+          minimum: 1
+          description: Number of lines in the file
+        sections:
+          type: array
+          items:
+            type: string
+          description: List of sections in the migration guide
+        references:
+          type: array
+          items:
+            type: string
+          description: List of external references and links
+
+    UpdateMigrationGuideRequest:
+      type: object
+      required:
+        - content
+        - version
+      properties:
+        content:
+          type: string
+          description: New content for the migration guide
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+          description: New version for the migration guide
+        sections:
+          type: array
+          items:
+            type: string
+          description: Updated list of sections
+        references:
+          type: array
+          items:
+            type: string
+          description: Updated list of references
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - total_pages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Number of items per page
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of items
+        total_pages:
+          type: integer
+          minimum: 0
+          description: Total number of pages
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Reviews
+    description: Documentation review management
+  - name: Gaps
+    description: Documentation gap management
+  - name: Requirements
+    description: Update requirement management
+  - name: Migration Guide
+    description: Migration guide management

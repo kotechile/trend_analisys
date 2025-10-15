@@ -1,0 +1,42 @@
+services:
+  # Backend API only (for development)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development  # Use development stage
+    container_name: idea-burst-backend-dev
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      # Note: Using Supabase cloud database (no local database)
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache (minimal setup)
+  redis:
+    image: redis:7-alpine
+    container_name: idea-burst-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  backend_logs:
+
+networks:
+  default:
+    name: idea-burst-dev-network

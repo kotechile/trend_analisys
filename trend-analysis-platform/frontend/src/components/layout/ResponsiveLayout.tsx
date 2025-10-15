@@ -51,7 +51,7 @@ const navigationItems = [
 
 export const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({
   children,
-  title = 'TrendTap',
+  title = 'Idea Burst',
 }) => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -75,7 +75,7 @@ export const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({
     <Box>
       <Toolbar>
         <Typography variant="h6" noWrap component="div">
-          TrendTap
+          Idea Burst
         </Typography>
       </Toolbar>
       <Divider />

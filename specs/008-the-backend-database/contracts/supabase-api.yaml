@@ -1,0 +1,414 @@
+openapi: 3.0.3
+info:
+  title: Supabase Integration API
+  description: API endpoints for Supabase database integration
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform Team
+    email: support@trendtap.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://api.trendtap.com/api/v1
+    description: Production server
+
+paths:
+  /health/database:
+    get:
+      summary: Check database health
+      description: Verify Supabase connection and health status
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Database is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                  database:
+                    type: string
+                    example: supabase
+                  timestamp:
+                    type: string
+                    format: date-time
+                  tables_available:
+                    type: array
+                    items:
+                      type: string
+        '503':
+          description: Database is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: unhealthy
+                  message:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /database/operations:
+    post:
+      summary: Execute database operation
+      description: Execute a database operation through Supabase SDK
+      tags:
+        - Database Operations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operation_type
+                - table_name
+              properties:
+                operation_type:
+                  type: string
+                  enum: [create, read, update, delete, real_time]
+                table_name:
+                  type: string
+                query_data:
+                  type: object
+                filters:
+                  type: object
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 100
+                offset:
+                  type: integer
+                  minimum: 0
+                  default: 0
+      responses:
+        '200':
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                  operation_id:
+                    type: string
+                    format: uuid
+                  execution_time_ms:
+                    type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '408':
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/operations/{operation_id}:
+    get:
+      summary: Get operation status
+      description: Retrieve the status of a specific database operation
+      tags:
+        - Database Operations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: operation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Operation status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  operation_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [pending, success, error, timeout]
+                  created_at:
+                    type: string
+                    format: date-time
+                  completed_at:
+                    type: string
+                    format: date-time
+                  execution_time_ms:
+                    type: integer
+                  error_message:
+                    type: string
+        '404':
+          description: Operation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/real-time/subscribe:
+    post:
+      summary: Subscribe to real-time updates
+      description: Subscribe to real-time database changes
+      tags:
+        - Real-time
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - table_name
+                - event_type
+              properties:
+                table_name:
+                  type: string
+                event_type:
+                  type: string
+                  enum: [INSERT, UPDATE, DELETE, ALL]
+                filters:
+                  type: object
+      responses:
+        '200':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: active
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/real-time/unsubscribe:
+    post:
+      summary: Unsubscribe from real-time updates
+      description: Cancel a real-time subscription
+      tags:
+        - Real-time
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subscription_id
+              properties:
+                subscription_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Subscription cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - timestamp
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+
+    DatabaseOperation:
+      type: object
+      required:
+        - operation_id
+        - operation_type
+        - table_name
+        - status
+        - created_at
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        operation_type:
+          type: string
+          enum: [create, read, update, delete, real_time]
+        table_name:
+          type: string
+        query_data:
+          type: object
+        response_data:
+          type: object
+        status:
+          type: string
+          enum: [pending, success, error, timeout]
+        error_message:
+          type: string
+        execution_time_ms:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+        request_id:
+          type: string
+
+    SupabaseClient:
+      type: object
+      required:
+        - client_id
+        - supabase_url
+        - supabase_key
+        - client_type
+        - is_active
+        - connection_status
+        - created_at
+      properties:
+        client_id:
+          type: string
+        supabase_url:
+          type: string
+          format: uri
+        supabase_key:
+          type: string
+        client_type:
+          type: string
+          enum: [service_role, anon]
+        is_active:
+          type: boolean
+        connection_status:
+          type: string
+          enum: [connected, disconnected, error]
+        created_at:
+          type: string
+          format: date-time
+        last_used:
+          type: string
+          format: date-time
+        error_count:
+          type: integer
+          minimum: 0
+          maximum: 10
+        retry_count:
+          type: integer
+          minimum: 0
+          maximum: 5
+
+    AuthenticationContext:
+      type: object
+      required:
+        - session_id
+        - user_id
+        - access_token
+        - refresh_token
+        - expires_at
+        - is_active
+        - created_at
+        - last_activity
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: Bearer
+        expires_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        last_activity:
+          type: string
+          format: date-time
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        permissions:
+          type: object

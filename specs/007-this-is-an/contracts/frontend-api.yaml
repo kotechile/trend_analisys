@@ -1,0 +1,680 @@
+openapi: 3.0.3
+info:
+  title: Frontend Issues Fix API
+  description: API contracts for fixing frontend issues and integrating enhanced workflow
+  version: 1.0.0
+  contact:
+    name: TrendTap Development Team
+    email: dev@trendtap.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.trendtap.com
+    description: Production server
+
+paths:
+  # Tab Navigation API
+  /api/tabs:
+    get:
+      summary: Get all available tabs
+      description: Returns list of all application tabs with their current state
+      tags:
+        - Tabs
+      responses:
+        '200':
+          description: List of tabs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tabs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tab'
+                  activeTab:
+                    type: integer
+                    minimum: 0
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Enhanced Workflow API
+  /api/workflow/sessions:
+    post:
+      summary: Create new workflow session
+      description: Creates a new enhanced workflow session
+      tags:
+        - Workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                searchQuery:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                userId:
+                  type: string
+                  format: uuid
+              required:
+                - searchQuery
+                - userId
+      responses:
+        '201':
+          description: Workflow session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSession'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/workflow/sessions/{sessionId}:
+    get:
+      summary: Get workflow session
+      description: Retrieves a specific workflow session with all associated data
+      tags:
+        - Workflow
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Workflow session retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSession'
+        '404':
+          description: Workflow session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Topic Decomposition API
+  /api/topic-decomposition:
+    post:
+      summary: Start topic decomposition
+      description: Initiates AI-powered topic decomposition for a search query
+      tags:
+        - Topic Decomposition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                searchQuery:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                sessionId:
+                  type: string
+                  format: uuid
+              required:
+                - searchQuery
+                - sessionId
+      responses:
+        '200':
+          description: Topic decomposition started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicDecomposition'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Affiliate Research API
+  /api/affiliate-research:
+    post:
+      summary: Start affiliate research
+      description: Initiates affiliate offer research for selected subtopics
+      tags:
+        - Affiliate Research
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subtopicIds:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                sessionId:
+                  type: string
+                  format: uuid
+              required:
+                - subtopicIds
+                - sessionId
+      responses:
+        '200':
+          description: Affiliate research started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AffiliateOffer'
+                  totalFound:
+                    type: integer
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Trend Analysis API
+  /api/trend-analysis:
+    post:
+      summary: Start trend analysis
+      description: Initiates trend analysis for selected subtopics
+      tags:
+        - Trend Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subtopicIds:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                sessionId:
+                  type: string
+                  format: uuid
+              required:
+                - subtopicIds
+                - sessionId
+      responses:
+        '200':
+          description: Trend analysis started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendAnalysis'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Content Generation API
+  /api/content/generate:
+    post:
+      summary: Generate content ideas
+      description: Generates content ideas based on selected trends and affiliate offers
+      tags:
+        - Content Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                trendIds:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                affiliateOfferIds:
+                  type: array
+                  items:
+                    type: string
+                contentType:
+                  type: string
+                  enum: [blog_post, software_idea, both]
+                sessionId:
+                  type: string
+                  format: uuid
+              required:
+                - trendIds
+                - sessionId
+      responses:
+        '200':
+          description: Content ideas generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contentIdeas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentIdea'
+                  totalGenerated:
+                    type: integer
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Keyword Clustering API
+  /api/keywords/cluster:
+    post:
+      summary: Cluster keywords
+      description: Clusters keywords using machine learning algorithms
+      tags:
+        - Keyword Clustering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keywords:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 5
+                algorithm:
+                  type: string
+                  enum: [kmeans, dbscan, hierarchical]
+                  default: kmeans
+                sessionId:
+                  type: string
+                  format: uuid
+              required:
+                - keywords
+                - sessionId
+      responses:
+        '200':
+          description: Keywords clustered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clusters:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KeywordCluster'
+                  totalClusters:
+                    type: integer
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # External Tool Integration API
+  /api/external-tools/process:
+    post:
+      summary: Process external tool results
+      description: Processes and imports data from external keyword research tools
+      tags:
+        - External Tools
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                toolName:
+                  type: string
+                  enum: [semrush, ahrefs, ubersuggest]
+                sessionId:
+                  type: string
+                  format: uuid
+              required:
+                - file
+                - toolName
+                - sessionId
+      responses:
+        '200':
+          description: External tool data processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processedKeywords:
+                    type: integer
+                  clusters:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KeywordCluster'
+        '400':
+          description: Invalid file format or data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Tab:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        component:
+          type: string
+        icon:
+          type: string
+        disabled:
+          type: boolean
+          default: false
+        loading:
+          type: boolean
+          default: false
+        error:
+          type: string
+          nullable: true
+
+    WorkflowSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        currentStep:
+          type: string
+          enum: [topic_decomposition, affiliate_research, trend_analysis, content_generation, keyword_clustering, external_tool_integration]
+        progressPercentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TopicDecomposition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        searchQuery:
+          type: string
+        subtopics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtopic'
+        createdAt:
+          type: string
+          format: date-time
+        userId:
+          type: string
+          format: uuid
+
+    Subtopic:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        relevanceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        selected:
+          type: boolean
+          default: false
+
+    AffiliateOffer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        commission:
+          type: string
+        category:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        link:
+          type: string
+          nullable: true
+        instructions:
+          type: string
+          nullable: true
+        selected:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+
+    TrendAnalysis:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        subtopicIds:
+          type: array
+          items:
+            type: string
+        trendData:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendData'
+        insights:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        userId:
+          type: string
+          format: uuid
+
+    TrendData:
+      type: object
+      properties:
+        keyword:
+          type: string
+        searchVolume:
+          type: number
+        trendDirection:
+          type: string
+          enum: [rising, falling, stable]
+        competition:
+          type: string
+          enum: [low, medium, high]
+        opportunityScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        timeframe:
+          type: string
+
+    ContentIdea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        contentType:
+          type: string
+          enum: [blog_post, software_idea]
+        targetAudience:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        affiliateOffers:
+          type: array
+          items:
+            type: string
+        priority:
+          type: string
+          enum: [high, medium, low]
+        status:
+          type: string
+          enum: [draft, in_progress, completed]
+        createdAt:
+          type: string
+          format: date-time
+
+    KeywordCluster:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        avgVolume:
+          type: number
+        avgDifficulty:
+          type: number
+        avgCPC:
+          type: number
+        selected:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+tags:
+  - name: Tabs
+    description: Tab navigation and state management
+  - name: Workflow
+    description: Enhanced workflow session management
+  - name: Topic Decomposition
+    description: AI-powered topic decomposition
+  - name: Affiliate Research
+    description: Affiliate offer research and selection
+  - name: Trend Analysis
+    description: Trend analysis and insights
+  - name: Content Generation
+    description: Content idea generation
+  - name: Keyword Clustering
+    description: Keyword clustering and analysis
+  - name: External Tools
+    description: External tool integration

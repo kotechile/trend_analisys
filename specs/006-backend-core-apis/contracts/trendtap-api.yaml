@@ -1,0 +1,793 @@
+openapi: 3.0.3
+info:
+  title: Idea Burst API
+  description: AI Research Workspace API for affiliate research, trend analysis, and content generation
+  version: 1.0.0
+  contact:
+    name: Idea Burst Support
+    email: support@idea-burst.com
+
+servers:
+  - url: https://api.idea-burst.com/v1
+    description: Production server
+  - url: https://staging-api.idea-burst.com/v1
+    description: Staging server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Affiliate Research API
+  /affiliate/research:
+    post:
+      summary: Start affiliate research
+      tags: [Affiliate Research]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AffiliateResearchRequest'
+      responses:
+        '201':
+          description: Research started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /affiliate/research/{id}:
+    get:
+      summary: Get research results
+      tags: [Affiliate Research]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Research results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Trend Analysis API
+  /trends/analyze:
+    post:
+      summary: Start trend analysis
+      tags: [Trend Analysis]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrendAnalysisRequest'
+      responses:
+        '201':
+          description: Analysis started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendAnalysisResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /trends/analysis/{id}:
+    get:
+      summary: Get analysis results
+      tags: [Trend Analysis]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendAnalysisDetails'
+
+  # Keyword Management API
+  /keywords/upload:
+    post:
+      summary: Upload CSV file
+      tags: [Keyword Management]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                trend_analysis_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeywordUploadResponse'
+
+  /keywords/crawl:
+    post:
+      summary: Start DataForSEO crawling
+      tags: [Keyword Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeywordCrawlRequest'
+      responses:
+        '201':
+          description: Crawling started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeywordCrawlResponse'
+
+  # Content Generation API
+  /content/generate:
+    post:
+      summary: Generate content ideas
+      tags: [Content Generation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentGenerationRequest'
+      responses:
+        '201':
+          description: Content ideas generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentGenerationResponse'
+
+  /software/generate:
+    post:
+      summary: Generate software solutions
+      tags: [Content Generation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SoftwareGenerationRequest'
+      responses:
+        '201':
+          description: Software solutions generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoftwareGenerationResponse'
+
+  # Export Integration API
+  /export/google-docs:
+    post:
+      summary: Export to Google Docs
+      tags: [Export Integration]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '201':
+          description: Export successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+  /export/notion:
+    post:
+      summary: Export to Notion
+      tags: [Export Integration]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '201':
+          description: Export successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+  /export/wordpress:
+    post:
+      summary: Export to WordPress
+      tags: [Export Integration]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '201':
+          description: Export successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+  # Calendar Management API
+  /calendar/schedule:
+    post:
+      summary: Schedule content/software
+      tags: [Calendar Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarScheduleRequest'
+      responses:
+        '201':
+          description: Scheduled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarScheduleResponse'
+
+  /calendar/entries:
+    get:
+      summary: Get calendar entries
+      tags: [Calendar Management]
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Calendar entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEntriesResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Affiliate Research Schemas
+    AffiliateResearchRequest:
+      type: object
+      required: [topic]
+      properties:
+        topic:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: "home coffee roasting"
+        search_query:
+          type: string
+          maxLength: 500
+          example: "coffee roasting equipment affiliate programs"
+
+    AffiliateResearchResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+        created_at:
+          type: string
+          format: date-time
+
+    AffiliateResearchDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AffiliateProgram'
+        selected_programs:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    AffiliateProgram:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        network:
+          type: string
+        commission_rate:
+          type: number
+        epc:
+          type: number
+        reversal_rate:
+          type: number
+        cookie_length:
+          type: integer
+        landing_page_compliance:
+          type: boolean
+
+    # Trend Analysis Schemas
+    TrendAnalysisRequest:
+      type: object
+      required: [topics, affiliate_research_id]
+      properties:
+        topics:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 10
+        affiliate_research_id:
+          type: string
+          format: uuid
+
+    TrendAnalysisResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        created_at:
+          type: string
+          format: date-time
+
+    TrendAnalysisDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        opportunity_scores:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+            maximum: 100
+        llm_forecast:
+          type: object
+          properties:
+            forecast:
+              type: array
+              items:
+                type: object
+                properties:
+                  month:
+                    type: string
+                  score:
+                    type: number
+                  confidence:
+                    type: number
+        social_signals:
+          type: object
+          properties:
+            reddit:
+              type: array
+              items:
+                type: string
+            twitter:
+              type: array
+              items:
+                type: string
+            tiktok:
+              type: array
+              items:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    # Keyword Management Schemas
+    KeywordUploadResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PROCESSING, COMPLETED, FAILED]
+        keyword_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    KeywordCrawlRequest:
+      type: object
+      required: [keywords, trend_analysis_id]
+      properties:
+        keywords:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 1000
+        trend_analysis_id:
+          type: string
+          format: uuid
+
+    KeywordCrawlResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PROCESSING, COMPLETED, FAILED]
+        estimated_cost:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+
+    # Content Generation Schemas
+    ContentGenerationRequest:
+      type: object
+      required: [trend_analysis_id, keyword_data_id]
+      properties:
+        trend_analysis_id:
+          type: string
+          format: uuid
+        keyword_data_id:
+          type: string
+          format: uuid
+        content_types:
+          type: array
+          items:
+            type: string
+            enum: [ARTICLE, GUIDE, REVIEW, TUTORIAL, LISTICLE]
+        max_ideas:
+          type: integer
+          default: 5
+          maximum: 20
+
+    ContentGenerationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content_ideas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentIdea'
+        created_at:
+          type: string
+          format: date-time
+
+    ContentIdea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content_type:
+          type: string
+          enum: [ARTICLE, GUIDE, REVIEW, TUTORIAL, LISTICLE]
+        angle:
+          type: string
+        headline_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        priority_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        outline:
+          type: object
+        seo_recommendations:
+          type: object
+
+    SoftwareGenerationRequest:
+      type: object
+      required: [trend_analysis_id, keyword_data_id]
+      properties:
+        trend_analysis_id:
+          type: string
+          format: uuid
+        keyword_data_id:
+          type: string
+          format: uuid
+        software_types:
+          type: array
+          items:
+            type: string
+            enum: [CALCULATOR, ANALYZER, GENERATOR, CONVERTER, ESTIMATOR]
+        max_solutions:
+          type: integer
+          default: 5
+          maximum: 10
+
+    SoftwareGenerationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        software_solutions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoftwareSolution'
+        created_at:
+          type: string
+          format: date-time
+
+    SoftwareSolution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        software_type:
+          type: string
+          enum: [CALCULATOR, ANALYZER, GENERATOR, CONVERTER, ESTIMATOR]
+        complexity_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        priority_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        target_keywords:
+          type: array
+          items:
+            type: string
+        technical_requirements:
+          type: object
+
+    # Export Integration Schemas
+    ExportRequest:
+      type: object
+      required: [content_ids, platform]
+      properties:
+        content_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        software_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        platform:
+          type: string
+          enum: [google_docs, notion, wordpress]
+        template:
+          type: string
+        format_options:
+          type: object
+
+    ExportResponse:
+      type: object
+      properties:
+        export_id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+        url:
+          type: string
+        status:
+          type: string
+          enum: [PROCESSING, COMPLETED, FAILED]
+        created_at:
+          type: string
+          format: date-time
+
+    # Calendar Management Schemas
+    CalendarScheduleRequest:
+      type: object
+      required: [title, scheduled_date, entry_type]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        scheduled_date:
+          type: string
+          format: date-time
+        entry_type:
+          type: string
+          enum: [CONTENT, SOFTWARE_PROJECT]
+        content_idea_id:
+          type: string
+          format: uuid
+        software_solution_id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+        notes:
+          type: string
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    CalendarScheduleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        scheduled_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED]
+        created_at:
+          type: string
+          format: date-time
+
+    CalendarEntriesResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarEntry'
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+
+    CalendarEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        scheduled_date:
+          type: string
+          format: date-time
+        entry_type:
+          type: string
+          enum: [CONTENT, SOFTWARE_PROJECT]
+        status:
+          type: string
+          enum: [SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED]
+        platform:
+          type: string
+        priority:
+          type: integer
+        progress_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    # Error Schemas
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Affiliate Research
+    description: Affiliate program research and selection
+  - name: Trend Analysis
+    description: Trend analysis and forecasting
+  - name: Keyword Management
+    description: Keyword research and analysis
+  - name: Content Generation
+    description: Content and software idea generation
+  - name: Export Integration
+    description: Export to external platforms
+  - name: Calendar Management
+    description: Content and project scheduling

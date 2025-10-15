@@ -1,7 +1,7 @@
 {
-  "name": "@trendtap/shared",
+  "name": "@idea-burst/shared",
   "version": "1.0.0",
-  "description": "Shared types and utilities for TrendTap",
+  "description": "Shared types and utilities for Idea Burst",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

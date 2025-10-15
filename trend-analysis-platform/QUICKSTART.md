@@ -1,4 +1,4 @@
-# 🚀 TrendTap Quick Start Guide
+# 🚀 Idea Burst Quick Start Guide
 
 ## Prerequisites
 
@@ -284,7 +284,7 @@ If you encounter issues:
 
 ## 🎉 Success!
 
-You should now have TrendTap running locally with:
+You should now have Idea Burst running locally with:
 - ✅ User authentication system
 - ✅ Affiliate research capabilities
 - ✅ Trend analysis tools

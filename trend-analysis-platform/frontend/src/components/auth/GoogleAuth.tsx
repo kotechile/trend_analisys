@@ -28,10 +28,12 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       setLoading(true);
       setError(null);
 
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

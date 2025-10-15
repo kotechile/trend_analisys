@@ -7,7 +7,7 @@
 **URL:** http://localhost:8000  
 **Docs:** http://localhost:8000/docs  
 
-This is the **primary backend server** for the TrendTap application. It provides all necessary endpoints including:
+This is the **primary backend server** for the Idea Burst application. It provides all necessary endpoints including:
 - Content ideas management (`/api/content-ideas/*`)
 - Research topics (`/api/research-topics/*`) 
 - Trend analysis (`/api/trend-analysis/*`)
@@ -54,4 +54,8 @@ lsof -ti:8000 | xargs kill -9
 # Then start the main server
 python3 backend/minimal_main.py
 ```
+
+
+
+
 

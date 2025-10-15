@@ -1,0 +1,501 @@
+openapi: 3.0.3
+info:
+  title: Affiliate Research API
+  description: Affiliate program research and discovery endpoints
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform
+    email: support@trendanalysis.com
+
+servers:
+  - url: https://api.trendanalysis.com/v1
+    description: Production server
+  - url: https://staging-api.trendanalysis.com/v1
+    description: Staging server
+
+paths:
+  /affiliate-research:
+    post:
+      summary: Start affiliate research
+      description: Begin research for affiliate programs based on topic
+      tags:
+        - Affiliate Research
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AffiliateResearchRequest'
+            example:
+              topic: "fitness equipment"
+              search_query: "best fitness equipment affiliate programs"
+      responses:
+        '201':
+          description: Affiliate research started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Get user's affiliate research history
+      description: Retrieve all affiliate research sessions for the authenticated user
+      tags:
+        - Affiliate Research
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Filter by research status
+          required: false
+          schema:
+            type: string
+            enum: [pending, completed, failed]
+      responses:
+        '200':
+          description: Affiliate research history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchListResponse'
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /affiliate-research/{id}:
+    get:
+      summary: Get affiliate research details
+      description: Retrieve detailed information about a specific affiliate research session
+      tags:
+        - Affiliate Research
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Affiliate research ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Affiliate research details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchDetailResponse'
+        '404':
+          description: Affiliate research not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update affiliate research
+      description: Update affiliate research session (e.g., bookmark programs)
+      tags:
+        - Affiliate Research
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Affiliate research ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AffiliateResearchUpdateRequest'
+      responses:
+        '200':
+          description: Affiliate research updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchResponse'
+        '404':
+          description: Affiliate research not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete affiliate research
+      description: Delete an affiliate research session
+      tags:
+        - Affiliate Research
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Affiliate research ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Affiliate research deleted successfully
+        '404':
+          description: Affiliate research not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /affiliate-research/{id}/refresh:
+    post:
+      summary: Refresh affiliate research
+      description: Re-run affiliate research with updated parameters
+      tags:
+        - Affiliate Research
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Affiliate research ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Affiliate research refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateResearchResponse'
+        '404':
+          description: Affiliate research not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AffiliateResearchRequest:
+      type: object
+      required:
+        - topic
+      properties:
+        topic:
+          type: string
+          minLength: 3
+          maxLength: 200
+          description: Research topic
+          example: "fitness equipment"
+        search_query:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Refined search query
+          example: "best fitness equipment affiliate programs"
+
+    AffiliateResearchUpdateRequest:
+      type: object
+      properties:
+        bookmarked_programs:
+          type: array
+          items:
+            type: string
+          description: List of bookmarked program IDs
+          example: ["prog_123", "prog_456"]
+        notes:
+          type: string
+          maxLength: 1000
+          description: User notes about the research
+          example: "Focus on high-commission programs"
+
+    AffiliateResearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Affiliate research started successfully"
+        research:
+          $ref: '#/components/schemas/AffiliateResearch'
+
+    AffiliateResearchListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AffiliateResearch'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    AffiliateResearchDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        research:
+          $ref: '#/components/schemas/AffiliateResearch'
+
+    AffiliateResearch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Research unique identifier
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          format: uuid
+          description: User ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        topic:
+          type: string
+          description: Research topic
+          example: "fitness equipment"
+        search_query:
+          type: string
+          description: Refined search query
+          example: "best fitness equipment affiliate programs"
+        status:
+          type: string
+          enum: [pending, completed, failed]
+          description: Research status
+          example: "completed"
+        results:
+          $ref: '#/components/schemas/AffiliateProgramResults'
+        metadata:
+          type: object
+          description: Research metadata
+          example:
+            search_parameters:
+              max_results: 50
+              min_commission: 5.0
+            filters_applied:
+              - "high_commission"
+              - "reputable_programs"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2025-01-27T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2025-01-27T10:00:00Z"
+        completed_at:
+          type: string
+          format: date-time
+          description: Completion timestamp
+          example: "2025-01-27T10:05:00Z"
+
+    AffiliateProgramResults:
+      type: object
+      properties:
+        programs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AffiliateProgram'
+        total_found:
+          type: integer
+          description: Total number of programs found
+          example: 25
+        search_time_ms:
+          type: integer
+          description: Search execution time in milliseconds
+          example: 1500
+
+    AffiliateProgram:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Program unique identifier
+          example: "prog_123"
+        name:
+          type: string
+          description: Program name
+          example: "Fitness Equipment Plus"
+        description:
+          type: string
+          description: Program description
+          example: "Premium fitness equipment and accessories"
+        website_url:
+          type: string
+          format: uri
+          description: Program website URL
+          example: "https://fitnessequipmentplus.com"
+        commission_rate:
+          type: number
+          format: float
+          description: Commission rate percentage
+          example: 8.5
+        commission_type:
+          type: string
+          enum: [percentage, fixed, tiered]
+          description: Commission type
+          example: "percentage"
+        cookie_duration:
+          type: integer
+          description: Cookie duration in days
+          example: 30
+        minimum_payout:
+          type: number
+          format: float
+          description: Minimum payout amount
+          example: 50.0
+        payment_methods:
+          type: array
+          items:
+            type: string
+          description: Available payment methods
+          example: ["PayPal", "Bank Transfer", "Check"]
+        requirements:
+          type: array
+          items:
+            type: string
+          description: Program requirements
+          example: ["Website with 1000+ monthly visitors", "Content quality review"]
+        category:
+          type: string
+          description: Program category
+          example: "Health & Fitness"
+        rating:
+          type: number
+          format: float
+          minimum: 1.0
+          maximum: 5.0
+          description: Program rating
+          example: 4.2
+        is_bookmarked:
+          type: boolean
+          description: Whether user has bookmarked this program
+          example: false
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 20
+        total:
+          type: integer
+          description: Total number of items
+          example: 100
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 5
+        has_next:
+          type: boolean
+          description: Whether there is a next page
+          example: true
+        has_prev:
+          type: boolean
+          description: Whether there is a previous page
+          example: false
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+          example: "Validation error"
+        details:
+          type: object
+          description: Additional error details
+          example: {"field": "topic", "message": "Topic is required"}
+        code:
+          type: string
+          description: Error code
+          example: "VALIDATION_ERROR"

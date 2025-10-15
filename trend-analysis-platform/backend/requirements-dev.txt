@@ -44,10 +44,10 @@ click==8.1.7                  # Command line interface creation
 # API TESTING & DOCUMENTATION
 # =============================================================================
 # API testing and documentation
-httpx==0.25.2                 # HTTP client for testing
+httpx==0.24.1                 # HTTP client for testing
 requests-mock==1.11.0         # Mock requests library
-swagger-ui-bundle==0.1.0      # Swagger UI for API docs
-redoc==0.1.0                  # ReDoc for API documentation
+swagger-ui-bundle==1.1.0      # Swagger UI for API docs
+redoc==0.1.7                  # ReDoc for API documentation
 
 # =============================================================================
 # DATABASE TOOLS
@@ -70,9 +70,9 @@ pyflame==1.6.7                # Flame graph profiler
 # SECURITY TESTING
 # =============================================================================
 # Security testing tools
-cryptography==41.0.7          # Cryptographic utilities
-python-nmap==0.7.1            # Network security scanner
-sqlmap==1.7.2                 # SQL injection testing
+# cryptography==41.0.7          # Cryptographic utilities (already in base requirements)
+# python-nmap==0.7.1            # Network security scanner (requires system packages)
+# sqlmap==1.7.2                 # SQL injection testing (requires system packages)
 
 # =============================================================================
 # DOCUMENTATION & REPORTING

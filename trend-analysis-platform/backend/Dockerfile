@@ -74,7 +74,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command for development
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # =============================================================================
 # STAGE 4: Production Stage
@@ -101,7 +101,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command for production
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
 
 # =============================================================================
 # STAGE 5: Security Hardened Production Stage
@@ -140,12 +140,12 @@ ENV SECURITY_MODE=hardened \
     SECURITY_SCANNING=true
 
 # Override command for security-hardened mode
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--log-level", "warning"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--log-level", "warning"]
 
 # =============================================================================
-# STAGE 6: Minimal Production Stage (Alpine-based)
+# STAGE 6: Minimal Production Stage (Debian-based for better pandas support)
 # =============================================================================
-FROM python:3.11-alpine as minimal
+FROM python:3.11-slim as minimal
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -154,19 +154,23 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Install system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     # PostgreSQL client libraries
-    postgresql-dev \
-    # Build tools
+    libpq-dev \
+    # Build tools for compiling Python packages
     gcc \
-    musl-dev \
-    # Security
+    g++ \
+    make \
+    # Security updates
     ca-certificates \
     # Network tools
-    curl
+    curl \
+    # Cleanup
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Create non-root user
-RUN addgroup -g 1000 appuser && adduser -D -s /bin/sh -u 1000 -G appuser appuser
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Set working directory
 WORKDIR /app
@@ -197,7 +201,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
 
 # =============================================================================
 # METADATA

@@ -1,0 +1,454 @@
+openapi: 3.0.3
+info:
+  title: Supabase Integration API
+  description: API contracts for Supabase database integration
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform Team
+    email: dev@trendanalysis.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://api.trendanalysis.com/v1
+    description: Production server
+
+paths:
+  /health/database:
+    get:
+      summary: Check database connection health
+      description: Verify Supabase connection status and basic functionality
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Database is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  supabase_status:
+                    type: string
+                    enum: [connected, disconnected, error]
+                  response_time_ms:
+                    type: number
+                    minimum: 0
+                  last_check:
+                    type: string
+                    format: date-time
+                  details:
+                    type: object
+                    properties:
+                      connection_pool_size:
+                        type: integer
+                      active_connections:
+                        type: integer
+                      error_count:
+                        type: integer
+        '503':
+          description: Database is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/operations:
+    get:
+      summary: List database operations
+      description: Retrieve recent database operations for monitoring
+      tags:
+        - Database Operations
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of operations to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: operation_type
+          in: query
+          description: Filter by operation type
+          schema:
+            type: string
+            enum: [create, read, update, delete, realtime]
+        - name: status
+          in: query
+          description: Filter by operation status
+          schema:
+            type: string
+            enum: [pending, success, failed, timeout]
+        - name: user_id
+          in: query
+          description: Filter by user ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of database operations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  operations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DatabaseOperation'
+                  total_count:
+                    type: integer
+                  page_info:
+                    $ref: '#/components/schemas/PageInfo'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/operations/{operation_id}:
+    get:
+      summary: Get database operation details
+      description: Retrieve detailed information about a specific database operation
+      tags:
+        - Database Operations
+      parameters:
+        - name: operation_id
+          in: path
+          required: true
+          description: Unique identifier for the operation
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Database operation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseOperation'
+        '404':
+          description: Operation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/migrate:
+    post:
+      summary: Initiate database migration
+      description: Start the migration process from PostgreSQL to Supabase
+      tags:
+        - Migration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                migration_type:
+                  type: string
+                  enum: [full, incremental, rollback]
+                  description: Type of migration to perform
+                dry_run:
+                  type: boolean
+                  default: false
+                  description: Whether to perform a dry run without making changes
+                tables:
+                  type: array
+                  items:
+                    type: string
+                  description: Specific tables to migrate (empty for all)
+              required:
+                - migration_type
+      responses:
+        '202':
+          description: Migration started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  migration_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [started, queued]
+                  estimated_duration:
+                    type: string
+                    description: Estimated time to complete migration
+        '400':
+          description: Invalid migration request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Migration already in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/migrate/{migration_id}:
+    get:
+      summary: Get migration status
+      description: Check the status of an ongoing migration
+      tags:
+        - Migration
+      parameters:
+        - name: migration_id
+          in: path
+          required: true
+          description: Migration identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Migration status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  migration_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [started, in_progress, completed, failed, cancelled]
+                  progress_percentage:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                  current_table:
+                    type: string
+                    description: Table currently being migrated
+                  started_at:
+                    type: string
+                    format: date-time
+                  completed_at:
+                    type: string
+                    format: date-time
+                  error_message:
+                    type: string
+                    description: Error details if migration failed
+        '404':
+          description: Migration not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/realtime/subscribe:
+    post:
+      summary: Subscribe to real-time updates
+      description: Create a real-time subscription for database changes
+      tags:
+        - Real-time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                table_name:
+                  type: string
+                  description: Table to subscribe to
+                event_types:
+                  type: array
+                  items:
+                    type: string
+                    enum: [INSERT, UPDATE, DELETE]
+                  description: Types of events to listen for
+                filter:
+                  type: object
+                  description: Optional filter conditions
+              required:
+                - table_name
+                - event_types
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_id:
+                    type: string
+                    format: uuid
+                  websocket_url:
+                    type: string
+                    format: uri
+                  status:
+                    type: string
+                    enum: [active, connecting, error]
+        '400':
+          description: Invalid subscription request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /database/realtime/subscribe/{subscription_id}:
+    delete:
+      summary: Unsubscribe from real-time updates
+      description: Cancel a real-time subscription
+      tags:
+        - Real-time
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          description: Subscription identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Subscription cancelled successfully
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    DatabaseOperation:
+      type: object
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        operation_type:
+          type: string
+          enum: [create, read, update, delete, realtime]
+        table_name:
+          type: string
+        query_data:
+          type: object
+          description: Operation-specific data
+        status:
+          type: string
+          enum: [pending, success, failed, timeout]
+        error_message:
+          type: string
+          nullable: true
+        execution_time:
+          type: number
+          minimum: 0
+          description: Execution time in milliseconds
+        created_at:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+        - operation_id
+        - operation_type
+        - table_name
+        - status
+        - created_at
+
+    PageInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total_pages:
+          type: integer
+          minimum: 0
+        has_next:
+          type: boolean
+        has_previous:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - message
+        - timestamp
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        supabase_status:
+          type: string
+          enum: [connected, disconnected, error]
+        response_time_ms:
+          type: number
+          minimum: 0
+        last_check:
+          type: string
+          format: date-time
+        details:
+          type: object
+          properties:
+            connection_pool_size:
+              type: integer
+            active_connections:
+              type: integer
+            error_count:
+              type: integer
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Database Operations
+    description: Database operation monitoring and management
+  - name: Migration
+    description: Database migration operations
+  - name: Real-time
+    description: Real-time database subscriptions
+

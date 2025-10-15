@@ -1,0 +1,717 @@
+openapi: 3.0.3
+info:
+  title: Research Topics API
+  description: API for managing research topics and complete dataflow persistence
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform
+    email: support@trendanalysis.com
+
+servers:
+  - url: https://api.trendanalysis.com/v1
+    description: Production server
+  - url: https://staging-api.trendanalysis.com/v1
+    description: Staging server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /research-topics:
+    get:
+      summary: List research topics
+      description: Get all research topics for the authenticated user
+      tags:
+        - Research Topics
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [active, completed, archived]
+        - name: limit
+          in: query
+          description: Number of results to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of research topics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ResearchTopic'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create research topic
+      description: Create a new research topic
+      tags:
+        - Research Topics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResearchTopicRequest'
+      responses:
+        '201':
+          description: Research topic created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchTopic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /research-topics/{id}:
+    get:
+      summary: Get research topic
+      description: Get a specific research topic with complete dataflow
+      tags:
+        - Research Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Research topic ID
+          schema:
+            type: string
+            format: uuid
+        - name: include_dataflow
+          in: query
+          description: Include complete dataflow (subtopics, trend analyses, content ideas)
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Research topic with complete dataflow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchTopicWithDataflow'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update research topic
+      description: Update an existing research topic
+      tags:
+        - Research Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Research topic ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResearchTopicRequest'
+      responses:
+        '200':
+          description: Research topic updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchTopic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Version conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete research topic
+      description: Delete a research topic and all associated data
+      tags:
+        - Research Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Research topic ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Research topic deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /research-topics/{id}/subtopics:
+    get:
+      summary: Get subtopics
+      description: Get all subtopics for a research topic
+      tags:
+        - Research Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Research topic ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of subtopics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subtopic'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create subtopics
+      description: Create subtopics for a research topic (including original topic)
+      tags:
+        - Research Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Research topic ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubtopicsRequest'
+      responses:
+        '201':
+          description: Subtopics created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subtopic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /research-topics/{id}/complete:
+    get:
+      summary: Get complete dataflow
+      description: Get research topic with complete dataflow (subtopics, trend analyses, content ideas)
+      tags:
+        - Research Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Research topic ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Complete research dataflow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteDataflow'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ResearchTopic:
+      type: object
+      required:
+        - id
+        - user_id
+        - title
+        - status
+        - created_at
+        - updated_at
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+
+    ResearchTopicWithDataflow:
+      allOf:
+        - $ref: '#/components/schemas/ResearchTopic'
+        - type: object
+          properties:
+            subtopics:
+              type: array
+              items:
+                $ref: '#/components/schemas/Subtopic'
+            trend_analyses:
+              type: array
+              items:
+                $ref: '#/components/schemas/TrendAnalysis'
+            content_ideas:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentIdea'
+
+    CompleteDataflow:
+      type: object
+      required:
+        - research_topic
+        - subtopics
+        - trend_analyses
+        - content_ideas
+      properties:
+        research_topic:
+          $ref: '#/components/schemas/ResearchTopic'
+        subtopics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtopic'
+        trend_analyses:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendAnalysis'
+        content_ideas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentIdea'
+
+    Subtopic:
+      type: object
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+
+    TrendAnalysis:
+      type: object
+      required:
+        - id
+        - user_id
+        - topic_decomposition_id
+        - subtopic_name
+        - analysis_name
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        topic_decomposition_id:
+          type: string
+          format: uuid
+        subtopic_name:
+          type: string
+          maxLength: 255
+        analysis_name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        keywords:
+          type: array
+          items:
+            type: string
+        timeframe:
+          type: string
+          enum: [1h, 4h, 1d, 7d, 30d, 90d, 12m, 5y, all]
+        geo:
+          type: string
+          maxLength: 10
+        trend_data:
+          type: object
+        analysis_results:
+          type: object
+        insights:
+          type: object
+        source:
+          type: string
+          enum: [google_trends, csv_upload, semrush, ahrefs, ubersuggest, fallback]
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+        error_message:
+          type: string
+          maxLength: 1000
+        processing_time_ms:
+          type: integer
+        api_calls_made:
+          type: integer
+        cache_hit:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    ContentIdea:
+      type: object
+      required:
+        - id
+        - user_id
+        - trend_analysis_id
+        - research_topic_id
+        - title
+        - content_type
+        - idea_type
+        - status
+        - primary_keyword
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        trend_analysis_id:
+          type: string
+          format: uuid
+        research_topic_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 500
+        description:
+          type: string
+        content_type:
+          type: string
+          enum: [blog_post, article, guide, review, tutorial, news, opinion, comparison, landing_page, product_page]
+        idea_type:
+          type: string
+          enum: [trending, evergreen, seasonal, newsjacking, how_to, listicle, case_study, opinion, comparison, review]
+        status:
+          type: string
+          enum: [draft, in_progress, completed, published, archived]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        target_audience:
+          type: string
+          maxLength: 255
+        content_angle:
+          type: string
+          maxLength: 255
+        key_points:
+          type: array
+          items:
+            type: string
+        content_outline:
+          type: array
+          items:
+            type: string
+        primary_keyword:
+          type: string
+          maxLength: 255
+        secondary_keywords:
+          type: array
+          items:
+            type: string
+        enhanced_keywords:
+          type: array
+          items:
+            type: string
+        keyword_difficulty:
+          type: integer
+          minimum: 0
+          maximum: 100
+        search_volume:
+          type: integer
+        cpc:
+          type: string
+          maxLength: 20
+        affiliate_offers:
+          type: array
+          items:
+            type: object
+        affiliate_links:
+          type: array
+          items:
+            type: object
+        monetization_strategy:
+          type: string
+        expected_revenue:
+          type: string
+          maxLength: 20
+        generation_prompt:
+          type: string
+        generation_model:
+          type: string
+          maxLength: 100
+        generation_parameters:
+          type: object
+        generation_time_ms:
+          type: integer
+        readability_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        seo_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        engagement_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        quality_notes:
+          type: string
+        target_publish_date:
+          type: string
+          format: date-time
+        actual_publish_date:
+          type: string
+          format: date-time
+        publish_url:
+          type: string
+          maxLength: 500
+        word_count:
+          type: integer
+        reading_time_minutes:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateResearchTopicRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 5000
+
+    UpdateResearchTopicRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 5000
+        status:
+          type: string
+          enum: [active, completed, archived]
+        version:
+          type: integer
+          minimum: 1
+
+    CreateSubtopicsRequest:
+      type: object
+      required:
+        - search_query
+        - subtopics
+      properties:
+        search_query:
+          type: string
+          maxLength: 1000
+        subtopics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtopic'
+          minItems: 1
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+
+    VersionConflictError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        current_version:
+          type: integer
+        provided_version:
+          type: integer
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+              details:
+                type: object
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string

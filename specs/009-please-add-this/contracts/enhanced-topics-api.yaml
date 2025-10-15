@@ -1,0 +1,523 @@
+openapi: 3.0.3
+info:
+  title: Enhanced Topics API
+  description: API for Google Autocomplete integration with topic decomposition
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform
+    email: support@trendanalysis.com
+
+servers:
+  - url: http://localhost:8000/api/enhanced-topics
+    description: Development server
+  - url: https://api.trendanalysis.com/api/enhanced-topics
+    description: Production server
+
+paths:
+  /decompose:
+    post:
+      summary: Enhanced topic decomposition with Google Autocomplete
+      description: Decompose a topic into subtopics using Google Autocomplete + LLM hybrid approach
+      operationId: enhancedTopicDecomposition
+      tags:
+        - Enhanced Topics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnhancedTopicDecompositionRequest'
+            examples:
+              basic_request:
+                summary: Basic topic decomposition
+                value:
+                  search_query: "fitness equipment"
+                  user_id: "user123"
+                  max_subtopics: 6
+                  use_autocomplete: true
+                  use_llm: true
+              autocomplete_only:
+                summary: Autocomplete-only approach
+                value:
+                  search_query: "digital marketing"
+                  user_id: "user456"
+                  max_subtopics: 4
+                  use_autocomplete: true
+                  use_llm: false
+      responses:
+        '200':
+          description: Successful decomposition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnhancedTopicDecompositionResponse'
+              examples:
+                successful_decomposition:
+                  summary: Successful hybrid decomposition
+                  value:
+                    success: true
+                    message: "Topic decomposed into 6 enhanced subtopics"
+                    original_query: "fitness equipment"
+                    subtopics:
+                      - title: "best home gym equipment 2024"
+                        search_volume_indicators: ["High search volume from autocomplete"]
+                        autocomplete_suggestions: ["home gym setup", "gym equipment reviews"]
+                        relevance_score: 0.9
+                        source: "hybrid"
+                      - title: "commercial fitness equipment"
+                        search_volume_indicators: ["Found 12 related search suggestions"]
+                        autocomplete_suggestions: ["gym equipment suppliers", "fitness equipment wholesale"]
+                        relevance_score: 0.8
+                        source: "hybrid"
+                    autocomplete_data:
+                      query: "fitness equipment"
+                      suggestions: ["fitness equipment", "fitness equipment for home", "fitness equipment store"]
+                      total_suggestions: 15
+                      processing_time: 0.45
+                    processing_time: 1.2
+                    enhancement_methods: ["autocomplete", "llm"]
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /autocomplete/{query}:
+    get:
+      summary: Get Google Autocomplete suggestions
+      description: Direct access to Google Autocomplete suggestions for a query
+      operationId: getAutocompleteSuggestions
+      tags:
+        - Enhanced Topics
+      parameters:
+        - name: query
+          in: path
+          required: true
+          description: Search query for autocomplete suggestions
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+            example: "fitness equipment"
+      responses:
+        '200':
+          description: Successful autocomplete response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutocompleteResponse'
+              examples:
+                successful_autocomplete:
+                  summary: Successful autocomplete request
+                  value:
+                    success: true
+                    query: "fitness equipment"
+                    suggestions:
+                      - "fitness equipment"
+                      - "fitness equipment for home"
+                      - "fitness equipment store"
+                      - "fitness equipment near me"
+                    total_suggestions: 15
+                    processing_time: 0.45
+        '400':
+          description: Bad request - invalid query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /compare-methods:
+    post:
+      summary: Compare different decomposition methods
+      description: Run side-by-side comparison of LLM-only, autocomplete-only, and hybrid approaches
+      operationId: compareDecompositionMethods
+      tags:
+        - Enhanced Topics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MethodComparisonRequest'
+            examples:
+              comparison_request:
+                summary: Method comparison request
+                value:
+                  search_query: "digital marketing"
+                  user_id: "user789"
+                  max_subtopics: 6
+      responses:
+        '200':
+          description: Successful method comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodComparisonResponse'
+              examples:
+                successful_comparison:
+                  summary: Successful method comparison
+                  value:
+                    success: true
+                    original_query: "digital marketing"
+                    comparison:
+                      llm_only:
+                        subtopics:
+                          - "digital marketing basics"
+                          - "advanced digital marketing"
+                          - "digital marketing tools"
+                        processing_time: 0.8
+                        method: "LLM Only"
+                      autocomplete_only:
+                        subtopics:
+                          - "digital marketing courses"
+                          - "digital marketing agency"
+                          - "digital marketing jobs"
+                        processing_time: 0.6
+                        method: "Autocomplete Only"
+                      hybrid:
+                        subtopics:
+                          - "digital marketing strategy 2024"
+                          - "digital marketing automation"
+                          - "digital marketing analytics"
+                        processing_time: 1.1
+                        method: "Hybrid (LLM + Autocomplete)"
+                    recommendation: "Hybrid approach provides the best balance of intelligence and real-world relevance"
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    EnhancedTopicDecompositionRequest:
+      type: object
+      required:
+        - search_query
+        - user_id
+      properties:
+        search_query:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The topic to decompose into subtopics
+          example: "fitness equipment"
+        user_id:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User identifier for rate limiting and caching
+          example: "user123"
+        max_subtopics:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 6
+          description: Maximum number of subtopics to return
+          example: 6
+        use_autocomplete:
+          type: boolean
+          default: true
+          description: Whether to use Google Autocomplete
+          example: true
+        use_llm:
+          type: boolean
+          default: true
+          description: Whether to use LLM processing
+          example: true
+
+    EnhancedSubtopic:
+      type: object
+      required:
+        - title
+        - search_volume_indicators
+        - autocomplete_suggestions
+        - relevance_score
+        - source
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: The subtopic title
+          example: "best home gym equipment 2024"
+        search_volume_indicators:
+          type: array
+          items:
+            type: string
+          description: Metrics indicating search popularity
+          example: ["High search volume from autocomplete"]
+        autocomplete_suggestions:
+          type: array
+          items:
+            type: string
+          description: Related search suggestions from Google
+          example: ["home gym setup", "gym equipment reviews"]
+        relevance_score:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Calculated relevance score
+          example: 0.9
+        source:
+          type: string
+          enum: [llm, autocomplete, hybrid]
+          description: Data source
+          example: "hybrid"
+
+    EnhancedTopicDecompositionResponse:
+      type: object
+      required:
+        - success
+        - message
+        - original_query
+        - subtopics
+        - autocomplete_data
+        - processing_time
+        - enhancement_methods
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+          example: true
+        message:
+          type: string
+          description: Human-readable message
+          example: "Topic decomposed into 6 enhanced subtopics"
+        original_query:
+          type: string
+          description: The original search query
+          example: "fitness equipment"
+        subtopics:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnhancedSubtopic'
+          description: List of enhanced subtopics
+        autocomplete_data:
+          $ref: '#/components/schemas/AutocompleteData'
+        processing_time:
+          type: number
+          minimum: 0
+          description: Total processing time in seconds
+          example: 1.2
+        enhancement_methods:
+          type: array
+          items:
+            type: string
+          description: Methods used for enhancement
+          example: ["autocomplete", "llm"]
+
+    AutocompleteData:
+      type: object
+      required:
+        - query
+        - suggestions
+        - total_suggestions
+        - processing_time
+      properties:
+        query:
+          type: string
+          description: The query that was processed
+          example: "fitness equipment"
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: Autocomplete suggestions
+          example: ["fitness equipment", "fitness equipment for home"]
+        total_suggestions:
+          type: integer
+          minimum: 0
+          description: Total number of suggestions
+          example: 15
+        processing_time:
+          type: number
+          minimum: 0
+          description: Time taken to fetch suggestions
+          example: 0.45
+
+    AutocompleteResponse:
+      type: object
+      required:
+        - success
+        - query
+        - suggestions
+        - total_suggestions
+        - processing_time
+      properties:
+        success:
+          type: boolean
+          description: Whether the request was successful
+          example: true
+        query:
+          type: string
+          description: The processed query
+          example: "fitness equipment"
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: Autocomplete suggestions
+          example: ["fitness equipment", "fitness equipment for home"]
+        total_suggestions:
+          type: integer
+          minimum: 0
+          description: Total number of suggestions
+          example: 15
+        processing_time:
+          type: number
+          minimum: 0
+          description: Processing time in seconds
+          example: 0.45
+
+    MethodComparisonRequest:
+      type: object
+      required:
+        - search_query
+        - user_id
+      properties:
+        search_query:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The topic to compare methods for
+          example: "digital marketing"
+        user_id:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: User identifier
+          example: "user789"
+        max_subtopics:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 6
+          description: Maximum number of subtopics per method
+          example: 6
+
+    MethodComparisonResponse:
+      type: object
+      required:
+        - success
+        - original_query
+        - comparison
+        - recommendation
+      properties:
+        success:
+          type: boolean
+          description: Whether the comparison was successful
+          example: true
+        original_query:
+          type: string
+          description: The original query
+          example: "digital marketing"
+        comparison:
+          type: object
+          required:
+            - llm_only
+            - autocomplete_only
+            - hybrid
+          properties:
+            llm_only:
+              $ref: '#/components/schemas/MethodResult'
+            autocomplete_only:
+              $ref: '#/components/schemas/MethodResult'
+            hybrid:
+              $ref: '#/components/schemas/MethodResult'
+        recommendation:
+          type: string
+          description: Recommendation based on comparison
+          example: "Hybrid approach provides the best balance of intelligence and real-world relevance"
+
+    MethodResult:
+      type: object
+      required:
+        - subtopics
+        - processing_time
+        - method
+      properties:
+        subtopics:
+          type: array
+          items:
+            type: string
+          description: List of subtopics for this method
+          example: ["digital marketing basics", "advanced digital marketing"]
+        processing_time:
+          type: number
+          minimum: 0
+          description: Processing time in seconds
+          example: 0.8
+        method:
+          type: string
+          description: Method name
+          example: "LLM Only"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Always false for errors
+          example: false
+        error:
+          type: string
+          description: Error type
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid search query provided"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            field: "search_query"
+            reason: "Query cannot be empty"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+security:
+  - ApiKeyAuth: []
+

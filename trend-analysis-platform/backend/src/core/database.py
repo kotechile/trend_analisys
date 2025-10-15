@@ -1,5 +1,5 @@
 """
-Database configuration and connection management for TrendTap
+Database configuration and connection management for Idea Burst
 """
 
 from sqlalchemy import create_engine, MetaData, Index, text, event
@@ -15,10 +15,9 @@ from contextlib import contextmanager
 logger = structlog.get_logger()
 
 # Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://trendtap:password@localhost:5432/trendtap"
-)
+# Note: This file is deprecated - using Supabase SDK instead
+# All database operations should go through Supabase client
+DATABASE_URL = "supabase://cloud"  # Placeholder - not used
 
 # Create engine with enhanced connection pooling
 engine = create_engine(
@@ -32,7 +31,7 @@ engine = create_engine(
     echo=os.getenv("SQL_ECHO", "false").lower() == "true",
     connect_args={
         "options": "-c timezone=utc",
-        "application_name": "trendtap_backend"
+        "application_name": "idea_burst_backend"
     }
 )
 

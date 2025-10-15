@@ -4,17 +4,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: trendtap-postgres
+    container_name: idea-burst-postgres
     environment:
-      POSTGRES_DB: trendtap
-      POSTGRES_USER: trendtap
+      POSTGRES_DB: idea_burst
+      POSTGRES_USER: idea_burst
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trendtap -d trendtap"]
+      test: ["CMD-SHELL", "pg_isready -U idea_burst -d idea_burst"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: trendtap-redis
+    container_name: idea-burst-redis
     ports:
       - "6379:6379"
     volumes:
@@ -36,11 +36,11 @@ services:
   # Backend API (Simplified)
   backend:
     image: python:3.11-slim
-    container_name: trendtap-backend
+    container_name: idea-burst-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://trendtap:password@postgres:5432/trendtap
+      - DATABASE_URL=postgresql://idea_burst:password@postgres:5432/idea_burst
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production
       - JWT_ALGORITHM=HS256
@@ -73,12 +73,12 @@ services:
   # Frontend
   frontend:
     image: node:18-alpine
-    container_name: trendtap-frontend
+    container_name: idea-burst-frontend
     ports:
       - "3000:3000"
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
-      - VITE_APP_NAME=TrendTap
+      - VITE_APP_NAME=Idea Burst
       - VITE_DEBUG=true
     depends_on:
       - backend
@@ -105,6 +105,6 @@ volumes:
 
 networks:
   default:
-    name: trendtap-network
+    name: idea-burst-network
 
 

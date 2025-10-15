@@ -1,0 +1,828 @@
+openapi: 3.0.3
+info:
+  title: Enhanced Research Workflow API
+  description: API endpoints for enhanced research workflow integration
+  version: 1.0.0
+  contact:
+    name: TrendTap API Support
+    email: support@trendtap.com
+
+servers:
+  - url: https://api.trendtap.com/v1
+    description: Production server
+  - url: https://staging-api.trendtap.com/v1
+    description: Staging server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /workflow/sessions:
+    post:
+      summary: Create workflow session
+      description: Create a new workflow session for enhanced research
+      tags:
+        - Workflow Sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowSessionRequest'
+      responses:
+        '201':
+          description: Workflow session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSessionResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: List workflow sessions
+      description: Get list of workflow sessions for user
+      tags:
+        - Workflow Sessions
+      parameters:
+        - name: status
+          in: query
+          description: Filter by session status
+          schema:
+            type: string
+            enum: [active, completed, failed, paused]
+        - name: limit
+          in: query
+          description: Number of sessions to return
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of sessions to skip
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of workflow sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSessionsListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}:
+    get:
+      summary: Get workflow session
+      description: Get details of a specific workflow session
+      tags:
+        - Workflow Sessions
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Workflow session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSessionResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update workflow session
+      description: Update workflow session progress and state
+      tags:
+        - Workflow Sessions
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkflowSessionRequest'
+      responses:
+        '200':
+          description: Workflow session updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSessionResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}/csv-upload:
+    post:
+      summary: Upload CSV file for trend analysis
+      description: Upload CSV file with trend data for manual analysis
+      tags:
+        - CSV Upload
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with trend data
+                column_mapping:
+                  type: object
+                  description: Column mapping configuration
+                  properties:
+                    trend_name:
+                      type: string
+                      description: Column name for trend names
+                    trend_description:
+                      type: string
+                      description: Column name for trend descriptions
+                    trend_category:
+                      type: string
+                      description: Column name for trend categories
+                    search_volume:
+                      type: string
+                      description: Column name for search volumes
+                    competition_level:
+                      type: string
+                      description: Column name for competition levels
+                    date:
+                      type: string
+                      description: Column name for dates
+      responses:
+        '201':
+          description: CSV file uploaded and processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CSVUploadResponse'
+        '400':
+          description: Bad request - invalid CSV format or mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}/trends:
+    get:
+      summary: Get available trends
+      description: Get list of trends from LLM analysis and CSV uploads
+      tags:
+        - Trend Selection
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+        - name: source
+          in: query
+          description: Filter by trend source
+          schema:
+            type: string
+            enum: [llm_analysis, csv_upload, all]
+            default: all
+        - name: category
+          in: query
+          description: Filter by trend category
+          schema:
+            type: string
+            enum: [technology, business, lifestyle, health, finance, entertainment]
+        - name: min_volume
+          in: query
+          description: Minimum search volume
+          schema:
+            type: integer
+            minimum: 0
+        - name: max_volume
+          in: query
+          description: Maximum search volume
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: List of available trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendsListResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Select trends for content generation
+      description: Select specific trends for keyword generation and content strategy
+      tags:
+        - Trend Selection
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectTrendsRequest'
+      responses:
+        '200':
+          description: Trends selected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendSelectionsResponse'
+        '400':
+          description: Bad request - invalid trend selection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}/keywords/generate:
+    post:
+      summary: Generate seed keywords
+      description: Generate seed keywords based on selected trends and content ideas
+      tags:
+        - Keyword Generation
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateKeywordsRequest'
+      responses:
+        '200':
+          description: Keywords generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeywordsGenerationResponse'
+        '400':
+          description: Bad request - invalid generation parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}/keywords/export:
+    get:
+      summary: Export keywords for external tools
+      description: Export generated keywords in formats suitable for external tools
+      tags:
+        - Keyword Export
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          required: true
+          description: Export format
+          schema:
+            type: string
+            enum: [ahrefs, semrush, ubersuggest, csv, json]
+        - name: include_metrics
+          in: query
+          description: Include keyword metrics in export
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Keywords exported successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}/external-upload:
+    post:
+      summary: Upload external tool results
+      description: Upload and process results from external keyword research tools
+      tags:
+        - External Tool Integration
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file from external tool
+                tool_type:
+                  type: string
+                  enum: [ahrefs, semrush, ubersuggest]
+                  description: Type of external tool
+                column_mapping:
+                  type: object
+                  description: Column mapping for external tool format
+      responses:
+        '201':
+          description: External tool results uploaded and processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalUploadResponse'
+        '400':
+          description: Bad request - invalid file format or mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workflow/sessions/{session_id}/clusters:
+    get:
+      summary: Get keyword clusters
+      description: Get keyword clustering results for content strategy
+      tags:
+        - Keyword Clustering
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Workflow session ID
+          schema:
+            type: string
+            format: uuid
+        - name: min_cluster_size
+          in: query
+          description: Minimum cluster size
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+        - name: search_intent
+          in: query
+          description: Filter by search intent
+          schema:
+            type: string
+            enum: [informational, commercial, transactional]
+      responses:
+        '200':
+          description: Keyword clusters retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeywordClustersResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateWorkflowSessionRequest:
+      type: object
+      required:
+        - session_name
+      properties:
+        session_name:
+          type: string
+          maxLength: 255
+          description: Name for the workflow session
+        description:
+          type: string
+          maxLength: 1000
+          description: Optional description for the session
+
+    UpdateWorkflowSessionRequest:
+      type: object
+      properties:
+        current_step:
+          type: string
+          enum: [upload_csv, select_trends, generate_keywords, export_keywords, upload_external, analyze_results]
+        progress_percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        workflow_data:
+          type: object
+          description: Workflow state data
+        completed_steps:
+          type: array
+          items:
+            type: string
+        error_message:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, failed, paused]
+
+    WorkflowSessionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+        session_name:
+          type: string
+        current_step:
+          type: string
+        progress_percentage:
+          type: integer
+        workflow_data:
+          type: object
+        completed_steps:
+          type: array
+          items:
+            type: string
+        error_message:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    WorkflowSessionsListResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowSessionResponse'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    CSVUploadResponse:
+      type: object
+      properties:
+        upload_id:
+          type: string
+        processing_status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        row_count:
+          type: integer
+        trends_available:
+          type: integer
+        message:
+          type: string
+
+    TrendsListResponse:
+      type: object
+      properties:
+        trends:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendItem'
+        total:
+          type: integer
+        filters_applied:
+          type: object
+
+    TrendItem:
+      type: object
+      properties:
+        id:
+          type: string
+        trend_name:
+          type: string
+        trend_description:
+          type: string
+        trend_category:
+          type: string
+        search_volume:
+          type: integer
+        competition_level:
+          type: string
+        source:
+          type: string
+        date:
+          type: string
+          format: date
+
+    SelectTrendsRequest:
+      type: object
+      required:
+        - trend_ids
+      properties:
+        trend_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: List of trend IDs to select
+
+    TrendSelectionsResponse:
+      type: object
+      properties:
+        selected_trends:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendSelection'
+        total_selected:
+          type: integer
+
+    TrendSelection:
+      type: object
+      properties:
+        id:
+          type: string
+        trend_name:
+          type: string
+        trend_description:
+          type: string
+        trend_category:
+          type: string
+        search_volume:
+          type: integer
+        competition_level:
+          type: string
+        source:
+          type: string
+        selected_at:
+          type: string
+          format: date-time
+
+    GenerateKeywordsRequest:
+      type: object
+      required:
+        - content_ideas
+      properties:
+        content_ideas:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: List of content ideas for keyword generation
+        max_keywords:
+          type: integer
+          default: 100
+          minimum: 10
+          maximum: 1000
+        include_long_tail:
+          type: boolean
+          default: true
+        include_question_keywords:
+          type: boolean
+          default: true
+
+    KeywordsGenerationResponse:
+      type: object
+      properties:
+        keywords:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeywordItem'
+        total_generated:
+          type: integer
+        generation_time:
+          type: number
+          description: Time taken to generate keywords in seconds
+
+    KeywordItem:
+      type: object
+      properties:
+        keyword:
+          type: string
+        search_volume:
+          type: integer
+        difficulty:
+          type: number
+        cpc:
+          type: number
+        competition:
+          type: string
+        intent:
+          type: string
+        source:
+          type: string
+
+    ExternalUploadResponse:
+      type: object
+      properties:
+        upload_id:
+          type: string
+        tool_type:
+          type: string
+        keywords_processed:
+          type: integer
+        processing_status:
+          type: string
+        message:
+          type: string
+
+    KeywordClustersResponse:
+      type: object
+      properties:
+        clusters:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeywordCluster'
+        total_clusters:
+          type: integer
+        clustering_algorithm:
+          type: string
+
+    KeywordCluster:
+      type: object
+      properties:
+        id:
+          type: string
+        cluster_name:
+          type: string
+        cluster_description:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        cluster_size:
+          type: integer
+        search_intent:
+          type: string
+        content_theme:
+          type: string
+        priority_score:
+          type: number
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

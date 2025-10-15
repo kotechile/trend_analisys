@@ -1,0 +1,409 @@
+openapi: 3.0.3
+info:
+  title: Keyword Analysis Reports API
+  description: API for managing and retrieving keyword analysis reports
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+paths:
+  /reports:
+    get:
+      summary: List user reports
+      description: Retrieve a list of all keyword analysis reports for the authenticated user
+      tags:
+        - Reports
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the user
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of reports to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of reports to skip
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [created_at, total_keywords, high_opportunity_count]
+            default: created_at
+          description: Sort order for reports
+        - name: sort_order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Sort direction
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReportSummary'
+                  total_count:
+                    type: integer
+                    description: Total number of reports
+                  has_more:
+                    type: boolean
+                    description: Whether there are more reports available
+        '400':
+          description: Bad request - invalid parameters
+
+  /reports/{report_id}:
+    get:
+      summary: Get report details
+      description: Retrieve detailed information about a specific report
+      tags:
+        - Reports
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the report
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDetails'
+        '404':
+          description: Report not found
+        '403':
+          description: Access denied - report belongs to another user
+
+  /reports/{report_id}/export:
+    get:
+      summary: Export report
+      description: Export the report in JSON format
+      tags:
+        - Reports
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the report
+        - name: include_keywords
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Whether to include individual keyword data
+        - name: category_filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [high, medium, low, all]
+            default: all
+          description: Filter keywords by opportunity category
+      responses:
+        '200':
+          description: Exported report in JSON format
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Complete analysis report with all calculated fields and structured data
+        '404':
+          description: Report not found
+        '400':
+          description: Invalid export parameters
+
+  /reports/{report_id}/content-opportunities:
+    get:
+      summary: Get content opportunities
+      description: Retrieve content opportunities generated from the analysis
+      tags:
+        - Reports
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the report
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [how-to-guide, comparison-post, list-article, beginner-guide, tool-review, all]
+            default: all
+          description: Filter by content format
+        - name: min_seo_score
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+            default: 70
+          description: Minimum SEO score for opportunities
+      responses:
+        '200':
+          description: Content opportunities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  opportunities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentOpportunity'
+                  total_count:
+                    type: integer
+                  format_distribution:
+                    type: object
+                    properties:
+                      how_to_guide:
+                        type: integer
+                      comparison_post:
+                        type: integer
+                      list_article:
+                        type: integer
+                      beginner_guide:
+                        type: integer
+                      tool_review:
+                        type: integer
+        '404':
+          description: Report not found
+
+  /reports/{report_id}:
+    delete:
+      summary: Delete report
+      description: Delete a report and all associated data
+      tags:
+        - Reports
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier for the report
+      responses:
+        '200':
+          description: Report deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+                  deleted_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: Report not found
+        '403':
+          description: Access denied - report belongs to another user
+
+components:
+  schemas:
+    ReportSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        total_keywords:
+          type: integer
+        high_opportunity_count:
+          type: integer
+        medium_opportunity_count:
+          type: integer
+        low_opportunity_count:
+          type: integer
+        total_search_volume:
+          type: integer
+        average_difficulty:
+          type: number
+        average_cpc:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: 90-day expiration timestamp
+
+    ReportDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        total_keywords:
+          type: integer
+        high_opportunity_count:
+          type: integer
+        medium_opportunity_count:
+          type: integer
+        low_opportunity_count:
+          type: integer
+        total_search_volume:
+          type: integer
+        average_difficulty:
+          type: number
+        average_cpc:
+          type: number
+        top_opportunities:
+          type: object
+          properties:
+            high_opportunity_keywords:
+              type: array
+              items:
+                $ref: '#/components/schemas/KeywordResult'
+            quick_wins:
+              type: array
+              items:
+                $ref: '#/components/schemas/KeywordResult'
+            high_volume_targets:
+              type: array
+              items:
+                $ref: '#/components/schemas/KeywordResult'
+        content_recommendations:
+          type: object
+          properties:
+            how_to_guides:
+              type: array
+              items:
+                type: string
+            comparison_posts:
+              type: array
+              items:
+                type: string
+            list_articles:
+              type: array
+              items:
+                type: string
+            beginner_guides:
+              type: array
+              items:
+                type: string
+            tool_reviews:
+              type: array
+              items:
+                type: string
+        insights:
+          type: array
+          items:
+            type: string
+        next_steps:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    KeywordResult:
+      type: object
+      properties:
+        keyword:
+          type: string
+        search_volume:
+          type: integer
+        keyword_difficulty:
+          type: number
+        cpc:
+          type: number
+          nullable: true
+        search_intent:
+          type: string
+          description: Original Ahrefs intent tags
+        primary_intent:
+          type: string
+          enum: [Informational, Commercial, Navigational, Transactional]
+        opportunity_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        category:
+          type: string
+          enum: [high, medium, low]
+        content_format:
+          type: string
+          enum: [how-to-guide, comparison-post, list-article, beginner-guide, tool-review]
+        seo_score:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    ContentOpportunity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        keyword:
+          type: string
+        content_format:
+          type: string
+          enum: [how-to-guide, comparison-post, list-article, beginner-guide, tool-review]
+        seo_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        priority_rank:
+          type: integer
+        content_suggestion:
+          type: string
+        opportunity_score:
+          type: number
+          minimum: 0
+          maximum: 100

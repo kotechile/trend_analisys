@@ -46,7 +46,7 @@ const Dashboard = () => {
   
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>🚀 TrendTap Dashboard</Typography>
+      <Typography variant="h4" gutterBottom>🚀 Idea Burst Dashboard</Typography>
       <Typography variant="body1" gutterBottom>
         Welcome back, {user?.firstName || user?.email || 'User'}! 
       </Typography>
@@ -1195,7 +1195,7 @@ const AppContent = () => {
       <AppBar position="static" sx={{ backgroundColor: '#1976d2' }}>
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            🚀 TrendTap - AI Research Workspace
+            🚀 Idea Burst - AI Research Workspace
           </Typography>
           <Typography variant="body2" sx={{ mr: 2 }}>
             Welcome, {user?.firstName || user?.email || 'User'}

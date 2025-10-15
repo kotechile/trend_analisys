@@ -1,0 +1,1160 @@
+openapi: 3.0.3
+info:
+  title: Idea Burst API
+  description: AI Research Workspace for affiliate research, trend analysis, and content generation
+  version: 1.0.0
+  contact:
+    name: Idea Burst Support
+    email: support@idea-burst.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.idea-burst.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+paths:
+  # Health and Status
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check endpoint
+      description: Returns the health status of the API
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /supabase-health:
+    get:
+      tags: [Health]
+      summary: Supabase database health check
+      description: Returns the health status of the Supabase database
+      security: []
+      responses:
+        '200':
+          description: Database is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  message:
+                    type: string
+                    example: "Database connection successful"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  tables_available:
+                    type: array
+                    items:
+                      type: string
+                    example: ["users", "affiliate_research", "trend_analysis"]
+
+  # Affiliate Research API
+  /api/affiliate-research/search:
+    post:
+      tags: [Affiliate Research]
+      summary: Search for affiliate programs
+      description: Search 14 affiliate networks for programs matching the search criteria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AffiliateSearchRequest'
+      responses:
+        '200':
+          description: Affiliate programs found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AffiliateSearchResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  /api/affiliate-research/content-ideas:
+    post:
+      tags: [Affiliate Research]
+      summary: Generate content ideas from selected programs
+      description: Generate content ideas based on selected affiliate programs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentIdeasRequest'
+      responses:
+        '200':
+          description: Content ideas generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentIdeasResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # Trend Analysis API
+  /api/trend-analysis/discover-trends:
+    post:
+      tags: [Trend Analysis]
+      summary: Discover trending topics
+      description: Analyze topics for trending patterns using Google Trends and LLM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrendingTopicsRequest'
+      responses:
+        '200':
+          description: Trending topics discovered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendingTopicsResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  /api/trend-analysis/analyze:
+    post:
+      tags: [Trend Analysis]
+      summary: Analyze trend data
+      description: Perform comprehensive trend analysis with forecasting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrendAnalysisRequest'
+      responses:
+        '200':
+          description: Trend analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendAnalysisResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # Keyword Management API
+  /api/keywords/upload:
+    post:
+      tags: [Keyword Management]
+      summary: Upload keyword data
+      description: Upload CSV file with keyword data from Ahrefs/SEMrush/Moz
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV file with keyword data
+                source:
+                  type: string
+                  enum: [ahrefs, semrush, moz, dataforseo]
+                  description: Data source
+      responses:
+        '200':
+          description: Keywords uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeywordUploadResponse'
+        '400':
+          description: Invalid file format
+        '500':
+          description: Internal server error
+
+  /api/keywords/analyze:
+    post:
+      tags: [Keyword Management]
+      summary: Analyze keyword data
+      description: Analyze uploaded keywords for priority and opportunities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeywordAnalysisRequest'
+      responses:
+        '200':
+          description: Keyword analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeywordAnalysisResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # Content Generation API
+  /api/content/generate:
+    post:
+      tags: [Content Generation]
+      summary: Generate content ideas
+      description: Generate article ideas and software solutions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentGenerationRequest'
+      responses:
+        '200':
+          description: Content ideas generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentGenerationResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # Software Generation API
+  /api/software/generate:
+    post:
+      tags: [Software Generation]
+      summary: Generate software solutions
+      description: Generate software solution ideas with complexity scoring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SoftwareGenerationRequest'
+      responses:
+        '200':
+          description: Software solutions generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoftwareGenerationResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # Export API
+  /api/export/content:
+    post:
+      tags: [Export]
+      summary: Export content
+      description: Export content to Google Docs, Notion, or WordPress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Content exported successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # Calendar Management API
+  /api/calendar/schedule:
+    post:
+      tags: [Calendar Management]
+      summary: Schedule content
+      description: Schedule content ideas and software solutions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarScheduleRequest'
+      responses:
+        '200':
+          description: Content scheduled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarScheduleResponse'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+
+  # User Management API
+  /api/users/profile:
+    get:
+      tags: [User Management]
+      summary: Get user profile
+      description: Get current user's profile information
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /api/users/profile:
+    put:
+      tags: [User Management]
+      summary: Update user profile
+      description: Update current user's profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdateRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Affiliate Research Schemas
+    AffiliateSearchRequest:
+      type: object
+      required:
+        - search_term
+      properties:
+        search_term:
+          type: string
+          minLength: 3
+          maxLength: 200
+          description: Search term for affiliate programs
+        niche:
+          type: string
+          maxLength: 100
+          description: Niche category
+        budget_range:
+          type: object
+          properties:
+            min:
+              type: number
+              minimum: 0
+            max:
+              type: number
+              minimum: 0
+          description: Budget range for affiliate programs
+
+    AffiliateSearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            programs:
+              type: array
+              items:
+                $ref: '#/components/schemas/AffiliateProgram'
+            total_count:
+              type: integer
+            search_metadata:
+              type: object
+              properties:
+                search_term:
+                  type: string
+                niche:
+                  type: string
+                execution_time:
+                  type: number
+                networks_queried:
+                  type: array
+                  items:
+                    type: string
+
+    AffiliateProgram:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        network:
+          type: string
+        commission_rate:
+          type: number
+        epc:
+          type: number
+        cookie_length:
+          type: integer
+        reversal_rate:
+          type: number
+        landing_page_compliance:
+          type: boolean
+        category:
+          type: string
+        target_audience:
+          type: string
+        requirements:
+          type: string
+        application_url:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, rejected]
+
+    ContentIdeasRequest:
+      type: object
+      required:
+        - selected_programs
+      properties:
+        selected_programs:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of selected affiliate programs
+        content_types:
+          type: array
+          items:
+            type: string
+            enum: [article, guide, review, tutorial, listicle]
+          description: Desired content types
+        target_audience:
+          type: string
+          description: Target audience description
+
+    ContentIdeasResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            content_ideas:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentIdea'
+            total_count:
+              type: integer
+            generation_metadata:
+              type: object
+              properties:
+                selected_programs:
+                  type: array
+                  items:
+                    type: string
+                content_types:
+                  type: array
+                  items:
+                    type: string
+                execution_time:
+                  type: number
+
+    ContentIdea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content_type:
+          type: string
+          enum: [article, guide, review, tutorial, listicle]
+        outline:
+          type: array
+          items:
+            type: string
+        seo_recommendations:
+          type: array
+          items:
+            type: string
+        target_audience:
+          type: string
+        priority_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        headline_score:
+          type: number
+        eeat_hooks:
+          type: array
+          items:
+            type: string
+        estimated_traffic:
+          type: integer
+        competition_level:
+          type: string
+          enum: [low, medium, high]
+
+    # Trend Analysis Schemas
+    TrendingTopicsRequest:
+      type: object
+      required:
+        - topics
+      properties:
+        topics:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 10
+          description: Topics to analyze for trends
+        time_range:
+          type: string
+          enum: [1h, 4h, 1d, 7d, 30d, 90d, 1y, 5y]
+          default: 1y
+          description: Time range for trend analysis
+        region:
+          type: string
+          default: US
+          description: Geographic region for analysis
+
+    TrendingTopicsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            trending_topics:
+              type: array
+              items:
+                $ref: '#/components/schemas/TrendingTopic'
+            total_count:
+              type: integer
+            analysis_metadata:
+              type: object
+              properties:
+                time_range:
+                  type: string
+                region:
+                  type: string
+                execution_time:
+                  type: number
+                data_sources:
+                  type: array
+                  items:
+                    type: string
+
+    TrendingTopic:
+      type: object
+      properties:
+        topic:
+          type: string
+        interest_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        trend_direction:
+          type: string
+          enum: [rising, stable, falling]
+        related_queries:
+          type: array
+          items:
+            type: string
+        opportunity_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        social_signals:
+          type: object
+          properties:
+            reddit_mentions:
+              type: integer
+            twitter_mentions:
+              type: integer
+            tiktok_mentions:
+              type: integer
+        forecast:
+          type: object
+          properties:
+            predicted_growth:
+              type: number
+            confidence_interval:
+              type: number
+            seasonal_patterns:
+              type: array
+              items:
+                type: string
+
+    # Keyword Management Schemas
+    KeywordUploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            keywords_processed:
+              type: integer
+            validation_status:
+              type: string
+              enum: [valid, invalid, partial]
+            errors:
+              type: array
+              items:
+                type: string
+            file_metadata:
+              type: object
+              properties:
+                filename:
+                  type: string
+                file_size:
+                  type: integer
+                upload_time:
+                  type: string
+                  format: date-time
+
+    KeywordAnalysisRequest:
+      type: object
+      required:
+        - keyword_ids
+      properties:
+        keyword_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of keywords to analyze
+        analysis_type:
+          type: string
+          enum: [priority, competition, opportunity]
+          default: priority
+        include_serp_analysis:
+          type: boolean
+          default: false
+
+    KeywordAnalysisResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            analyzed_keywords:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnalyzedKeyword'
+            total_count:
+              type: integer
+            analysis_metadata:
+              type: object
+              properties:
+                analysis_type:
+                  type: string
+                execution_time:
+                  type: number
+                serp_analysis_included:
+                  type: boolean
+
+    AnalyzedKeyword:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        keyword:
+          type: string
+        search_volume:
+          type: integer
+        difficulty_score:
+          type: number
+        priority_score:
+          type: number
+        opportunity_score:
+          type: number
+        serp_analysis:
+          type: object
+          properties:
+            top_competitors:
+              type: array
+              items:
+                type: string
+            content_gaps:
+              type: array
+              items:
+                type: string
+            internal_link_opportunities:
+              type: array
+              items:
+                type: string
+
+    # Content Generation Schemas
+    ContentGenerationRequest:
+      type: object
+      required:
+        - topics
+      properties:
+        topics:
+          type: array
+          items:
+            type: string
+          description: Topics to generate content for
+        content_types:
+          type: array
+          items:
+            type: string
+          enum: [article, guide, review, tutorial, listicle]
+        target_audience:
+          type: string
+        include_software_solutions:
+          type: boolean
+          default: true
+
+    ContentGenerationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            content_ideas:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentIdea'
+            software_solutions:
+              type: array
+              items:
+                $ref: '#/components/schemas/SoftwareSolution'
+            total_count:
+              type: integer
+            generation_metadata:
+              type: object
+              properties:
+                topics:
+                  type: array
+                  items:
+                    type: string
+                content_types:
+                  type: array
+                  items:
+                    type: string
+                execution_time:
+                  type: number
+
+    # Software Generation Schemas
+    SoftwareGenerationRequest:
+      type: object
+      required:
+        - topics
+      properties:
+        topics:
+          type: array
+          items:
+            type: string
+          description: Topics to generate software solutions for
+        software_types:
+          type: array
+          items:
+            type: string
+          enum: [calculator, analyzer, generator, converter, estimator]
+        target_audience:
+          type: string
+        complexity_preference:
+          type: string
+          enum: [low, medium, high, any]
+          default: any
+
+    SoftwareGenerationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            software_solutions:
+              type: array
+              items:
+                $ref: '#/components/schemas/SoftwareSolution'
+            total_count:
+              type: integer
+            generation_metadata:
+              type: object
+              properties:
+                topics:
+                  type: array
+                  items:
+                    type: string
+                software_types:
+                  type: array
+                  items:
+                    type: string
+                execution_time:
+                  type: number
+
+    SoftwareSolution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        software_type:
+          type: string
+          enum: [calculator, analyzer, generator, converter, estimator]
+        target_keywords:
+          type: array
+          items:
+            type: string
+        complexity_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        technical_requirements:
+          type: array
+          items:
+            type: string
+        estimated_development_time:
+          type: integer
+        priority_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        development_guide:
+          type: object
+          properties:
+            steps:
+              type: array
+              items:
+                type: string
+            technologies:
+              type: array
+              items:
+                type: string
+            estimated_cost:
+              type: number
+
+    # Export Schemas
+    ExportRequest:
+      type: object
+      required:
+        - content_ids
+        - export_platform
+      properties:
+        content_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of content to export
+        export_platform:
+          type: string
+          enum: [google_docs, notion, wordpress]
+        format_options:
+          type: object
+          properties:
+            include_seo_recommendations:
+              type: boolean
+              default: true
+            include_keyword_clusters:
+              type: boolean
+              default: true
+            include_outline:
+              type: boolean
+              default: true
+
+    ExportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            export_urls:
+              type: array
+              items:
+                type: string
+            export_metadata:
+              type: object
+              properties:
+                platform:
+                  type: string
+                content_count:
+                  type: integer
+                export_time:
+                  type: string
+                  format: date-time
+
+    # Calendar Management Schemas
+    CalendarScheduleRequest:
+      type: object
+      required:
+        - content_id
+        - scheduled_date
+      properties:
+        content_id:
+          type: string
+          format: uuid
+          description: ID of content to schedule
+        content_type:
+          type: string
+          enum: [content_idea, software_solution]
+        scheduled_date:
+          type: string
+          format: date-time
+        publishing_platform:
+          type: string
+        notes:
+          type: string
+        reminders:
+          type: array
+          items:
+            type: object
+            properties:
+              days_before:
+                type: integer
+              message:
+                type: string
+
+    CalendarScheduleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            calendar_entry:
+              $ref: '#/components/schemas/CalendarEntry'
+            scheduling_metadata:
+              type: object
+              properties:
+                scheduled_date:
+                  type: string
+                  format: date-time
+                publishing_platform:
+                  type: string
+                reminder_count:
+                  type: integer
+
+    CalendarEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        scheduled_date:
+          type: string
+          format: date-time
+        publishing_platform:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, in_progress, published, cancelled]
+        notes:
+          type: string
+        reminders:
+          type: array
+          items:
+            type: object
+            properties:
+              days_before:
+                type: integer
+              message:
+                type: string
+
+    # User Management Schemas
+    UserProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            profile_metadata:
+              type: object
+              properties:
+                last_login:
+                  type: string
+                  format: date-time
+                account_age:
+                  type: integer
+                subscription_status:
+                  type: string
+
+    UserProfileUpdateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        preferences:
+          type: object
+        notification_settings:
+          type: object
+          properties:
+            email_notifications:
+              type: boolean
+            push_notifications:
+              type: boolean
+            weekly_reports:
+              type: boolean
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin, premium]
+        subscription_tier:
+          type: string
+          enum: [free, basic, pro, enterprise]
+        is_active:
+          type: boolean
+        is_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # Error Schemas
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        message:
+          type: string
+        error_code:
+          type: string
+        details:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    ValidationError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        message:
+          type: string
+        validation_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+              code:
+                type: string
+
+
