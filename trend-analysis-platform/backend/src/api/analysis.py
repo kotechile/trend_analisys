@@ -29,7 +29,6 @@ database = DatabaseService()
 # In-memory storage for analysis status (in production, use Redis or database)
 analysis_status = {}
 
-
 @router.post("/{file_id}/start")
 async def start_analysis(
     file_id: str,
@@ -101,7 +100,6 @@ async def start_analysis(
         logger.error(f"Error starting analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis start failed: {str(e)}")
 
-
 @router.get("/{file_id}/status")
 async def get_analysis_status(file_id: str) -> Dict[str, Any]:
     """
@@ -141,7 +139,6 @@ async def get_analysis_status(file_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting analysis status: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
-
 
 @router.get("/{file_id}/results")
 async def get_analysis_results(file_id: str) -> Dict[str, Any]:
@@ -240,7 +237,6 @@ async def get_analysis_results(file_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting analysis results: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Results retrieval failed: {str(e)}")
-
 
 async def perform_analysis(analysis_id: str, file_id: str) -> None:
     """

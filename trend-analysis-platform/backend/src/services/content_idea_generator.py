@@ -112,7 +112,6 @@ class ContentIdeaGenerator:
             logger.error(f"Failed to generate software ideas: {str(e)}")
             return self._generate_fallback_software_ideas(topic_title, subtopics, keywords, topic_id, user_id)
 
-    
     def _generate_fallback_blog_ideas(
         self, 
         topic_title: str,

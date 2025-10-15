@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
-
 class ContentType(str, Enum):
     """Content type enumeration"""
     ARTICLE = "article"
@@ -19,7 +18,6 @@ class ContentType(str, Enum):
     SOCIAL_MEDIA = "social_media"
     PRESS_RELEASE = "press_release"
 
-
 class ContentStatus(str, Enum):
     """Content status enumeration"""
     DRAFT = "draft"
@@ -27,7 +25,6 @@ class ContentStatus(str, Enum):
     COMPLETED = "completed"
     PUBLISHED = "published"
     ARCHIVED = "archived"
-
 
 class ContentGenerationRequest(BaseModel):
     """Request schema for content generation"""
@@ -50,7 +47,6 @@ class ContentGenerationRequest(BaseModel):
         if not v or len(v) == 0:
             raise ValueError('At least one keyword is required')
         return v
-
 
 class ContentIdeaResponse(BaseModel):
     """Response schema for content idea"""
@@ -91,7 +87,6 @@ class ContentIdeaResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update date")
     generated_at: Optional[datetime] = Field(None, description="Generation completion date")
 
-
 class ContentIdeasResponse(BaseModel):
     """Response schema for content ideas (alias for ContentIdeaResponse)"""
     id: int = Field(..., description="Idea ID")
@@ -131,7 +126,6 @@ class ContentIdeasResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update date")
     generated_at: Optional[datetime] = Field(None, description="Generation completion date")
 
-
 class ContentOutlineResponse(BaseModel):
     """Response schema for content outline"""
     id: int = Field(..., description="Outline ID")
@@ -147,7 +141,6 @@ class ContentOutlineResponse(BaseModel):
     created_at: datetime = Field(..., description="Outline creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class ContentIdeaListResponse(BaseModel):
     """Response schema for content idea list"""
     ideas: List[ContentIdeaResponse] = Field(..., description="List of content ideas")
@@ -156,7 +149,6 @@ class ContentIdeaListResponse(BaseModel):
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
 
-
 class ContentIdeasListResponse(BaseModel):
     """Response schema for content ideas list (alias for ContentIdeaListResponse)"""
     ideas: List[ContentIdeasResponse] = Field(..., description="List of content ideas")
@@ -164,7 +156,6 @@ class ContentIdeasListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class ContentIdeaUpdateRequest(BaseModel):
     """Request schema for updating content idea"""
@@ -178,7 +169,6 @@ class ContentIdeaUpdateRequest(BaseModel):
     status: Optional[ContentStatus] = Field(None, description="Updated status")
     additional_instructions: Optional[str] = Field(None, description="Updated instructions")
 
-
 class ContentUpdateRequest(BaseModel):
     """Request schema for updating content (alias for ContentIdeaUpdateRequest)"""
     title: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated title")
@@ -191,7 +181,6 @@ class ContentUpdateRequest(BaseModel):
     status: Optional[ContentStatus] = Field(None, description="Updated status")
     additional_instructions: Optional[str] = Field(None, description="Updated instructions")
 
-
 class ContentGenerationResponse(BaseModel):
     """Response schema for content generation results"""
     idea_id: int = Field(..., description="Content idea ID")
@@ -201,7 +190,6 @@ class ContentGenerationResponse(BaseModel):
     tokens_used: Optional[int] = Field(None, description="Tokens used for generation")
     model_used: Optional[str] = Field(None, description="AI model used")
     created_at: datetime = Field(..., description="Generation date")
-
 
 class ContentBatchGenerationRequest(BaseModel):
     """Request schema for batch content generation"""
@@ -217,7 +205,6 @@ class ContentBatchGenerationRequest(BaseModel):
             raise ValueError('Maximum 10 content ideas allowed per batch')
         return v
 
-
 class ContentBatchGenerationResponse(BaseModel):
     """Response schema for batch content generation results"""
     batch_id: str = Field(..., description="Batch ID")
@@ -229,7 +216,6 @@ class ContentBatchGenerationResponse(BaseModel):
     results: List[ContentGenerationResponse] = Field(..., description="Generation results")
     created_at: datetime = Field(..., description="Batch creation date")
     completed_at: Optional[datetime] = Field(None, description="Batch completion date")
-
 
 class ContentTemplateResponse(BaseModel):
     """Response schema for content template"""
@@ -244,7 +230,6 @@ class ContentTemplateResponse(BaseModel):
     created_at: datetime = Field(..., description="Template creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class ContentTemplateListResponse(BaseModel):
     """Response schema for content template list"""
     templates: List[ContentTemplateResponse] = Field(..., description="List of templates")
@@ -252,7 +237,6 @@ class ContentTemplateListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class ContentStatsResponse(BaseModel):
     """Response schema for content statistics"""

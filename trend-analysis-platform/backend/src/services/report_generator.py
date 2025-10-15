@@ -13,7 +13,6 @@ from .database import DatabaseService
 
 logger = logging.getLogger(__name__)
 
-
 class ReportGeneratorService:
     """Service for generating keyword analysis reports"""
     
@@ -541,10 +540,6 @@ class ReportGeneratorService:
             logger.error(f"Error exporting report to JSON: {str(e)}")
             raise ValueError(f"Error exporting report to JSON: {str(e)}")
 
-
 # Global instance
 report_generator_service = ReportGeneratorService()
-
-
-
 

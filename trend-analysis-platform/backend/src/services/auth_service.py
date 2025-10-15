@@ -6,9 +6,6 @@ from datetime import datetime, timedelta
 from uuid import UUID
 import logging
 
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-
 from src.models.user import User, UserRole
 from src.models.user_session import UserSession
 from src.models.password_reset import PasswordReset
@@ -32,12 +29,12 @@ class AuthenticationService:
         self.jwt_service = jwt_service
         self.email_service = email_service
     
-    def register_user(self, db: Session, user_data: UserRegistrationRequest, 
+    def register_user(self, db: SupabaseDatabaseService, user_data: UserRegistrationRequest, 
                      ip_address: str = None, user_agent: str = None) -> Tuple[bool, str, Optional[UserResponse]]:
         """Register a new user."""
         try:
             # Check if user already exists
-            existing_user = db.query(User).filter(User.email == user_data.email).first()
+            existing_user = db.get_User_by_id(User.email == user_data.email)
             if existing_user:
                 return False, "User with this email already exists", None
             
@@ -102,7 +99,7 @@ class AuthenticationService:
             logger.error(f"Registration failed: {e}")
             return False, "Registration failed", None
     
-    def verify_email(self, db: Session, token: str, ip_address: str = None, user_agent: str = None) -> Tuple[bool, str]:
+    def verify_email(self, db: SupabaseDatabaseService, token: str, ip_address: str = None, user_agent: str = None) -> Tuple[bool, str]:
         """Verify user email with token."""
         try:
             # Find user by verification token
@@ -139,13 +136,13 @@ class AuthenticationService:
             logger.error(f"Email verification failed: {e}")
             return False, "Email verification failed"
     
-    def login_user(self, db: Session, login_data: LoginRequest, 
+    def login_user(self, db: SupabaseDatabaseService, login_data: LoginRequest, 
                   ip_address: str = None, user_agent: str = None, 
                   device_info: Dict[str, Any] = None) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """Authenticate user login."""
         try:
             # Find user by email
-            user = db.query(User).filter(User.email == login_data.email).first()
+            user = db.get_User_by_id(User.email == login_data.email)
             
             if not user:
                 # Log failed attempt
@@ -249,7 +246,7 @@ class AuthenticationService:
             logger.error(f"Login failed: {e}")
             return False, "Login failed", None
     
-    def refresh_token(self, db: Session, refresh_token: str, 
+    def refresh_token(self, db: SupabaseDatabaseService, refresh_token: str, 
                      ip_address: str = None, user_agent: str = None) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """Refresh access token using refresh token."""
         try:
@@ -259,16 +256,16 @@ class AuthenticationService:
                 return False, "Invalid refresh token", None
             
             # Find user session
-            session = db.query(UserSession).filter(
+            session = db.get_UserSession_by_id(
                 UserSession.refresh_token == refresh_token,
                 UserSession.is_active == True
-            ).first()
+            )
             
             if not session or session.is_expired():
                 return False, "Invalid or expired refresh token", None
             
             # Find user
-            user = db.query(User).filter(User.id == session.user_id).first()
+            user = db.get_User_by_id(User.id == session.user_id)
             if not user or not user.is_active:
                 return False, "User not found or inactive", None
             
@@ -300,7 +297,7 @@ class AuthenticationService:
             logger.error(f"Token refresh failed: {e}")
             return False, "Token refresh failed", None
     
-    def logout_user(self, db: Session, access_token: str, 
+    def logout_user(self, db: SupabaseDatabaseService, access_token: str, 
                    ip_address: str = None, user_agent: str = None) -> Tuple[bool, str]:
         """Logout user and invalidate session with token blacklisting."""
         try:
@@ -310,10 +307,10 @@ class AuthenticationService:
                 return False, "Invalid token"
             
             # Find and deactivate session
-            session = db.query(UserSession).filter(
+            session = db.get_UserSession_by_id(
                 UserSession.token_jti == jti,
                 UserSession.is_active == True
-            ).first()
+            )
             
             if session:
                 # Blacklist the access token
@@ -356,7 +353,7 @@ class AuthenticationService:
             logger.error(f"Logout failed: {e}")
             return False, "Logout failed"
     
-    def blacklist_all_user_tokens(self, db: Session, user_id: str, 
+    def blacklist_all_user_tokens(self, db: SupabaseDatabaseService, user_id: str, 
                                  reason: str = "security", ip_address: str = None, 
                                  user_agent: str = None) -> Tuple[bool, str, int]:
         """
@@ -405,12 +402,12 @@ class AuthenticationService:
             logger.error(f"Failed to blacklist user tokens: {e}")
             return False, "Failed to blacklist user tokens", 0
     
-    def request_password_reset(self, db: Session, reset_data: PasswordResetRequest, 
+    def request_password_reset(self, db: SupabaseDatabaseService, reset_data: PasswordResetRequest, 
                               ip_address: str = None, user_agent: str = None) -> Tuple[bool, str]:
         """Request password reset."""
         try:
             # Find user by email
-            user = db.query(User).filter(User.email == reset_data.email).first()
+            user = db.get_User_by_id(User.email == reset_data.email)
             
             if not user:
                 # Don't reveal if user exists or not
@@ -454,21 +451,21 @@ class AuthenticationService:
             logger.error(f"Password reset request failed: {e}")
             return False, "Password reset request failed"
     
-    def confirm_password_reset(self, db: Session, reset_data: PasswordResetConfirmRequest, 
+    def confirm_password_reset(self, db: SupabaseDatabaseService, reset_data: PasswordResetConfirmRequest, 
                               ip_address: str = None, user_agent: str = None) -> Tuple[bool, str]:
         """Confirm password reset with new password."""
         try:
             # Find valid reset token
-            password_reset = db.query(PasswordReset).filter(
+            password_reset = db.get_PasswordReset_by_id(
                 PasswordReset.token == reset_data.token,
                 PasswordReset.is_used == False
-            ).first()
+            )
             
             if not password_reset or password_reset.is_expired():
                 return False, "Invalid or expired reset token"
             
             # Find user
-            user = db.query(User).filter(User.id == password_reset.user_id).first()
+            user = db.get_User_by_id(User.id == password_reset.user_id)
             if not user or not user.is_active:
                 return False, "User not found or inactive"
             
@@ -503,12 +500,12 @@ class AuthenticationService:
             logger.error(f"Password reset confirmation failed: {e}")
             return False, "Password reset confirmation failed"
     
-    def change_password(self, db: Session, user_id: UUID, change_data: ChangePasswordRequest, 
+    def change_password(self, db: SupabaseDatabaseService, user_id: UUID, change_data: ChangePasswordRequest, 
                        ip_address: str = None, user_agent: str = None) -> Tuple[bool, str]:
         """Change user password."""
         try:
             # Find user
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             if not user:
                 return False, "User not found"
             
@@ -547,19 +544,19 @@ class AuthenticationService:
             logger.error(f"Password change failed: {e}")
             return False, "Password change failed"
     
-    def get_user_by_id(self, db: Session, user_id: UUID) -> Optional[User]:
+    def get_user_by_id(self, db: SupabaseDatabaseService, user_id: UUID) -> Optional[User]:
         """Get user by ID."""
-        return db.query(User).filter(User.id == user_id).first()
+        return db.get_User_by_id(User.id == user_id)
     
-    def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
+    def get_user_by_email(self, db: SupabaseDatabaseService, email: str) -> Optional[User]:
         """Get user by email."""
-        return db.query(User).filter(User.email == email).first()
+        return db.get_User_by_id(User.email == email)
     
     def verify_access_token(self, token: str) -> Optional[TokenData]:
         """Verify access token and return token data."""
         return self.jwt_service.verify_token(token)
     
-    def cleanup_expired_sessions(self, db: Session) -> int:
+    def cleanup_expired_sessions(self, db: SupabaseDatabaseService) -> int:
         """Clean up expired sessions."""
         try:
             expired_sessions = db.query(UserSession).filter(

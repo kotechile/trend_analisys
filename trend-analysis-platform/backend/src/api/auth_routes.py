@@ -3,10 +3,10 @@ Authentication API routes.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
 from typing import Dict, Any
 
 from src.core.database import get_db
+from src.core.supabase_database_service import SupabaseDatabaseService
 from src.core.config import settings
 from src.services.auth_service import auth_service
 from src.schemas.auth_schemas import (
@@ -41,7 +41,7 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(secu
 async def register_user(
     user_data: UserRegistrationRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Register a new user."""
     if not settings.enable_user_registration:
@@ -76,7 +76,7 @@ async def register_user(
 async def verify_email(
     verification_data: EmailVerificationRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Verify user email with token."""
     if not settings.enable_email_verification:
@@ -108,7 +108,7 @@ async def verify_email(
 async def login_user(
     login_data: LoginRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Authenticate user and return tokens."""
     # Get client information
@@ -139,7 +139,7 @@ async def login_user(
 async def refresh_token(
     refresh_data: RefreshTokenRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Refresh access token using refresh token."""
     # Get client information
@@ -165,7 +165,7 @@ async def refresh_token(
 async def logout_user(
     request: Request,
     current_user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Logout user and invalidate session."""
     # Get access token from Authorization header
@@ -201,7 +201,7 @@ async def logout_user(
 async def request_password_reset(
     reset_data: PasswordResetRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Request password reset email."""
     if not settings.enable_password_reset:
@@ -233,7 +233,7 @@ async def request_password_reset(
 async def confirm_password_reset(
     reset_data: PasswordResetConfirmRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Confirm password reset with new password."""
     if not settings.enable_password_reset:
@@ -264,7 +264,7 @@ async def confirm_password_reset(
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
     current_user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get current user information."""
     user = auth_service.get_user_by_id(db, current_user_id)

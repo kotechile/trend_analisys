@@ -13,7 +13,6 @@ from ..core.config import settings
 
 logger = structlog.get_logger()
 
-
 class RateLimitingService:
     """Service for managing API rate limiting"""
     

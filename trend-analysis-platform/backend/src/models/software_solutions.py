@@ -2,12 +2,8 @@
 SoftwareSolutions model for TrendTap
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum, Float
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from ..core.database import Base
-
 
 class SoftwareType(PyEnum):
     """Software type enumeration"""
@@ -17,7 +13,6 @@ class SoftwareType(PyEnum):
     CONVERTER = "converter"
     ESTIMATOR = "estimator"
 
-
 class DevelopmentStatus(PyEnum):
     """Development status enumeration"""
     IDEA = "idea"
@@ -25,7 +20,6 @@ class DevelopmentStatus(PyEnum):
     IN_DEVELOPMENT = "in_development"
     COMPLETED = "completed"
     ARCHIVED = "archived"
-
 
 class SoftwareSolutions(Base):
     """Software solutions model"""

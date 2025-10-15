@@ -16,7 +16,6 @@ from ..core.error_handler import DatabaseAuthenticationError
 
 security = HTTPBearer()
 
-
 class AuthenticationMiddleware:
     """
     Authentication middleware for protecting routes and managing user sessions.
@@ -159,10 +158,8 @@ class AuthenticationMiddleware:
             return wrapper
         return decorator
 
-
 # Global middleware instance
 auth_middleware = AuthenticationMiddleware()
-
 
 def get_current_user(request: Request) -> Dict[str, Any]:
     """
@@ -179,7 +176,6 @@ def get_current_user(request: Request) -> Dict[str, Any]:
     """
     return auth_middleware.require_authentication(request)
 
-
 def get_optional_user(request: Request) -> Optional[Dict[str, Any]]:
     """
     Get current user from request (optional).
@@ -191,7 +187,6 @@ def get_optional_user(request: Request) -> Optional[Dict[str, Any]]:
         User information or None
     """
     return auth_middleware.authenticate_request(request)
-
 
 def require_permission(permission: str):
     """

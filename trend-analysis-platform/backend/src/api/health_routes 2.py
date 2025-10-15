@@ -14,7 +14,6 @@ from ..core.logging import db_operation_logger
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
-
 @router.get("/database")
 async def health_check() -> Dict[str, Any]:
     """

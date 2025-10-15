@@ -120,7 +120,6 @@ class UserRegistrationRequest(BaseModel):
             raise ValueError('Password must contain at least one special character')
         return v
 
-
 class UserRegistrationResponse(BaseModel):
     """Response schema for user registration"""
     user_id: str = Field(..., description="User ID")
@@ -128,12 +127,10 @@ class UserRegistrationResponse(BaseModel):
     email: str = Field(..., description="User email")
     message: str = Field(..., description="Registration message")
 
-
 class UserLoginRequest(BaseModel):
     """Request schema for user login"""
     username: str = Field(..., description="Username or email")
     password: str = Field(..., description="User password")
-
 
 class UserLoginResponse(BaseModel):
     """Response schema for user login"""
@@ -141,7 +138,6 @@ class UserLoginResponse(BaseModel):
     token_type: str = Field(..., description="Token type")
     expires_in: int = Field(..., description="Token expiration time in seconds")
     user: UserResponse = Field(..., description="User information")
-
 
 class UserProfileResponse(BaseModel):
     """Response schema for user profile"""
@@ -156,20 +152,17 @@ class UserProfileResponse(BaseModel):
     created_at: datetime = Field(..., description="Account creation date")
     last_login: Optional[datetime] = Field(None, description="Last login date")
 
-
 class UserProfileUpdateRequest(BaseModel):
     """Request schema for updating user profile"""
     first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="First name")
     last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="Last name")
     email: Optional[EmailStr] = Field(None, description="User email")
 
-
 class UserDashboardResponse(BaseModel):
     """Response schema for user dashboard data"""
     user: UserProfileResponse = Field(..., description="User profile")
     stats: dict = Field(..., description="User statistics")
     recent_activity: List[dict] = Field(..., description="Recent activity")
-
 
 class UserAnalyticsResponse(BaseModel):
     """Response schema for user analytics"""
@@ -181,7 +174,6 @@ class UserAnalyticsResponse(BaseModel):
     software_generated: int = Field(..., description="Number of software solutions generated")
     export_count: int = Field(..., description="Number of exports performed")
     last_activity: Optional[datetime] = Field(None, description="Last activity date")
-
 
 class MessageResponse(BaseModel):
     """Generic message response."""

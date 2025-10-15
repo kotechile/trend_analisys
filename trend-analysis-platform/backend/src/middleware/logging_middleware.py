@@ -17,7 +17,6 @@ from ..core.logging import db_operation_logger, get_logger
 
 logger = get_logger(__name__)
 
-
 class LoggingMiddleware:
     """
     Middleware for logging requests and responses with performance monitoring.
@@ -248,10 +247,8 @@ class LoggingMiddleware:
             "timestamp": datetime.utcnow().isoformat()
         }
 
-
 # Global middleware instance
 logging_middleware = LoggingMiddleware()
-
 
 async def log_request_middleware(request: Request, call_next):
     """

@@ -18,7 +18,6 @@ from ..models.keyword_data import KeywordData, KeywordStatus, KeywordSource
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class KeywordService:
     """Service for keyword data management and processing"""
     
@@ -103,7 +102,7 @@ class KeywordService:
         """Get keyword data by ID"""
         try:
             db = next(get_db())
-            keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+            keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
             
             if not keyword_data:
                 raise ValueError("Keyword data not found")
@@ -118,7 +117,7 @@ class KeywordService:
         """Process CSV file in background"""
         try:
             db = next(get_db())
-            keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+            keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
             
             if not keyword_data:
                 return
@@ -153,7 +152,7 @@ class KeywordService:
             # Mark as failed
             try:
                 db = next(get_db())
-                keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+                keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
                 if keyword_data:
                     keyword_data.mark_failed(str(e))
                     db.commit()
@@ -164,7 +163,7 @@ class KeywordService:
         """Crawl keywords using DataForSEO in background"""
         try:
             db = next(get_db())
-            keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+            keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
             
             if not keyword_data:
                 return
@@ -194,7 +193,7 @@ class KeywordService:
             # Mark as failed
             try:
                 db = next(get_db())
-                keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+                keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
                 if keyword_data:
                     keyword_data.mark_failed(str(e))
                     db.commit()
@@ -418,10 +417,10 @@ class KeywordService:
         """Delete keyword data"""
         try:
             db = next(get_db())
-            keyword_data = db.query(KeywordData).filter(
+            keyword_data = db.get_KeywordData_by_id(
                 KeywordData.id == keyword_data_id,
                 KeywordData.user_id == user_id
-            ).first()
+            )
             
             if not keyword_data:
                 raise ValueError("Keyword data not found")
@@ -440,7 +439,7 @@ class KeywordService:
         """Get keyword analytics and insights"""
         try:
             db = next(get_db())
-            keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+            keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
             
             if not keyword_data or not keyword_data.keywords:
                 raise ValueError("Keyword data not found or empty")

@@ -3,9 +3,6 @@ Database initialization and setup.
 """
 import logging
 from typing import Optional
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker
 
 from src.core.config import settings
 from src.core.database import Base, get_engine, test_connection, health_check, cleanup_engine
@@ -96,7 +93,7 @@ class DatabaseInitializer:
             db = self.SessionLocal()
             
             # Check if admin user already exists
-            admin_user = db.query(User).filter(User.email == "admin@trendanalysis.com").first()
+            admin_user = db.get_User_by_id(User.email == "admin@trendanalysis.com")
             if admin_user:
                 logger.info("Admin user already exists")
                 db.close()
@@ -146,7 +143,7 @@ class DatabaseInitializer:
             db = self.SessionLocal()
             
             # Check if test user already exists
-            test_user = db.query(User).filter(User.email == "test@example.com").first()
+            test_user = db.get_User_by_id(User.email == "test@example.com")
             if test_user:
                 logger.info("Test user already exists")
                 db.close()
@@ -223,7 +220,7 @@ class DatabaseInitializer:
             created_count = 0
             for user_data in sample_users:
                 # Check if user already exists
-                existing_user = db.query(User).filter(User.email == user_data["email"]).first()
+                existing_user = db.get_User_by_id(User.email == user_data["email"])
                 if existing_user:
                     continue
                 

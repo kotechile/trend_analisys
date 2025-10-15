@@ -3,7 +3,6 @@ CSRF protection API routes
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 import logging
 
@@ -33,7 +32,7 @@ async def generate_csrf_token(
     is_single_use: bool = True,
     is_permanent: bool = False,
     custom_ttl: Optional[int] = None,
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Generate a new CSRF protection token"""
@@ -84,7 +83,7 @@ async def generate_csrf_token(
 async def validate_csrf_token(
     request: CSRFValidationRequest,
     http_request: Request,
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Validate a CSRF token"""
@@ -130,7 +129,7 @@ async def validate_csrf_token(
 
 @router.get("/tokens", response_model=List[Dict[str, Any]])
 async def get_user_tokens(
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get all active CSRF tokens for the current user"""
@@ -164,7 +163,7 @@ async def get_user_tokens(
 @router.delete("/tokens", response_model=Dict[str, str])
 async def revoke_user_tokens(
     reason: str = "manual_revoke",
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Revoke all active CSRF tokens for the current user"""
@@ -192,7 +191,7 @@ async def revoke_user_tokens(
 @router.delete("/tokens/{token_id}", response_model=Dict[str, str])
 async def revoke_token(
     token_id: int,
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Revoke a specific CSRF token"""
@@ -200,10 +199,10 @@ async def revoke_token(
         csrf_service = CSRFProtectionService(db)
         
         # Find the token
-        token = db.query(csrf_service.db.query(CSRFProtection).filter(
+        token = db.get_csrf_service.db.query(CSRFProtection_by_id(
             CSRFProtection.id == token_id,
             CSRFProtection.user_id == current_user.id
-        ).first())
+        ))
         
         if not token:
             raise HTTPException(
@@ -234,7 +233,7 @@ async def revoke_token(
 @router.post("/whitelist", response_model=CSRFWhitelistResponse)
 async def add_whitelist_origin(
     request: CSRFWhitelistRequest,
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Add an origin to the CSRF whitelist (admin only)"""
@@ -279,7 +278,7 @@ async def get_violation_stats(
     user_id: Optional[int] = None,
     ip_address: Optional[str] = None,
     hours: int = 24,
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get CSRF violation statistics (admin only)"""
@@ -311,7 +310,7 @@ async def get_violation_stats(
 
 @router.post("/cleanup", response_model=Dict[str, str])
 async def cleanup_expired_tokens(
-    db: Session = Depends(get_db),
+    db: SupabaseDatabaseService = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Clean up expired CSRF tokens (admin only)"""

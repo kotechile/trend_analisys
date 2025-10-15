@@ -14,7 +14,6 @@ from ..core.error_handler import safe_database_operation
 from ..models.database_operation import DatabaseOperation, OperationType, OperationStatus
 from .supabase_service import SupabaseService
 
-
 class DatabaseOperationService:
     """
     Service for managing database operations and their lifecycle.

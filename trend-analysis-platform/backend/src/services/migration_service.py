@@ -5,8 +5,6 @@ import logging
 import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from sqlalchemy import text, inspect
-from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.database import get_engine, get_db_context
 from src.core.config import settings

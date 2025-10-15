@@ -375,10 +375,10 @@ def cached_jwt_validation(ttl: Optional[int] = None):
                 "timestamp": datetime.utcnow().isoformat()
             }
             
-            if ttl is None:
-                ttl = jwt_cache._calculate_token_ttl(payload)
+            # Calculate TTL for caching
+            cache_ttl = ttl if ttl is not None else jwt_cache._calculate_token_ttl(payload)
             
-            jwt_cache.cache_service.set(cache_key, cache_data, ttl)
+            jwt_cache.cache_service.set(cache_key, cache_data, cache_ttl)
             
             return is_valid, payload
         

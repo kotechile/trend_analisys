@@ -14,7 +14,6 @@ from ..core.error_handler import safe_database_operation
 from ..models.auth_context import AuthenticationContext
 from .supabase_service import SupabaseService
 
-
 class AuthenticationService:
     """
     Service for managing user authentication and sessions.
@@ -72,7 +71,7 @@ class AuthenticationService:
         Get an authentication session by ID.
         
         Args:
-            session_id: Session identifier
+            session_id: SupabaseDatabaseService identifier
             
         Returns:
             AuthenticationContext instance or None
@@ -135,7 +134,7 @@ class AuthenticationService:
         Update session activity timestamp.
         
         Args:
-            session_id: Session identifier
+            session_id: SupabaseDatabaseService identifier
             ip_address: Client IP address
             user_agent: Client user agent
             
@@ -174,7 +173,7 @@ class AuthenticationService:
         Refresh authentication tokens.
         
         Args:
-            session_id: Session identifier
+            session_id: SupabaseDatabaseService identifier
             new_access_token: New access token
             new_refresh_token: New refresh token
             expires_at: New expiration timestamp
@@ -211,7 +210,7 @@ class AuthenticationService:
         Logout a specific session.
         
         Args:
-            session_id: Session identifier
+            session_id: SupabaseDatabaseService identifier
             
         Returns:
             True if logout was successful
@@ -369,7 +368,7 @@ class AuthenticationService:
         Validate if a session is still valid.
         
         Args:
-            session_id: Session identifier
+            session_id: SupabaseDatabaseService identifier
             
         Returns:
             True if session is valid

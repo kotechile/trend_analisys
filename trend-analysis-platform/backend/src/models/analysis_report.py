@@ -2,15 +2,11 @@
 Analysis report model for keyword analysis results
 """
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import uuid
 
 Base = declarative_base()
-
 
 class KeywordAnalysisReport(Base):
     """Model for keyword analysis reports"""

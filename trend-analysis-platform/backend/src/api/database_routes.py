@@ -17,7 +17,6 @@ from ..core.error_handler import DatabaseTimeoutError, DatabaseConnectionError, 
 
 router = APIRouter(prefix="/database", tags=["Database Operations"])
 
-
 def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     """
     Extract user ID from authorization header.
@@ -47,7 +46,6 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> str:
             status_code=401,
             detail={"error": "Unauthorized", "message": "Invalid token"}
         )
-
 
 @router.post("/operations")
 async def execute_database_operation(
@@ -270,7 +268,6 @@ async def execute_database_operation(
             status_code=500,
             detail={"error": "Internal Server Error", "message": str(e)}
         )
-
 
 @router.get("/operations/{operation_id}")
 async def get_operation_status(

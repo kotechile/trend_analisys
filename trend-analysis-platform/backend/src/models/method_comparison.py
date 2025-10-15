@@ -8,7 +8,6 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, validator
 from .enhanced_subtopic import EnhancedSubtopic
 
-
 class MethodResult(BaseModel):
     """Represents results from a specific decomposition method"""
     subtopics: List[str] = Field(..., description="List of subtopics for this method")
@@ -63,7 +62,6 @@ class MethodResult(BaseModel):
             'processing_time': self.processing_time,
             'method': self.method
         }
-
 
 class MethodComparison(BaseModel):
     """
@@ -212,7 +210,6 @@ class MethodComparison(BaseModel):
                 f"hybrid={self.hybrid_results}, comparison_metrics={self.comparison_metrics}, "
                 f"created_at={self.created_at})")
 
-
 class MethodComparisonCreate(BaseModel):
     """Model for creating a new method comparison"""
     original_query: str = Field(..., min_length=1, max_length=200)
@@ -220,14 +217,12 @@ class MethodComparisonCreate(BaseModel):
     autocomplete_only_results: MethodResult
     hybrid_results: MethodResult
 
-
 class MethodComparisonUpdate(BaseModel):
     """Model for updating a method comparison"""
     llm_only_results: Optional[MethodResult] = None
     autocomplete_only_results: Optional[MethodResult] = None
     hybrid_results: Optional[MethodResult] = None
     comparison_metrics: Optional[Dict[str, Any]] = None
-
 
 class MethodComparisonResponse(BaseModel):
     """Response model for method comparison"""

@@ -4,11 +4,6 @@ Database connection pool optimization service
 import logging
 import time
 from typing import Dict, List, Any, Optional, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import text, inspect
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.pool import QueuePool, StaticPool, NullPool
-from sqlalchemy.engine import Engine
 from datetime import datetime, timedelta
 import threading
 import queue
@@ -21,7 +16,7 @@ settings = get_settings()
 class ConnectionPoolOptimizer:
     """Service for database connection pool optimization"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: SupabaseDatabaseService):
         self.db = db
         self.engine = db.bind
         self.pool = self.engine.pool

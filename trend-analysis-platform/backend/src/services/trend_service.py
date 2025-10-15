@@ -17,7 +17,6 @@ from ..models.affiliate_research import AffiliateResearch
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class TrendService:
     """Service for trend analysis and forecasting"""
     
@@ -67,7 +66,7 @@ class TrendService:
         """Get trend analysis by ID"""
         try:
             db = next(get_db())
-            analysis = db.query(TrendAnalysis).filter(TrendAnalysis.id == analysis_id).first()
+            analysis = db.get_TrendAnalysis_by_id(TrendAnalysis.id == analysis_id)
             
             if not analysis:
                 raise ValueError("Analysis not found")
@@ -82,7 +81,7 @@ class TrendService:
         """Perform trend analysis in background"""
         try:
             db = next(get_db())
-            analysis = db.query(TrendAnalysis).filter(TrendAnalysis.id == analysis_id).first()
+            analysis = db.get_TrendAnalysis_by_id(TrendAnalysis.id == analysis_id)
             
             if not analysis:
                 return
@@ -97,9 +96,9 @@ class TrendService:
             # Get affiliate research data if available
             affiliate_data = None
             if analysis.affiliate_research_id:
-                affiliate_research = db.query(AffiliateResearch).filter(
+                affiliate_research = db.get_AffiliateResearch_by_id(
                     AffiliateResearch.id == analysis.affiliate_research_id
-                ).first()
+                )
                 if affiliate_research and affiliate_research.results:
                     affiliate_data = affiliate_research.results
             
@@ -150,7 +149,7 @@ class TrendService:
             # Mark as failed
             try:
                 db = next(get_db())
-                analysis = db.query(TrendAnalysis).filter(TrendAnalysis.id == analysis_id).first()
+                analysis = db.get_TrendAnalysis_by_id(TrendAnalysis.id == analysis_id)
                 if analysis:
                     analysis.mark_failed(str(e))
                     db.commit()
@@ -519,10 +518,10 @@ class TrendService:
         """Delete trend analysis"""
         try:
             db = next(get_db())
-            analysis = db.query(TrendAnalysis).filter(
+            analysis = db.get_TrendAnalysis_by_id(
                 TrendAnalysis.id == analysis_id,
                 TrendAnalysis.user_id == user_id
-            ).first()
+            )
             
             if not analysis:
                 raise ValueError("Analysis not found")

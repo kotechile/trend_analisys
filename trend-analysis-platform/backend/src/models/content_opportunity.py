@@ -2,15 +2,11 @@
 Content opportunity model for SEO content ideas
 """
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import uuid
 
 Base = declarative_base()
-
 
 class ContentOpportunity(Base):
     """Model for content opportunities and SEO content ideas"""

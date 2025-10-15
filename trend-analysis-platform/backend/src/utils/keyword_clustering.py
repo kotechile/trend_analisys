@@ -18,7 +18,6 @@ from ..models.keyword import Keyword
 
 logger = logging.getLogger(__name__)
 
-
 class KeywordClustering:
     """Utility for clustering related keywords"""
     

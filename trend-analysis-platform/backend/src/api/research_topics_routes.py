@@ -32,7 +32,6 @@ topic_decomposition_service = TopicDecompositionService()
 trend_analysis_service = TrendAnalysisService()
 content_idea_service = ContentIdeaService()
 
-
 def get_current_user_id(request: Request) -> UUID:
     """Get current user ID from authentication context"""
     try:
@@ -43,12 +42,10 @@ def get_current_user_id(request: Request) -> UUID:
         # Fallback to mock user ID for testing
         return UUID("123e4567-e89b-12d3-a456-426614174000")
 
-
 # Common dependency for all routes
 async def get_user_id(request: Request) -> UUID:
     """Get user ID from request"""
     return get_current_user_id(request)
-
 
 @router.post("/", response_model=ResearchTopicResponse, status_code=201)
 async def create_research_topic(
@@ -69,7 +66,6 @@ async def create_research_topic(
         logger.error(f"Error creating research topic: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/{topic_id}", response_model=ResearchTopicResponse)
 async def get_research_topic(
     topic_id: UUID = Path(..., description="Research topic ID"),
@@ -86,7 +82,6 @@ async def get_research_topic(
     except Exception as e:
         logger.error(f"Error getting research topic: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/", response_model=ResearchTopicListResponse)
 async def list_research_topics(
@@ -114,7 +109,6 @@ async def list_research_topics(
         logger.error(f"Error listing research topics: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.put("/{topic_id}", response_model=ResearchTopicResponse)
 async def update_research_topic(
     topic_id: UUID = Path(..., description="Research topic ID"),
@@ -135,7 +129,6 @@ async def update_research_topic(
         logger.error(f"Error updating research topic: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/{topic_id}", status_code=204)
 async def delete_research_topic(
     topic_id: UUID = Path(..., description="Research topic ID"),
@@ -153,7 +146,6 @@ async def delete_research_topic(
         logger.error(f"Error deleting research topic: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/{topic_id}/complete", response_model=ResearchTopicComplete)
 async def get_complete_dataflow(
     topic_id: UUID = Path(..., description="Research topic ID"),
@@ -170,7 +162,6 @@ async def get_complete_dataflow(
     except Exception as e:
         logger.error(f"Error getting complete dataflow: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/{topic_id}/stats", response_model=ResearchTopicStats)
 async def get_research_topic_stats(
@@ -190,7 +181,6 @@ async def get_research_topic_stats(
     except Exception as e:
         logger.error(f"Error getting research topic stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/{topic_id}/subtopics", response_model=TopicDecompositionResponse, status_code=201)
 async def create_subtopics(
@@ -220,7 +210,6 @@ async def create_subtopics(
         logger.error(f"Error creating subtopics: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/{topic_id}/subtopics", response_model=TopicDecompositionResponse)
 async def get_subtopics(
     topic_id: UUID = Path(..., description="Research topic ID"),
@@ -237,7 +226,6 @@ async def get_subtopics(
     except Exception as e:
         logger.error(f"Error getting subtopics: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/{topic_id}/archive", response_model=ResearchTopicResponse)
 async def archive_research_topic(
@@ -256,7 +244,6 @@ async def archive_research_topic(
         logger.error(f"Error archiving research topic: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.put("/{topic_id}/restore", response_model=ResearchTopicResponse)
 async def restore_research_topic(
     topic_id: UUID = Path(..., description="Research topic ID"),
@@ -274,7 +261,6 @@ async def restore_research_topic(
         logger.error(f"Error restoring research topic: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/search", response_model=ResearchTopicListResponse)
 async def search_research_topics(
     query: str = Query(..., min_length=1, description="Search query"),
@@ -290,7 +276,6 @@ async def search_research_topics(
     except Exception as e:
         logger.error(f"Error searching research topics: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/stats/overview", response_model=ResearchTopicStats)
 async def get_overview_stats(

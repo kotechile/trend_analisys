@@ -9,7 +9,6 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-
 class EnhancedDatabaseService:
     """Enhanced database service using Supabase SDK for Ahrefs integration"""
     
@@ -373,10 +372,6 @@ class EnhancedDatabaseService:
             logger.error(f"Error deleting idea {idea_id}: {str(e)}")
             return False
 
-
 # Global instance
 enhanced_database_service = EnhancedDatabaseService()
-
-
-
 

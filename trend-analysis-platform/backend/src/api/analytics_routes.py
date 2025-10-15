@@ -20,7 +20,6 @@ from ..schemas.analytics_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
-
 @router.post("/user", response_model=Dict[str, Any])
 async def get_user_analytics(
     request: UserAnalyticsRequest,
@@ -69,7 +68,6 @@ async def get_user_analytics(
             detail="Internal server error"
         )
 
-
 @router.post("/platform", response_model=Dict[str, Any])
 async def get_platform_analytics(
     request: PlatformAnalyticsRequest,
@@ -112,7 +110,6 @@ async def get_platform_analytics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
-
 
 @router.post("/content-performance", response_model=Dict[str, Any])
 async def get_content_performance_analytics(
@@ -164,7 +161,6 @@ async def get_content_performance_analytics(
             detail="Internal server error"
         )
 
-
 @router.post("/trends", response_model=Dict[str, Any])
 async def get_trend_analytics(
     request: TrendAnalyticsRequest,
@@ -212,7 +208,6 @@ async def get_trend_analytics(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
-
 
 @router.post("/export", response_model=Dict[str, Any])
 async def export_analytics_report(

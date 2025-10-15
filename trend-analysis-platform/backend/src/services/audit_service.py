@@ -14,7 +14,6 @@ from ..core.redis import cache
 
 logger = structlog.get_logger()
 
-
 class AuditEventType(Enum):
     """Audit event types"""
     USER_LOGIN = "user_login"
@@ -34,7 +33,6 @@ class AuditEventType(Enum):
     SYSTEM_ERROR = "system_error"
     SECURITY_EVENT = "security_event"
     ADMIN_ACTION = "admin_action"
-
 
 class AuditService:
     """Service for comprehensive audit logging"""

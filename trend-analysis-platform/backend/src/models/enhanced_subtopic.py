@@ -8,13 +8,11 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
-
 class SubtopicSource(str, Enum):
     """Source of the subtopic data"""
     LLM = "llm"
     AUTOCOMPLETE = "autocomplete"
     HYBRID = "hybrid"
-
 
 class EnhancedSubtopic(BaseModel):
     """
@@ -150,7 +148,6 @@ class EnhancedSubtopic(BaseModel):
                 f"relevance_score={self.relevance_score}, source={self.source.value}, "
                 f"created_at={self.created_at}, updated_at={self.updated_at})")
 
-
 class EnhancedSubtopicCreate(BaseModel):
     """Model for creating a new enhanced subtopic"""
     title: str = Field(..., min_length=3, max_length=100)
@@ -159,7 +156,6 @@ class EnhancedSubtopicCreate(BaseModel):
     relevance_score: float = Field(default=0.5, ge=0.0, le=1.0)
     source: SubtopicSource = Field(default=SubtopicSource.LLM)
 
-
 class EnhancedSubtopicUpdate(BaseModel):
     """Model for updating an enhanced subtopic"""
     title: Optional[str] = Field(None, min_length=3, max_length=100)
@@ -167,7 +163,6 @@ class EnhancedSubtopicUpdate(BaseModel):
     autocomplete_suggestions: Optional[List[str]] = None
     relevance_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     source: Optional[SubtopicSource] = None
-
 
 class EnhancedSubtopicResponse(BaseModel):
     """Response model for enhanced subtopic"""

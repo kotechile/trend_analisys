@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field, validator
 
-
 class AutocompleteResult(BaseModel):
     """
     Represents the response from Google Autocomplete API for a specific query
@@ -183,13 +182,11 @@ class AutocompleteResult(BaseModel):
                 f"timestamp={self.timestamp}, success={self.success}, "
                 f"error_message='{self.error_message}')")
 
-
 class AutocompleteResultCreate(BaseModel):
     """Model for creating a new autocomplete result"""
     query: str = Field(..., min_length=1, max_length=200)
     suggestions: List[str] = Field(default_factory=list)
     processing_time: float = Field(default=0.0, ge=0)
-
 
 class AutocompleteResultUpdate(BaseModel):
     """Model for updating an autocomplete result"""
@@ -197,7 +194,6 @@ class AutocompleteResultUpdate(BaseModel):
     processing_time: Optional[float] = Field(None, ge=0)
     success: Optional[bool] = None
     error_message: Optional[str] = None
-
 
 class AutocompleteResultResponse(BaseModel):
     """Response model for autocomplete result"""

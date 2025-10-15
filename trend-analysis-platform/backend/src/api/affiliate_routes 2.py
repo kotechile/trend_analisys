@@ -22,11 +22,9 @@ from pydantic import BaseModel
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/affiliate", tags=["affiliate-research"])
 
-
 def get_affiliate_service() -> AffiliateResearchService:
     """Get affiliate service dependency"""
     return AffiliateResearchService()
-
 
 def get_current_user():
     """Get current authenticated user (placeholder - implement auth middleware)"""
@@ -39,7 +37,6 @@ def get_current_user():
             self.role = "user"
     
     return MockUser()
-
 
 @router.post("/research", response_model=AffiliateResearchResponse)
 async def start_affiliate_research(
@@ -85,7 +82,6 @@ async def start_affiliate_research(
         logger.error("Failed to start affiliate research", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/search", response_model=Dict[str, Any])
 async def search_affiliate_programs(
     request: AffiliateResearchRequest,
@@ -128,7 +124,6 @@ async def search_affiliate_programs(
     except Exception as e:
         logger.error("Affiliate search failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
-
 
 @router.post("/save-research", response_model=Dict[str, Any])
 async def save_affiliate_research(
@@ -203,7 +198,6 @@ async def save_affiliate_research(
         logger.error("Failed to save research data", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to save research: {str(e)}")
 
-
 @router.get("/research/{research_id}", response_model=AffiliateResearchResponse)
 async def get_affiliate_research(
     research_id: str,
@@ -237,7 +231,6 @@ async def get_affiliate_research(
     except Exception as e:
         logger.error("Failed to get affiliate research", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/research", response_model=AffiliateResearchListResponse)
 async def list_affiliate_researches(
@@ -277,7 +270,6 @@ async def list_affiliate_researches(
     except Exception as e:
         logger.error("Failed to list affiliate researches", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/research-by-user", response_model=Dict[str, Any])
 async def get_researches_by_user_id(
@@ -323,7 +315,6 @@ async def get_researches_by_user_id(
         logger.error("Failed to get researches by user_id", user_id=user_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get researches: {str(e)}")
 
-
 @router.put("/research/{research_id}", response_model=AffiliateResearchResponse)
 async def update_affiliate_research(
     research_id: str,
@@ -366,7 +357,6 @@ async def update_affiliate_research(
         logger.error("Failed to update affiliate research", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/research/{research_id}")
 async def delete_affiliate_research(
     research_id: str,
@@ -396,7 +386,6 @@ async def delete_affiliate_research(
     except Exception as e:
         logger.error("Failed to delete affiliate research", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/research/{research_id}/programs", response_model=List[AffiliateProgramResponse])
 async def get_affiliate_programs(
@@ -440,7 +429,6 @@ async def get_affiliate_programs(
         logger.error("Failed to get affiliate programs", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/research/{research_id}/select-programs")
 async def select_affiliate_programs(
     research_id: str,
@@ -474,7 +462,6 @@ async def select_affiliate_programs(
     except Exception as e:
         logger.error("Failed to select affiliate programs", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/networks", response_model=List[Dict[str, Any]])
 async def get_affiliate_networks():
@@ -529,7 +516,6 @@ async def get_affiliate_networks():
         logger.error("Failed to get affiliate networks", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/research/{research_id}/analytics", response_model=Dict[str, Any])
 async def get_research_analytics(
     research_id: str,
@@ -557,14 +543,12 @@ async def get_research_analytics(
         logger.error("Failed to get research analytics", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 # Cache Management Endpoints
 
 class CacheClearRequest(BaseModel):
     search_term: str
     niche: Optional[str] = None
     budget_range: Optional[str] = None
-
 
 @router.get("/cache/stats")
 async def get_cache_stats(affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)):
@@ -575,7 +559,6 @@ async def get_cache_stats(affiliate_service: AffiliateResearchService = Depends(
     except Exception as e:
         logger.error("Failed to get cache stats", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/cache/clear")
 async def clear_search_cache(
@@ -596,7 +579,6 @@ async def clear_search_cache(
     except Exception as e:
         logger.error("Failed to clear search cache", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.delete("/cache/clear-all")
 async def clear_all_cache(affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)):

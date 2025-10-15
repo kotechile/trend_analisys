@@ -7,7 +7,6 @@ from pydantic import Field
 from typing import Optional, List
 import os
 
-
 class Settings(BaseSettings):
     """Application settings"""
     
@@ -127,15 +126,12 @@ class Settings(BaseSettings):
         case_sensitive = False
         extra = "ignore"  # Allow extra fields but ignore them
 
-
 # Global settings instance
 settings = Settings()
-
 
 def get_settings() -> Settings:
     """Get application settings"""
     return settings
-
 
 def validate_required_settings() -> List[str]:
     """Validate that all required settings are present"""
@@ -155,21 +151,17 @@ def validate_required_settings() -> List[str]:
     
     return missing_settings
 
-
 def get_database_url() -> str:
     """Get database URL with proper formatting"""
     return settings.database_url
-
 
 def get_redis_url() -> str:
     """Get Redis URL with proper formatting"""
     return settings.redis_url
 
-
 def is_development() -> bool:
     """Check if running in development mode"""
     return settings.environment == "development" or settings.debug
-
 
 def is_production() -> bool:
     """Check if running in production mode"""

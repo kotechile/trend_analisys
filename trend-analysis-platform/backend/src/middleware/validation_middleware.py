@@ -16,7 +16,6 @@ from ..core.logging import db_operation_logger, get_logger
 
 logger = get_logger(__name__)
 
-
 class ValidationMiddleware:
     """
     Middleware for data validation and schema enforcement.
@@ -331,13 +330,11 @@ class ValidationMiddleware:
             "schema_cache_size": len(self._schema_cache)
         }
 
-
 # Global middleware instance
 validation_middleware = ValidationMiddleware()
 
 # Setup default validation rules
 validation_middleware.setup_default_validation_rules()
-
 
 async def validation_middleware_handler(request: Request, call_next):
     """

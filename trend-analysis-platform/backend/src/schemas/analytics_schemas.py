@@ -7,19 +7,16 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-
 class UserAnalyticsRequest(BaseModel):
     """Request model for user analytics"""
     user_id: str = Field(..., description="User ID")
     start_date: Optional[datetime] = Field(None, description="Start date for analytics")
     end_date: Optional[datetime] = Field(None, description="End date for analytics")
 
-
 class PlatformAnalyticsRequest(BaseModel):
     """Request model for platform analytics"""
     start_date: Optional[datetime] = Field(None, description="Start date for analytics")
     end_date: Optional[datetime] = Field(None, description="End date for analytics")
-
 
 class ContentPerformanceRequest(BaseModel):
     """Request model for content performance analytics"""
@@ -28,13 +25,11 @@ class ContentPerformanceRequest(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Start date for analytics")
     end_date: Optional[datetime] = Field(None, description="End date for analytics")
 
-
 class TrendAnalyticsRequest(BaseModel):
     """Request model for trend analytics"""
     user_id: str = Field(..., description="User ID")
     start_date: Optional[datetime] = Field(None, description="Start date for analytics")
     end_date: Optional[datetime] = Field(None, description="End date for analytics")
-
 
 class AnalyticsExportRequest(BaseModel):
     """Request model for analytics export"""
@@ -44,14 +39,12 @@ class AnalyticsExportRequest(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Start date for report")
     end_date: Optional[datetime] = Field(None, description="End date for report")
 
-
 class UserAnalytics(BaseModel):
     """Model for user analytics data"""
     activity_data: Dict[str, Any] = Field(..., description="User activity data")
     content_data: Dict[str, Any] = Field(..., description="Content performance data")
     trend_data: Dict[str, Any] = Field(..., description="Trend analysis data")
     period: Dict[str, str] = Field(..., description="Analytics period")
-
 
 class PlatformAnalytics(BaseModel):
     """Model for platform analytics data"""
@@ -60,7 +53,6 @@ class PlatformAnalytics(BaseModel):
     content_creation: Dict[str, Any] = Field(..., description="Content creation statistics")
     period: Dict[str, str] = Field(..., description="Analytics period")
 
-
 class ContentPerformanceAnalytics(BaseModel):
     """Model for content performance analytics"""
     performance_metrics: List[Dict[str, Any]] = Field(..., description="Performance metrics")
@@ -68,13 +60,11 @@ class ContentPerformanceAnalytics(BaseModel):
     content_ids: Optional[List[str]] = Field(None, description="Content IDs analyzed")
     period: Dict[str, str] = Field(..., description="Analytics period")
 
-
 class TrendAnalytics(BaseModel):
     """Model for trend analytics data"""
     trend_analyses: List[Dict[str, Any]] = Field(..., description="Trend analyses")
     accuracy_data: Dict[str, Any] = Field(..., description="Trend accuracy data")
     period: Dict[str, str] = Field(..., description="Analytics period")
-
 
 class AnalyticsInsight(BaseModel):
     """Model for analytics insight"""
@@ -85,7 +75,6 @@ class AnalyticsInsight(BaseModel):
     trend: Optional[str] = Field(None, description="Trend direction")
     recommendation: Optional[str] = Field(None, description="Recommendation")
 
-
 class AnalyticsRecommendation(BaseModel):
     """Model for analytics recommendation"""
     type: str = Field(..., description="Recommendation type")
@@ -93,7 +82,6 @@ class AnalyticsRecommendation(BaseModel):
     description: str = Field(..., description="Recommendation description")
     priority: str = Field(..., description="Recommendation priority")
     action: Optional[str] = Field(None, description="Recommended action")
-
 
 class AnalyticsExport(BaseModel):
     """Model for analytics export"""

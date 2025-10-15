@@ -7,14 +7,12 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
-
 class KeywordStatus(str, Enum):
     """Keyword status enumeration"""
     ACTIVE = "active"
     INACTIVE = "inactive"
     PENDING = "pending"
     ARCHIVED = "archived"
-
 
 class KeywordDifficulty(str, Enum):
     """Keyword difficulty enumeration"""
@@ -23,7 +21,6 @@ class KeywordDifficulty(str, Enum):
     MEDIUM = "medium"
     HARD = "hard"
     VERY_HARD = "very_hard"
-
 
 class KeywordUploadRequest(BaseModel):
     """Request schema for keyword upload"""
@@ -42,7 +39,6 @@ class KeywordUploadRequest(BaseModel):
         if len(v) > 1000:
             raise ValueError('Maximum 1000 keywords allowed per upload')
         return v
-
 
 class KeywordDataResponse(BaseModel):
     """Response schema for individual keyword data"""
@@ -83,7 +79,6 @@ class KeywordDataResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update date")
     last_analyzed: Optional[datetime] = Field(None, description="Last analysis date")
 
-
 class KeywordUploadResponse(BaseModel):
     """Response schema for keyword upload"""
     uploaded_count: int = Field(..., description="Number of keywords uploaded")
@@ -93,7 +88,6 @@ class KeywordUploadResponse(BaseModel):
     warnings: List[str] = Field(..., description="Upload warnings")
     created_keywords: List[KeywordDataResponse] = Field(..., description="Created keywords")
     created_at: datetime = Field(..., description="Upload date")
-
 
 class KeywordCrawlRequest(BaseModel):
     """Request schema for keyword crawling"""
@@ -115,7 +109,6 @@ class KeywordCrawlRequest(BaseModel):
             raise ValueError('At least one seed keyword is required')
         return v
 
-
 class KeywordCrawlResponse(BaseModel):
     """Response schema for keyword crawling results"""
     crawl_id: str = Field(..., description="Crawl ID")
@@ -130,7 +123,6 @@ class KeywordCrawlResponse(BaseModel):
     created_at: datetime = Field(..., description="Crawl start date")
     completed_at: Optional[datetime] = Field(None, description="Crawl completion date")
 
-
 class KeywordListResponse(BaseModel):
     """Response schema for keyword list"""
     keywords: List[KeywordDataResponse] = Field(..., description="List of keywords")
@@ -139,7 +131,6 @@ class KeywordListResponse(BaseModel):
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
 
-
 class KeywordDataListResponse(BaseModel):
     """Response schema for keyword data list (alias for KeywordListResponse)"""
     keywords: List[KeywordDataResponse] = Field(..., description="List of keywords")
@@ -147,7 +138,6 @@ class KeywordDataListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class KeywordUpdateRequest(BaseModel):
     """Request schema for updating keyword"""
@@ -158,7 +148,6 @@ class KeywordUpdateRequest(BaseModel):
     target_url: Optional[str] = Field(None, description="Updated target URL")
     notes: Optional[str] = Field(None, description="Updated notes")
 
-
 class KeywordAnalysisRequest(BaseModel):
     """Request schema for keyword analysis"""
     keywords: List[str] = Field(..., min_items=1, max_items=100, description="Keywords to analyze")
@@ -168,7 +157,6 @@ class KeywordAnalysisRequest(BaseModel):
     include_related_keywords: Optional[bool] = Field(True, description="Include related keywords")
     include_competitor_analysis: Optional[bool] = Field(True, description="Include competitor analysis")
     include_trend_analysis: Optional[bool] = Field(True, description="Include trend analysis")
-
 
 class KeywordAnalysisResponse(BaseModel):
     """Response schema for keyword analysis results"""
@@ -183,7 +171,6 @@ class KeywordAnalysisResponse(BaseModel):
     insights: List[str] = Field(..., description="Analysis insights")
     recommendations: List[str] = Field(..., description="Actionable recommendations")
     created_at: datetime = Field(..., description="Analysis creation date")
-
 
 class KeywordClusterResponse(BaseModel):
     """Response schema for keyword cluster"""
@@ -201,7 +188,6 @@ class KeywordClusterResponse(BaseModel):
     created_at: datetime = Field(..., description="Cluster creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class KeywordClusterListResponse(BaseModel):
     """Response schema for keyword cluster list"""
     clusters: List[KeywordClusterResponse] = Field(..., description="List of clusters")
@@ -209,7 +195,6 @@ class KeywordClusterListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class KeywordClusterCreateRequest(BaseModel):
     """Request schema for creating keyword cluster"""
@@ -219,7 +204,6 @@ class KeywordClusterCreateRequest(BaseModel):
     priority: Optional[int] = Field(1, ge=1, le=5, description="Cluster priority")
     status: Optional[KeywordStatus] = Field(KeywordStatus.ACTIVE, description="Cluster status")
 
-
 class KeywordClusterUpdateRequest(BaseModel):
     """Request schema for updating keyword cluster"""
     name: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated name")
@@ -227,7 +211,6 @@ class KeywordClusterUpdateRequest(BaseModel):
     keywords: Optional[List[str]] = Field(None, min_items=2, description="Updated keywords")
     priority: Optional[int] = Field(None, ge=1, le=5, description="Updated priority")
     status: Optional[KeywordStatus] = Field(None, description="Updated status")
-
 
 class KeywordExportRequest(BaseModel):
     """Request schema for keyword export"""
@@ -238,7 +221,6 @@ class KeywordExportRequest(BaseModel):
     status: Optional[KeywordStatus] = Field(None, description="Filter by status")
     category: Optional[str] = Field(None, description="Filter by category")
 
-
 class KeywordExportResponse(BaseModel):
     """Response schema for keyword export"""
     export_id: str = Field(..., description="Export ID")
@@ -248,7 +230,6 @@ class KeywordExportResponse(BaseModel):
     record_count: int = Field(..., description="Number of records exported")
     created_at: datetime = Field(..., description="Export creation date")
     expires_at: datetime = Field(..., description="Download expiration date")
-
 
 class KeywordStatsResponse(BaseModel):
     """Response schema for keyword statistics"""

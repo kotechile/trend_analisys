@@ -12,7 +12,6 @@ from ..core.supabase_database import get_supabase_db
 
 logger = structlog.get_logger()
 
-
 class SupabaseMigrationService:
     """Service to migrate legacy database operations to Supabase SDK"""
     

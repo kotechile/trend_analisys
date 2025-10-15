@@ -2,18 +2,13 @@
 ContentCalendar model for TrendTap
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum, Float
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from ..core.database import Base
-
 
 class EntryType(PyEnum):
     """Entry type enumeration"""
     CONTENT = "content"
     SOFTWARE_PROJECT = "software_project"
-
 
 class CalendarStatus(PyEnum):
     """Calendar status enumeration"""
@@ -22,7 +17,6 @@ class CalendarStatus(PyEnum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     ON_HOLD = "on_hold"
-
 
 class ContentCalendar(Base):
     """Content calendar model"""

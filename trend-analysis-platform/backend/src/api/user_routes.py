@@ -3,7 +3,6 @@ User Management API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -22,20 +21,17 @@ from ..schemas.user_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/users", tags=["user-management"])
 
-
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
+def get_user_service(db: SupabaseDatabaseService = Depends(get_db)) -> UserService:
     """Get user service dependency"""
     return UserService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/register", response_model=UserResponse)
 async def register_user(
@@ -73,7 +69,6 @@ async def register_user(
         logger.error("Failed to register user", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/login", response_model=UserResponse)
 async def login_user(
     request: UserCreate,
@@ -110,7 +105,6 @@ async def login_user(
         logger.error("Failed to authenticate user", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/profile", response_model=UserProfile)
 async def get_user_profile(
     current_user: User = Depends(get_current_user),
@@ -135,7 +129,6 @@ async def get_user_profile(
     except Exception as e:
         logger.error("Failed to get user profile", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/profile", response_model=UserProfile)
 async def update_user_profile(
@@ -181,7 +174,6 @@ async def update_user_profile(
         logger.error("Failed to update user profile", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/upgrade-subscription")
 async def upgrade_subscription(
     new_tier: SubscriptionTier,
@@ -215,7 +207,6 @@ async def upgrade_subscription(
         logger.error("Failed to upgrade subscription", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/deactivate")
 async def deactivate_user(
     current_user: User = Depends(get_current_user),
@@ -241,7 +232,6 @@ async def deactivate_user(
         logger.error("Failed to deactivate user account", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/dashboard", response_model=UserProfile)
 async def get_user_dashboard(
     current_user: User = Depends(get_current_user),
@@ -262,7 +252,6 @@ async def get_user_dashboard(
     except Exception as e:
         logger.error("Failed to get user dashboard", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/analytics", response_model=UserAnalyticsResponse)
 async def get_user_analytics(
@@ -285,7 +274,6 @@ async def get_user_analytics(
         logger.error("Failed to get user analytics", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/limits", response_model=Dict[str, Any])
 async def get_user_limits(
     current_user: User = Depends(get_current_user),
@@ -300,7 +288,6 @@ async def get_user_limits(
     except Exception as e:
         logger.error("Failed to get user limits", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/subscription-tiers", response_model=List[Dict[str, Any]])
 async def get_subscription_tiers():
@@ -399,7 +386,6 @@ async def get_subscription_tiers():
         logger.error("Failed to get subscription tiers", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/activity", response_model=List[Dict[str, Any]])
 async def get_user_activity(
     skip: int = 0,
@@ -420,7 +406,6 @@ async def get_user_activity(
     except Exception as e:
         logger.error("Failed to get user activity", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/export-data")
 async def export_user_data(
@@ -444,7 +429,6 @@ async def export_user_data(
     except Exception as e:
         logger.error("Failed to export user data", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.delete("/account")
 async def delete_user_account(

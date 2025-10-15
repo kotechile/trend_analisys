@@ -3,7 +3,6 @@ Health check and monitoring endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -16,7 +15,6 @@ from ..core.config import get_settings
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/health", tags=["health-monitoring"])
-
 
 @router.get("/")
 async def health_check():
@@ -32,9 +30,8 @@ async def health_check():
         logger.error("Health check failed", error=str(e))
         raise HTTPException(status_code=503, detail="Service unhealthy")
 
-
 @router.get("/detailed")
-async def detailed_health_check(db: Session = Depends(get_db)):
+async def detailed_health_check(db: SupabaseDatabaseService = Depends(get_db)):
     """Detailed health check with system metrics"""
     try:
         # Check database connection
@@ -77,9 +74,8 @@ async def detailed_health_check(db: Session = Depends(get_db)):
             "error": str(e)
         }
 
-
 @router.get("/database")
-async def database_health_check(db: Session = Depends(get_db)):
+async def database_health_check(db: SupabaseDatabaseService = Depends(get_db)):
     """Database-specific health check"""
     try:
         # Test database connection
@@ -101,7 +97,6 @@ async def database_health_check(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error("Database health check failed", error=str(e))
         raise HTTPException(status_code=503, detail=f"Database unhealthy: {str(e)}")
-
 
 @router.get("/redis")
 async def redis_health_check():
@@ -127,7 +122,6 @@ async def redis_health_check():
         logger.error("Redis health check failed", error=str(e))
         raise HTTPException(status_code=503, detail=f"Redis unhealthy: {str(e)}")
 
-
 @router.get("/metrics")
 async def get_metrics():
     """Get system and application metrics"""
@@ -144,7 +138,6 @@ async def get_metrics():
     except Exception as e:
         logger.error("Failed to get metrics", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to retrieve metrics")
-
 
 @router.get("/status")
 async def get_status():
@@ -183,7 +176,6 @@ async def get_status():
     except Exception as e:
         logger.error("Failed to get status", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to retrieve status")
-
 
 def get_system_metrics() -> Dict[str, Any]:
     """Get system-level metrics"""
@@ -239,8 +231,7 @@ def get_system_metrics() -> Dict[str, Any]:
         logger.error("Failed to get system metrics", error=str(e))
         return {"error": str(e)}
 
-
-def get_database_metrics(db: Session) -> Dict[str, Any]:
+def get_database_metrics(db: SupabaseDatabaseService) -> Dict[str, Any]:
     """Get database-specific metrics"""
     try:
         # Get connection pool info
@@ -269,7 +260,6 @@ def get_database_metrics(db: Session) -> Dict[str, Any]:
         logger.error("Failed to get database metrics", error=str(e))
         return {"error": str(e)}
 
-
 async def get_redis_metrics() -> Dict[str, Any]:
     """Get Redis-specific metrics"""
     try:
@@ -293,7 +283,6 @@ async def get_redis_metrics() -> Dict[str, Any]:
     except Exception as e:
         logger.error("Failed to get Redis metrics", error=str(e))
         return {"error": str(e)}
-
 
 def get_application_metrics() -> Dict[str, Any]:
     """Get application-specific metrics"""
@@ -319,7 +308,6 @@ def get_application_metrics() -> Dict[str, Any]:
     except Exception as e:
         logger.error("Failed to get application metrics", error=str(e))
         return {"error": str(e)}
-
 
 # Track application start time
 start_time = time.time()

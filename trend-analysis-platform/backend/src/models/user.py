@@ -2,12 +2,8 @@
 User model for TrendTap
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, Text
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from ..core.database import Base
-
 
 class UserRole(PyEnum):
     """User role enumeration"""
@@ -15,14 +11,12 @@ class UserRole(PyEnum):
     ADMIN = "admin"
     MODERATOR = "moderator"
 
-
 class SubscriptionTier(PyEnum):
     """Subscription tier enumeration"""
     FREE = "free"
     BASIC = "basic"
     PREMIUM = "premium"
     ENTERPRISE = "enterprise"
-
 
 class User(Base):
     """User model"""

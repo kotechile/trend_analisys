@@ -4,9 +4,6 @@ Database query optimization service
 import time
 import logging
 from typing import Dict, List, Any, Optional, Tuple
-from sqlalchemy.orm import Session, Query
-from sqlalchemy import text, func, desc, asc, and_, or_, not_
-from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 import json
 import statistics
@@ -24,7 +21,7 @@ settings = get_settings()
 class QueryOptimizer:
     """Service for database query optimization"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: SupabaseDatabaseService):
         self.db = db
         self.query_cache = {}
         self.query_stats = {}

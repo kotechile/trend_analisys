@@ -2,15 +2,11 @@
 Ahrefs Export File model for Ahrefs TSV file processing
 """
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import Dict, Any, Optional
 import uuid
 
 Base = declarative_base()
-
 
 class AhrefsExportFile(Base):
     """Model for Ahrefs export files"""
@@ -218,7 +214,4 @@ class AhrefsExportFile(Base):
             "processing_time": self.get_processing_time(),
             "progress_percentage": self.get_progress_percentage()
         }
-
-
-
 

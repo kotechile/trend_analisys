@@ -14,7 +14,6 @@ from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
-
 class ValidationMiddleware:
     """Middleware for validating API inputs"""
     
@@ -143,7 +142,6 @@ class ValidationMiddleware:
         
         return errors
 
-
 def validate_request_data(request_data: Dict[str, Any], validation_type: str) -> List[str]:
     """
     Validate request data based on type
@@ -169,7 +167,6 @@ def validate_request_data(request_data: Dict[str, Any], validation_type: str) ->
         logger.error(f"Error validating request data: {str(e)}")
         return [f"Validation error: {str(e)}"]
 
-
 def create_validation_error_response(errors: List[str]) -> JSONResponse:
     """
     Create a standardized validation error response
@@ -189,7 +186,6 @@ def create_validation_error_response(errors: List[str]) -> JSONResponse:
             "timestamp": datetime.utcnow().isoformat()
         }
     )
-
 
 def create_error_response(
     status_code: int, 

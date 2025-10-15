@@ -2,15 +2,11 @@
 Keyword model for keyword analysis data
 """
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import List, Optional
 import uuid
 
 Base = declarative_base()
-
 
 class Keyword(Base):
     """Keyword model for storing keyword analysis data"""
@@ -157,7 +153,6 @@ class Keyword(Base):
         
         # If no priority intent found, use first one
         self.primary_intent = intent_list[0]
-
 
 class UploadedFile(Base):
     """Model for uploaded files"""

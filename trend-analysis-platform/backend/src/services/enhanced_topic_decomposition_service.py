@@ -18,9 +18,7 @@ from ..models.search_volume_indicator import SearchVolumeIndicator, IndicatorTyp
 from ..integrations.google_autocomplete import GoogleAutocompleteService
 from ..integrations.llm_providers import llm_providers_manager, generate_content
 
-
 logger = logging.getLogger(__name__)
-
 
 class EnhancedTopicDecompositionService:
     """
@@ -367,8 +365,7 @@ class EnhancedTopicDecompositionService:
         except Exception as e:
             logger.error(f"Error getting LLM subtopics: {str(e)}")
             return []
-    
-    
+
     def _create_enhanced_prompt(self, query: str, autocomplete_data: Optional[AutocompleteResult]) -> str:
         """Create enhanced prompt with autocomplete context"""
         base_prompt = f"""
@@ -442,8 +439,7 @@ class EnhancedTopicDecompositionService:
         except Exception as e:
             logger.error(f"Error parsing LLM subtopics: {str(e)}")
             return []
-    
-    
+
     async def _create_enhanced_subtopics(self, 
                                        query: str,
                                        llm_subtopics: List[str],

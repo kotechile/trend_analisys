@@ -17,7 +17,6 @@ from .supabase_service import get_supabase_service
 
 logger = logging.getLogger(__name__)
 
-
 class ResearchTopicService:
     """Service for managing research topics"""
     

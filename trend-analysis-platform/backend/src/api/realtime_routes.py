@@ -16,7 +16,6 @@ from ..core.error_handler import DatabaseTimeoutError, DatabaseConnectionError, 
 
 router = APIRouter(prefix="/database/real-time", tags=["Real-time"])
 
-
 def get_current_user(authorization: Optional[str] = Header(None)) -> str:
     """
     Extract user ID from authorization header.
@@ -46,7 +45,6 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> str:
             status_code=401,
             detail={"error": "Unauthorized", "message": "Invalid token"}
         )
-
 
 @router.post("/subscribe")
 async def subscribe_to_realtime(
@@ -115,7 +113,6 @@ async def subscribe_to_realtime(
             status_code=500,
             detail={"error": "Internal Server Error", "message": str(e)}
         )
-
 
 @router.post("/unsubscribe")
 async def unsubscribe_from_realtime(
@@ -189,7 +186,6 @@ async def unsubscribe_from_realtime(
             detail={"error": "Internal Server Error", "message": str(e)}
         )
 
-
 @router.get("/subscriptions")
 async def get_user_subscriptions(
     user_id: str = Depends(get_current_user)
@@ -223,7 +219,6 @@ async def get_user_subscriptions(
             status_code=500,
             detail={"error": "Internal Server Error", "message": str(e)}
         )
-
 
 @router.post("/subscriptions/{subscription_id}/pause")
 async def pause_subscription(
@@ -282,7 +277,6 @@ async def pause_subscription(
             status_code=500,
             detail={"error": "Internal Server Error", "message": str(e)}
         )
-
 
 @router.post("/subscriptions/{subscription_id}/resume")
 async def resume_subscription(

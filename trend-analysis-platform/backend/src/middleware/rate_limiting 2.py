@@ -7,7 +7,6 @@ from collections import defaultdict, deque
 from fastapi import HTTPException, Request
 import asyncio
 
-
 class RateLimiter:
     """Rate limiter for Google Autocomplete requests."""
     
@@ -67,10 +66,8 @@ class RateLimiter:
             oldest_request = client_requests[0]
             return max(0, int(oldest_request + self.time_window - time.time()))
 
-
 # Global rate limiter instance
 google_autocomplete_limiter = RateLimiter(max_requests=10, time_window=60)
-
 
 async def check_rate_limit(request: Request) -> None:
     """
@@ -95,7 +92,6 @@ async def check_rate_limit(request: Request) -> None:
                 "retry_after": retry_after
             }
         )
-
 
 def create_rate_limit_middleware(limiter: RateLimiter):
     """

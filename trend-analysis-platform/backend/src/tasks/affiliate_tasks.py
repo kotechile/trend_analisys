@@ -36,9 +36,9 @@ def search_affiliate_programs_task(self, niche: str, user_id: str, research_id: 
         with get_db_session() as db:
             # Update affiliate research record
             from ..models.affiliate_research import AffiliateResearch
-            research = db.query(AffiliateResearch).filter(
+            research = db.get_AffiliateResearch_by_id(
                 AffiliateResearch.id == research_id
-            ).first()
+            )
             
             if research:
                 research.status = "completed"
@@ -163,9 +163,9 @@ def analyze_affiliate_program_performance(self, program_id: str, user_id: str):
         with get_db_session() as db:
             # Update affiliate research record with analysis
             from ..models.affiliate_research import AffiliateResearch
-            research = db.query(AffiliateResearch).filter(
+            research = db.get_AffiliateResearch_by_id(
                 AffiliateResearch.id == program_id
-            ).first()
+            )
             
             if research:
                 research.analysis_results = analysis_results

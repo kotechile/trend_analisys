@@ -14,7 +14,6 @@ from .database import DatabaseService
 
 logger = logging.getLogger(__name__)
 
-
 class KeywordAnalyzerService:
     """Service for analyzing keywords and calculating opportunity scores"""
     
@@ -428,7 +427,6 @@ class KeywordAnalyzerService:
             logger.error(f"Error in background keyword analysis: {str(e)}")
             await self.db_service.update_file_processing_status(file_id, "error", 0, f"Analysis failed: {str(e)}")
             return False
-
 
 # Global instance
 keyword_analyzer_service = KeywordAnalyzerService()

@@ -9,7 +9,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
-
 class ContentType(str, Enum):
     """Content type enumeration"""
     BLOG_POST = "blog_post"
@@ -30,7 +29,6 @@ class ContentType(str, Enum):
     TEMPLATE = "template"
     OTHER = "other"
 
-
 class IdeaType(str, Enum):
     """Idea type enumeration"""
     TRENDING = "trending"
@@ -49,7 +47,6 @@ class IdeaType(str, Enum):
     COMPARISON = "comparison"
     OTHER = "other"
 
-
 class ContentStatus(str, Enum):
     """Content status enumeration"""
     DRAFT = "draft"
@@ -59,7 +56,6 @@ class ContentStatus(str, Enum):
     PUBLISHED = "published"
     ARCHIVED = "archived"
     CANCELLED = "cancelled"
-
 
 class ContentIdeaBase(BaseModel):
     """Base content idea model with common fields"""
@@ -134,12 +130,10 @@ class ContentIdeaBase(BaseModel):
             return None
         return v.strip() if v else v
 
-
 class ContentIdeaCreate(ContentIdeaBase):
     """Model for creating a new content idea"""
     trend_analysis_id: UUID = Field(..., description="ID of the trend analysis this idea is based on")
     research_topic_id: UUID = Field(..., description="ID of the research topic this idea belongs to")
-
 
 class ContentIdeaUpdate(BaseModel):
     """Model for updating an existing content idea"""
@@ -214,7 +208,6 @@ class ContentIdeaUpdate(BaseModel):
             return None
         return v.strip() if v else v
 
-
 class ContentIdea(ContentIdeaBase):
     """Complete content idea model with all fields"""
     id: UUID = Field(..., description="Unique identifier")
@@ -231,11 +224,9 @@ class ContentIdea(ContentIdeaBase):
             UUID: lambda v: str(v)
         }
 
-
 class ContentIdeaResponse(ContentIdea):
     """Content idea response model for API responses"""
     pass
-
 
 class ContentIdeaListResponse(BaseModel):
     """Response model for listing content ideas"""
@@ -246,11 +237,9 @@ class ContentIdeaListResponse(BaseModel):
     has_next: bool = Field(..., description="Whether there are more pages")
     has_prev: bool = Field(..., description="Whether there are previous pages")
 
-
 class ContentIdeaWithTrendAnalysis(ContentIdea):
     """Content idea model with associated trend analysis"""
     trend_analysis: Optional[dict] = Field(None, description="Associated trend analysis")
-
 
 class ContentIdeaStats(BaseModel):
     """Content idea statistics model"""
@@ -268,7 +257,6 @@ class ContentIdeaStats(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-
 
 class ContentIdeaFilter(BaseModel):
     """Model for filtering content ideas"""
@@ -288,7 +276,6 @@ class ContentIdeaFilter(BaseModel):
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v)
         }
-
 
 class ContentIdeaSearch(BaseModel):
     """Model for searching content ideas"""

@@ -13,7 +13,6 @@ from ..core.logging import db_operation_logger
 from ..core.error_handler import safe_database_operation
 from .supabase_service import SupabaseService
 
-
 class RealTimeService:
     """
     Service for managing real-time subscriptions and events.

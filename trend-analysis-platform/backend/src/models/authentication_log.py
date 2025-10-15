@@ -2,7 +2,6 @@
 AuthenticationLog model for audit logging and security monitoring.
 """
 import uuid
-from sqlalchemy import (
     Column,
     String,
     Boolean,
@@ -12,8 +11,6 @@ from sqlalchemy import (
     Enum as SqlEnum,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from src.core.database import Base
 import enum
 

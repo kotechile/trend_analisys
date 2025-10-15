@@ -2,19 +2,14 @@
 KeywordData model for TrendTap
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum, Float
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from ..core.database import Base
-
 
 class KeywordSource(PyEnum):
     """Keyword source enumeration"""
     CSV_UPLOAD = "csv_upload"
     DATAFORSEO = "dataforseo"
     MANUAL = "manual"
-
 
 class KeywordStatus(PyEnum):
     """Keyword processing status enumeration"""
@@ -23,7 +18,6 @@ class KeywordStatus(PyEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 class KeywordData(Base):
     """Keyword data model"""

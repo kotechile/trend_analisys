@@ -11,7 +11,6 @@ from enum import Enum
 from pydantic import BaseModel, Field, validator
 import uuid
 
-
 class OperationType(str, Enum):
     """Database operation types."""
     CREATE = "create"
@@ -20,14 +19,12 @@ class OperationType(str, Enum):
     DELETE = "delete"
     REAL_TIME = "real_time"
 
-
 class OperationStatus(str, Enum):
     """Operation status values."""
     PENDING = "pending"
     SUCCESS = "success"
     ERROR = "error"
     TIMEOUT = "timeout"
-
 
 class DatabaseOperation(BaseModel):
     """

@@ -5,8 +5,6 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.core.database import get_db_context
@@ -87,10 +85,10 @@ class SessionService:
         """Validate a session by token JTI."""
         try:
             with get_db_context() as db:
-                session = db.query(UserSession).filter(
+                session = db.get_UserSession_by_id(
                     UserSession.token_jti == token_jti,
                     UserSession.is_active == True
-                ).first()
+                )
                 
                 if not session:
                     logger.warning(f"Session not found for token JTI: {token_jti}")
@@ -120,10 +118,10 @@ class SessionService:
         try:
             with get_db_context() as db:
                 # Find session by refresh token
-                session = db.query(UserSession).filter(
+                session = db.get_UserSession_by_id(
                     UserSession.refresh_token == refresh_token,
                     UserSession.is_active == True
-                ).first()
+                )
                 
                 if not session:
                     logger.warning(f"Session not found for refresh token")
@@ -136,7 +134,7 @@ class SessionService:
                     return None
                 
                 # Get user
-                user = db.query(User).filter(User.id == session.user_id).first()
+                user = db.get_User_by_id(User.id == session.user_id)
                 if not user or not user.is_active:
                     logger.warning(f"User not found or inactive for session {session.id}")
                     session.deactivate()
@@ -180,9 +178,9 @@ class SessionService:
         """Revoke a session by token JTI."""
         try:
             with get_db_context() as db:
-                session = db.query(UserSession).filter(
+                session = db.get_UserSession_by_id(
                     UserSession.token_jti == token_jti
-                ).first()
+                )
                 
                 if not session:
                     logger.warning(f"Session not found for token JTI: {token_jti}")
@@ -332,7 +330,7 @@ class SessionService:
         
         try:
             with get_db_context() as db:
-                user = db.query(User).filter(User.id == session.user_id).first()
+                user = db.get_User_by_id(User.id == session.user_id)
                 return user if user and user.is_active else None
         except SQLAlchemyError as e:
             logger.error(f"Database error getting user from session: {e}")

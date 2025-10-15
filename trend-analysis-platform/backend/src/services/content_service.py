@@ -18,7 +18,6 @@ from ..models.keyword_data import KeywordData
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class ContentService:
     """Service for content generation and management"""
     
@@ -48,8 +47,8 @@ class ContentService:
             
             # Get trend analysis and keyword data
             db = next(get_db())
-            trend_analysis = db.query(TrendAnalysis).filter(TrendAnalysis.id == trend_analysis_id).first()
-            keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+            trend_analysis = db.get_TrendAnalysis_by_id(TrendAnalysis.id == trend_analysis_id)
+            keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
             
             if not trend_analysis or not keyword_data:
                 raise ValueError("Trend analysis or keyword data not found")
@@ -80,7 +79,7 @@ class ContentService:
         """Get content idea by ID"""
         try:
             db = next(get_db())
-            content_idea = db.query(ContentIdeas).filter(ContentIdeas.id == content_idea_id).first()
+            content_idea = db.get_ContentIdeas_by_id(ContentIdeas.id == content_idea_id)
             
             if not content_idea:
                 raise ValueError("Content idea not found")
@@ -96,7 +95,7 @@ class ContentService:
         """Update content idea status"""
         try:
             db = next(get_db())
-            content_idea = db.query(ContentIdeas).filter(ContentIdeas.id == content_idea_id).first()
+            content_idea = db.get_ContentIdeas_by_id(ContentIdeas.id == content_idea_id)
             
             if not content_idea:
                 raise ValueError("Content idea not found")
@@ -121,7 +120,7 @@ class ContentService:
         """Generate content ideas in background"""
         try:
             db = next(get_db())
-            content_ideas = db.query(ContentIdeas).filter(ContentIdeas.id == content_ideas_id).first()
+            content_ideas = db.get_ContentIdeas_by_id(ContentIdeas.id == content_ideas_id)
             
             if not content_ideas:
                 return
@@ -506,10 +505,10 @@ class ContentService:
         """Delete content idea"""
         try:
             db = next(get_db())
-            content_idea = db.query(ContentIdeas).filter(
+            content_idea = db.get_ContentIdeas_by_id(
                 ContentIdeas.id == content_idea_id,
                 ContentIdeas.user_id == user_id
-            ).first()
+            )
             
             if not content_idea:
                 raise ValueError("Content idea not found")

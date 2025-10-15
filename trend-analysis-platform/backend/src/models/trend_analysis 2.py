@@ -9,7 +9,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
-
 class TrendAnalysisStatus(str, Enum):
     """Trend analysis status enumeration"""
     PENDING = "pending"
@@ -17,7 +16,6 @@ class TrendAnalysisStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 class TrendAnalysisBase(BaseModel):
     """Base trend analysis model with common fields"""
@@ -69,11 +67,9 @@ class TrendAnalysisBase(BaseModel):
             return None
         return v.strip() if v else v
 
-
 class TrendAnalysisCreate(TrendAnalysisBase):
     """Model for creating a new trend analysis"""
     topic_decomposition_id: UUID = Field(..., description="ID of the topic decomposition this analysis belongs to")
-
 
 class TrendAnalysisUpdate(BaseModel):
     """Model for updating an existing trend analysis"""
@@ -126,7 +122,6 @@ class TrendAnalysisUpdate(BaseModel):
             return None
         return v.strip() if v else v
 
-
 class TrendAnalysis(TrendAnalysisBase):
     """Complete trend analysis model with all fields"""
     id: UUID = Field(..., description="Unique identifier")
@@ -144,11 +139,9 @@ class TrendAnalysis(TrendAnalysisBase):
             UUID: lambda v: str(v)
         }
 
-
 class TrendAnalysisResponse(TrendAnalysis):
     """Trend analysis response model for API responses"""
     pass
-
 
 class TrendAnalysisListResponse(BaseModel):
     """Response model for listing trend analyses"""
@@ -159,11 +152,9 @@ class TrendAnalysisListResponse(BaseModel):
     has_next: bool = Field(..., description="Whether there are more pages")
     has_prev: bool = Field(..., description="Whether there are previous pages")
 
-
 class TrendAnalysisWithContentIdeas(TrendAnalysis):
     """Trend analysis model with associated content ideas"""
     content_ideas: List[dict] = Field(default_factory=list, description="Associated content ideas")
-
 
 class TrendAnalysisStats(BaseModel):
     """Trend analysis statistics model"""
@@ -181,7 +172,6 @@ class TrendAnalysisStats(BaseModel):
             datetime: lambda v: v.isoformat()
         }
 
-
 class TrendData(BaseModel):
     """Model for trend data structure"""
     search_volume: Optional[int] = Field(None, ge=0, description="Search volume for the trend")
@@ -193,7 +183,6 @@ class TrendData(BaseModel):
     geo_data: Optional[List[Dict[str, Any]]] = Field(None, description="Geographic trend data")
     category_data: Optional[List[Dict[str, Any]]] = Field(None, description="Category trend data")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
-
 
 class TrendAnalysisResult(BaseModel):
     """Model for trend analysis results"""

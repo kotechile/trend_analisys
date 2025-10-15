@@ -19,7 +19,6 @@ from ..models.export_templates import ExportTemplate
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class ExportService:
     """Service for content export to various platforms"""
     
@@ -54,8 +53,8 @@ class ExportService:
         try:
             # Get content and template
             db = next(get_db())
-            content = db.query(ContentIdeas).filter(ContentIdeas.id == content_id).first()
-            template = db.query(ExportTemplate).filter(ExportTemplate.id == template_id).first()
+            content = db.get_ContentIdeas_by_id(ContentIdeas.id == content_id)
+            template = db.get_ExportTemplate_by_id(ExportTemplate.id == template_id)
             
             if not content or not template:
                 raise ValueError("Content or template not found")
@@ -86,8 +85,8 @@ class ExportService:
         try:
             # Get content and template
             db = next(get_db())
-            content = db.query(ContentIdeas).filter(ContentIdeas.id == content_id).first()
-            template = db.query(ExportTemplate).filter(ExportTemplate.id == template_id).first()
+            content = db.get_ContentIdeas_by_id(ContentIdeas.id == content_id)
+            template = db.get_ExportTemplate_by_id(ExportTemplate.id == template_id)
             
             if not content or not template:
                 raise ValueError("Content or template not found")
@@ -118,8 +117,8 @@ class ExportService:
         try:
             # Get content and template
             db = next(get_db())
-            content = db.query(ContentIdeas).filter(ContentIdeas.id == content_id).first()
-            template = db.query(ExportTemplate).filter(ExportTemplate.id == template_id).first()
+            content = db.get_ContentIdeas_by_id(ContentIdeas.id == content_id)
+            template = db.get_ExportTemplate_by_id(ExportTemplate.id == template_id)
             
             if not content or not template:
                 raise ValueError("Content or template not found")
@@ -150,8 +149,8 @@ class ExportService:
         try:
             # Get software solution and template
             db = next(get_db())
-            software_solution = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == software_solution_id).first()
-            template = db.query(ExportTemplate).filter(ExportTemplate.id == template_id).first()
+            software_solution = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == software_solution_id)
+            template = db.get_ExportTemplate_by_id(ExportTemplate.id == template_id)
             
             if not software_solution or not template:
                 raise ValueError("Software solution or template not found")
@@ -199,7 +198,7 @@ class ExportService:
                 raise ValueError("No calendar entries found for date range")
             
             # Get template
-            template = db.query(ExportTemplate).filter(ExportTemplate.id == template_id).first()
+            template = db.get_ExportTemplate_by_id(ExportTemplate.id == template_id)
             if not template:
                 raise ValueError("Template not found")
             

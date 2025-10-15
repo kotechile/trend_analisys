@@ -18,7 +18,6 @@ from ..core.logging import db_operation_logger, get_logger
 
 logger = get_logger(__name__)
 
-
 class RealTimeMiddleware:
     """
     Middleware for managing real-time subscriptions and WebSocket connections.
@@ -332,10 +331,8 @@ class RealTimeMiddleware:
         """
         return self.realtime_service.get_subscription_metrics()
 
-
 # Global middleware instance
 realtime_middleware = RealTimeMiddleware()
-
 
 async def realtime_websocket_handler(websocket: WebSocket, user_id: str):
     """

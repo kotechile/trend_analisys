@@ -3,9 +3,6 @@ Database index optimization service
 """
 import logging
 from typing import Dict, List, Any, Optional, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import text, inspect, Index, func
-from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 import json
 
@@ -17,7 +14,7 @@ settings = get_settings()
 class IndexOptimizer:
     """Service for database index optimization"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: SupabaseDatabaseService):
         self.db = db
         self.inspector = inspect(self.db.bind)
     

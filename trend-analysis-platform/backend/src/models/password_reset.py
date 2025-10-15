@@ -2,7 +2,6 @@
 PasswordReset model for password reset functionality.
 """
 import uuid
-from sqlalchemy import (
     Column,
     String,
     Boolean,
@@ -10,8 +9,6 @@ from sqlalchemy import (
     ForeignKey,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from src.core.database import Base
 
 class PasswordReset(Base):

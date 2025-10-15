@@ -19,7 +19,6 @@ from ..schemas.calendar_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/calendar", tags=["calendar"])
 
-
 @router.post("/create", response_model=CalendarResponse)
 async def create_content_calendar(
     request: CalendarCreateRequest,
@@ -70,7 +69,6 @@ async def create_content_calendar(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
-
 
 @router.get("/entries", response_model=Dict[str, Any])
 async def get_calendar_entries(
@@ -123,7 +121,6 @@ async def get_calendar_entries(
             detail="Internal server error"
         )
 
-
 @router.put("/entries/{entry_id}", response_model=Dict[str, Any])
 async def update_calendar_entry(
     entry_id: str,
@@ -171,7 +168,6 @@ async def update_calendar_entry(
             detail="Internal server error"
         )
 
-
 @router.delete("/entries/{entry_id}", response_model=Dict[str, Any])
 async def delete_calendar_entry(
     entry_id: str,
@@ -214,7 +210,6 @@ async def delete_calendar_entry(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
-
 
 @router.get("/analytics", response_model=CalendarAnalyticsResponse)
 async def get_calendar_analytics(

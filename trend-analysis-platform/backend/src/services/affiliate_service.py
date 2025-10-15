@@ -17,7 +17,6 @@ from ..models.user import User
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class AffiliateService:
     """Service for affiliate network research and management"""
     
@@ -120,7 +119,7 @@ class AffiliateService:
         """Get affiliate research by ID"""
         try:
             db = next(get_db())
-            research = db.query(AffiliateResearch).filter(AffiliateResearch.id == research_id).first()
+            research = db.get_AffiliateResearch_by_id(AffiliateResearch.id == research_id)
             
             if not research:
                 raise ValueError("Research not found")
@@ -135,7 +134,7 @@ class AffiliateService:
         """Update selected affiliate programs"""
         try:
             db = next(get_db())
-            research = db.query(AffiliateResearch).filter(AffiliateResearch.id == research_id).first()
+            research = db.get_AffiliateResearch_by_id(AffiliateResearch.id == research_id)
             
             if not research:
                 raise ValueError("Research not found")
@@ -154,7 +153,7 @@ class AffiliateService:
         """Perform affiliate research in background"""
         try:
             db = next(get_db())
-            research = db.query(AffiliateResearch).filter(AffiliateResearch.id == research_id).first()
+            research = db.get_AffiliateResearch_by_id(AffiliateResearch.id == research_id)
             
             if not research:
                 return
@@ -207,7 +206,7 @@ class AffiliateService:
             # Mark as failed
             try:
                 db = next(get_db())
-                research = db.query(AffiliateResearch).filter(AffiliateResearch.id == research_id).first()
+                research = db.get_AffiliateResearch_by_id(AffiliateResearch.id == research_id)
                 if research:
                     research.mark_failed(str(e))
                     db.commit()
@@ -438,10 +437,10 @@ class AffiliateService:
         """Delete affiliate research"""
         try:
             db = next(get_db())
-            research = db.query(AffiliateResearch).filter(
+            research = db.get_AffiliateResearch_by_id(
                 AffiliateResearch.id == research_id,
                 AffiliateResearch.user_id == user_id
-            ).first()
+            )
             
             if not research:
                 raise ValueError("Research not found")

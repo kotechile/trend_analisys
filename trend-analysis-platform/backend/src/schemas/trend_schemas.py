@@ -7,14 +7,12 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
-
 class TrendDirection(str, Enum):
     """Trend direction enumeration"""
     RISING = "rising"
     FALLING = "falling"
     STABLE = "stable"
     VOLATILE = "volatile"
-
 
 class AnalysisStatus(str, Enum):
     """Analysis status enumeration"""
@@ -24,13 +22,11 @@ class AnalysisStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
-
 class TrendingTopicsRequest(BaseModel):
     """Request schema for discovering trending topics"""
     search_term: str = Field(..., min_length=1, max_length=200, description="Search term to analyze")
     selected_programs: List[str] = Field(..., description="Selected affiliate program IDs")
     user_id: Optional[str] = Field(None, description="User ID")
-
 
 class TrendingTopic(BaseModel):
     """Schema for individual trending topic"""
@@ -47,13 +43,11 @@ class TrendingTopic(BaseModel):
     seasonality: str = Field(..., description="Seasonal pattern")
     difficulty: str = Field(..., description="Content creation difficulty")
 
-
 class TrendingTopicsResponse(BaseModel):
     """Response schema for trending topics discovery"""
     success: bool = Field(..., description="Success status")
     message: str = Field(..., description="Response message")
     data: Dict[str, Any] = Field(..., description="Trending topics data")
-
 
 class TrendAnalysisHistoryResponse(BaseModel):
     """Response schema for trend analysis history"""
@@ -61,14 +55,12 @@ class TrendAnalysisHistoryResponse(BaseModel):
     message: str = Field(..., description="Response message")
     data: Dict[str, Any] = Field(..., description="History data")
 
-
 class TrendAnalysisRequest(BaseModel):
     """Request schema for trend analysis"""
     search_term: str = Field(..., min_length=1, max_length=200, description="Search term")
     analysis_type: str = Field(..., description="Type of analysis")
     filters: Optional[Dict[str, Any]] = Field(None, description="Analysis filters")
     user_id: Optional[str] = Field(None, description="User ID")
-
 
 class TrendAnalysisResponse(BaseModel):
     """Response schema for trend analysis"""
@@ -79,7 +71,6 @@ class TrendAnalysisResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     status: AnalysisStatus = Field(..., description="Analysis status")
 
-
 class TrendAnalysisListResponse(BaseModel):
     """Response schema for trend analysis list"""
     analyses: List[TrendAnalysisResponse] = Field(..., description="List of analyses")
@@ -88,7 +79,6 @@ class TrendAnalysisListResponse(BaseModel):
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
 
-
 class TrendAnalysisUpdate(BaseModel):
     """Request schema for updating trend analysis"""
     status: Optional[AnalysisStatus] = Field(None, description="New status")
@@ -96,13 +86,11 @@ class TrendAnalysisUpdate(BaseModel):
     analysis_type: Optional[str] = Field(None, description="Updated analysis type")
     filters: Optional[Dict[str, Any]] = Field(None, description="Updated filters")
 
-
 class TrendingKeywordsResponse(BaseModel):
     """Response schema for trending keywords"""
     success: bool = Field(..., description="Success status")
     message: str = Field(..., description="Response message")
     data: Dict[str, Any] = Field(..., description="Trending keywords data")
-
 
 class TrendMetricsResponse(BaseModel):
     """Response schema for trend metrics"""
@@ -113,12 +101,10 @@ class TrendMetricsResponse(BaseModel):
     top_trending_topics: List[Dict[str, Any]] = Field(..., description="Top trending topics")
     last_updated: datetime = Field(..., description="Last update timestamp")
 
-
 class TrendComparisonRequest(BaseModel):
     """Request schema for trend comparison"""
     search_terms: List[str] = Field(..., min_items=2, max_items=5, description="Search terms to compare")
     user_id: Optional[str] = Field(None, description="User ID")
-
 
 class TrendComparisonResponse(BaseModel):
     """Response schema for trend comparison"""
@@ -127,13 +113,11 @@ class TrendComparisonResponse(BaseModel):
     insights: List[str] = Field(..., description="Comparison insights")
     recommendations: List[str] = Field(..., description="Recommendations")
 
-
 class SeasonalTrendRequest(BaseModel):
     """Request schema for seasonal trend analysis"""
     search_term: str = Field(..., min_length=1, max_length=200, description="Search term")
     months: Optional[List[int]] = Field(None, description="Specific months to analyze")
     user_id: Optional[str] = Field(None, description="User ID")
-
 
 class SeasonalTrendResponse(BaseModel):
     """Response schema for seasonal trend analysis"""
@@ -143,7 +127,6 @@ class SeasonalTrendResponse(BaseModel):
     low_months: List[int] = Field(..., description="Low months")
     recommendations: List[str] = Field(..., description="Seasonal recommendations")
     created_at: datetime = Field(..., description="Creation timestamp")
-
 
 class TrendForecastResponse(BaseModel):
     """Response schema for trend forecasting"""

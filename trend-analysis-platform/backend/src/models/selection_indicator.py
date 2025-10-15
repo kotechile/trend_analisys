@@ -2,15 +2,11 @@
 Selection Indicator model for idea selection criteria
 """
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, JSON, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import uuid
 
 Base = declarative_base()
-
 
 class SelectionIndicator(Base):
     """Model for selection indicators in Idea Burst"""
@@ -214,7 +210,6 @@ class SelectionIndicator(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
-
 class IndicatorTemplate(Base):
     """Model for indicator templates"""
     
@@ -298,7 +293,4 @@ class IndicatorTemplate(Base):
             indicators.append(indicator)
         
         return indicators
-
-
-
 

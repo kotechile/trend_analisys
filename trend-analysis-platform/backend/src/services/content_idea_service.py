@@ -18,7 +18,6 @@ from .supabase_service import get_supabase_service
 
 logger = logging.getLogger(__name__)
 
-
 class ContentIdeaService:
     """Service for managing content ideas"""
     

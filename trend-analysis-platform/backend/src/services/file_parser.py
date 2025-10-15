@@ -12,7 +12,6 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-
 class FileParserService:
     """Service for parsing Ahrefs TSV files"""
     
@@ -238,7 +237,6 @@ class FileParserService:
             errors.append(f"Error reading file: {str(e)}")
         
         return errors
-
 
 # Global instance
 file_parser_service = FileParserService()

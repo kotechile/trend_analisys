@@ -8,7 +8,6 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 from pydantic import BaseModel, Field, validator
 
-
 class SubtopicItem(BaseModel):
     """Individual subtopic item within a topic decomposition"""
     name: str = Field(..., min_length=1, max_length=255, description="Subtopic name")
@@ -25,7 +24,6 @@ class SubtopicItem(BaseModel):
         if not v or not v.strip():
             raise ValueError('Subtopic description cannot be empty or whitespace only')
         return v.strip()
-
 
 class TopicDecompositionBase(BaseModel):
     """Base topic decomposition model with common fields"""
@@ -51,11 +49,9 @@ class TopicDecompositionBase(BaseModel):
         
         return v
 
-
 class TopicDecompositionCreate(TopicDecompositionBase):
     """Model for creating a new topic decomposition"""
     research_topic_id: UUID = Field(..., description="ID of the research topic this decomposition belongs to")
-
 
 class TopicDecompositionUpdate(BaseModel):
     """Model for updating an existing topic decomposition"""
@@ -82,7 +78,6 @@ class TopicDecompositionUpdate(BaseModel):
         
         return v
 
-
 class TopicDecomposition(TopicDecompositionBase):
     """Complete topic decomposition model with all fields"""
     id: UUID = Field(..., description="Unique identifier")
@@ -98,11 +93,9 @@ class TopicDecomposition(TopicDecompositionBase):
             UUID: lambda v: str(v)
         }
 
-
 class TopicDecompositionResponse(TopicDecomposition):
     """Topic decomposition response model for API responses"""
     pass
-
 
 class TopicDecompositionListResponse(BaseModel):
     """Response model for listing topic decompositions"""
@@ -113,11 +106,9 @@ class TopicDecompositionListResponse(BaseModel):
     has_next: bool = Field(..., description="Whether there are more pages")
     has_prev: bool = Field(..., description="Whether there are previous pages")
 
-
 class TopicDecompositionWithAnalyses(TopicDecomposition):
     """Topic decomposition model with associated trend analyses"""
     trend_analyses: List[dict] = Field(default_factory=list, description="Associated trend analyses")
-
 
 class TopicDecompositionStats(BaseModel):
     """Topic decomposition statistics model"""
@@ -131,7 +122,6 @@ class TopicDecompositionStats(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-
 
 class SubtopicAnalysis(BaseModel):
     """Model for analyzing subtopic patterns"""

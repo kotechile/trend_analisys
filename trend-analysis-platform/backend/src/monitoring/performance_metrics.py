@@ -10,7 +10,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class PerformanceMetric:
     """Individual performance metric"""
@@ -19,7 +18,6 @@ class PerformanceMetric:
     timestamp: float
     success: bool
     metadata: Dict[str, Any] = field(default_factory=dict)
-
 
 @dataclass
 class OperationStats:
@@ -33,7 +31,6 @@ class OperationStats:
     max_duration: float = 0.0
     avg_duration: float = 0.0
     recent_durations: deque = field(default_factory=lambda: deque(maxlen=100))
-
 
 class PerformanceTracker:
     """Performance metrics tracker for enhanced topics"""
@@ -170,10 +167,8 @@ class PerformanceTracker:
             self.metrics.clear()
             self.operation_stats.clear()
 
-
 # Global performance tracker instance
 performance_tracker = PerformanceTracker()
-
 
 class PerformanceMonitor:
     """Context manager for monitoring operation performance"""
@@ -213,7 +208,6 @@ class PerformanceMonitor:
         """Mark operation as successful."""
         self.success = True
 
-
 def monitor_performance(operation: str, metadata: Optional[Dict[str, Any]] = None):
     """
     Decorator for monitoring function performance.
@@ -232,7 +226,6 @@ def monitor_performance(operation: str, metadata: Optional[Dict[str, Any]] = Non
         return wrapper
     return decorator
 
-
 # Convenience functions for common operations
 async def record_autocomplete_performance(duration: float, success: bool, query: str):
     """Record autocomplete performance."""
@@ -243,7 +236,6 @@ async def record_autocomplete_performance(duration: float, success: bool, query:
         metadata={"query": query}
     )
 
-
 async def record_decomposition_performance(duration: float, success: bool, query: str, method: str):
     """Record topic decomposition performance."""
     await performance_tracker.record_metric(
@@ -252,7 +244,6 @@ async def record_decomposition_performance(duration: float, success: bool, query
         success=success,
         metadata={"query": query, "method": method}
     )
-
 
 async def record_llm_performance(duration: float, success: bool, query: str, provider: str):
     """Record LLM performance."""

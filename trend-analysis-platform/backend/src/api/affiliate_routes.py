@@ -3,7 +3,6 @@ Affiliate Research API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -23,20 +22,17 @@ from ..schemas.affiliate_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/affiliate", tags=["affiliate-research"])
 
-
-def get_affiliate_service(db: Session = Depends(get_db)) -> AffiliateService:
+def get_affiliate_service(db: SupabaseDatabaseService = Depends(get_db)) -> AffiliateService:
     """Get affiliate service dependency"""
     return AffiliateService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/research", response_model=AffiliateResearchResponse)
 async def start_affiliate_research(
@@ -82,7 +78,6 @@ async def start_affiliate_research(
         logger.error("Failed to start affiliate research", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/research/{research_id}", response_model=AffiliateResearchResponse)
 async def get_affiliate_research(
     research_id: str,
@@ -116,7 +111,6 @@ async def get_affiliate_research(
     except Exception as e:
         logger.error("Failed to get affiliate research", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/research", response_model=AffiliateResearchListResponse)
 async def list_affiliate_researches(
@@ -153,7 +147,6 @@ async def list_affiliate_researches(
     except Exception as e:
         logger.error("Failed to list affiliate researches", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/research/{research_id}", response_model=AffiliateResearchResponse)
 async def update_affiliate_research(
@@ -197,7 +190,6 @@ async def update_affiliate_research(
         logger.error("Failed to update affiliate research", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/research/{research_id}")
 async def delete_affiliate_research(
     research_id: str,
@@ -227,7 +219,6 @@ async def delete_affiliate_research(
     except Exception as e:
         logger.error("Failed to delete affiliate research", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/research/{research_id}/programs", response_model=List[AffiliateProgramResponse])
 async def get_affiliate_programs(
@@ -271,7 +262,6 @@ async def get_affiliate_programs(
         logger.error("Failed to get affiliate programs", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/research/{research_id}/select-programs")
 async def select_affiliate_programs(
     research_id: str,
@@ -305,7 +295,6 @@ async def select_affiliate_programs(
     except Exception as e:
         logger.error("Failed to select affiliate programs", research_id=research_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/networks", response_model=List[Dict[str, Any]])
 async def get_affiliate_networks():
@@ -359,7 +348,6 @@ async def get_affiliate_networks():
     except Exception as e:
         logger.error("Failed to get affiliate networks", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/research/{research_id}/analytics", response_model=Dict[str, Any])
 async def get_research_analytics(

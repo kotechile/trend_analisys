@@ -3,7 +3,6 @@ Content Generation API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -24,20 +23,17 @@ from ..schemas.content_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/content", tags=["content-generation"])
 
-
-def get_content_service(db: Session = Depends(get_db)) -> ContentService:
+def get_content_service(db: SupabaseDatabaseService = Depends(get_db)) -> ContentService:
     """Get content service dependency"""
     return ContentService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/generate", response_model=ContentGenerationResponse)
 async def generate_content(
@@ -86,7 +82,6 @@ async def generate_content(
         logger.error("Failed to generate content", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/ideas/{content_id}", response_model=ContentIdeasResponse)
 async def get_content_ideas(
     content_id: str,
@@ -121,7 +116,6 @@ async def get_content_ideas(
     except Exception as e:
         logger.error("Failed to get content ideas", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/ideas", response_model=ContentIdeasListResponse)
 async def list_content_ideas(
@@ -161,7 +155,6 @@ async def list_content_ideas(
     except Exception as e:
         logger.error("Failed to list content ideas", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/ideas/{content_id}", response_model=ContentIdeasResponse)
 async def update_content_ideas(
@@ -209,7 +202,6 @@ async def update_content_ideas(
         logger.error("Failed to update content ideas", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/ideas/{content_id}")
 async def delete_content_ideas(
     content_id: str,
@@ -239,7 +231,6 @@ async def delete_content_ideas(
     except Exception as e:
         logger.error("Failed to delete content ideas", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/ideas/{content_id}/outline/{angle_id}", response_model=ContentOutlineResponse)
 async def get_content_outline(
@@ -279,7 +270,6 @@ async def get_content_outline(
         logger.error("Failed to get content outline", content_id=content_id, angle_id=angle_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/ideas/{content_id}/regenerate")
 async def regenerate_content(
     content_id: str,
@@ -311,7 +301,6 @@ async def regenerate_content(
         logger.error("Failed to regenerate content", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/ideas/{content_id}/seo-analysis", response_model=Dict[str, Any])
 async def get_seo_analysis(
     content_id: str,
@@ -339,7 +328,6 @@ async def get_seo_analysis(
         logger.error("Failed to get SEO analysis", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/ideas/{content_id}/competitor-analysis", response_model=Dict[str, Any])
 async def get_competitor_analysis(
     content_id: str,
@@ -366,7 +354,6 @@ async def get_competitor_analysis(
     except Exception as e:
         logger.error("Failed to get competitor analysis", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/ideas/{content_id}/headline-suggestions", response_model=List[Dict[str, Any]])
 async def get_headline_suggestions(
@@ -396,7 +383,6 @@ async def get_headline_suggestions(
         logger.error("Failed to get headline suggestions", content_id=content_id, angle_id=angle_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/ideas/{content_id}/analytics", response_model=Dict[str, Any])
 async def get_content_analytics(
     content_id: str,
@@ -423,7 +409,6 @@ async def get_content_analytics(
     except Exception as e:
         logger.error("Failed to get content analytics", content_id=content_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/templates", response_model=List[Dict[str, Any]])
 async def get_content_templates():

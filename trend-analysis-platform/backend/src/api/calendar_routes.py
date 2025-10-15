@@ -3,7 +3,6 @@ Calendar Management API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import structlog
@@ -24,20 +23,17 @@ from ..schemas.calendar_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/calendar", tags=["calendar-management"])
 
-
-def get_calendar_service(db: Session = Depends(get_db)) -> CalendarService:
+def get_calendar_service(db: SupabaseDatabaseService = Depends(get_db)) -> CalendarService:
     """Get calendar service dependency"""
     return CalendarService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/schedule", response_model=CalendarScheduleResponse)
 async def schedule_content(
@@ -72,7 +68,6 @@ async def schedule_content(
     except Exception as e:
         logger.error("Failed to schedule content", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/schedule-software")
 async def schedule_software_development(
@@ -110,7 +105,6 @@ async def schedule_software_development(
     except Exception as e:
         logger.error("Failed to schedule software development", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/entries", response_model=CalendarEntryListResponse)
 async def get_calendar_entries(
@@ -150,7 +144,6 @@ async def get_calendar_entries(
         logger.error("Failed to get calendar entries", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/entries/{entry_id}", response_model=CalendarEntryResponse)
 async def get_calendar_entry(
     entry_id: str,
@@ -184,7 +177,6 @@ async def get_calendar_entry(
     except Exception as e:
         logger.error("Failed to get calendar entry", entry_id=entry_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/entries/{entry_id}", response_model=CalendarEntryResponse)
 async def update_calendar_entry(
@@ -235,7 +227,6 @@ async def update_calendar_entry(
         logger.error("Failed to update calendar entry", entry_id=entry_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/entries/{entry_id}")
 async def delete_calendar_entry(
     entry_id: str,
@@ -266,7 +257,6 @@ async def delete_calendar_entry(
         logger.error("Failed to delete calendar entry", entry_id=entry_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/reminders", response_model=List[Dict[str, Any]])
 async def get_upcoming_reminders(
     hours_ahead: int = 24,
@@ -285,7 +275,6 @@ async def get_upcoming_reminders(
     except Exception as e:
         logger.error("Failed to get upcoming reminders", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/auto-schedule")
 async def auto_schedule_content(
@@ -318,7 +307,6 @@ async def auto_schedule_content(
         logger.error("Failed to auto-schedule content", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/analytics", response_model=CalendarAnalyticsResponse)
 async def get_calendar_analytics(
     start_date: datetime,
@@ -348,7 +336,6 @@ async def get_calendar_analytics(
         logger.error("Failed to get calendar analytics", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/sync-status", response_model=Dict[str, Any])
 async def get_sync_status(
     current_user: User = Depends(get_current_user),
@@ -363,7 +350,6 @@ async def get_sync_status(
     except Exception as e:
         logger.error("Failed to get sync status", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/sync")
 async def sync_with_external_calendars(
@@ -387,7 +373,6 @@ async def sync_with_external_calendars(
     except Exception as e:
         logger.error("Failed to sync with external calendars", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/templates", response_model=List[Dict[str, Any]])
 async def get_calendar_templates():
@@ -422,7 +407,6 @@ async def get_calendar_templates():
     except Exception as e:
         logger.error("Failed to get calendar templates", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/export")
 async def export_calendar(

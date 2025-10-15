@@ -120,4 +120,3 @@ async def generate_content(request: ContentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Content generation failed: {str(e)}")
 
-

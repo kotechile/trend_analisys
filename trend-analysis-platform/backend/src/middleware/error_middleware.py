@@ -22,7 +22,6 @@ from ..core.logging import db_operation_logger, get_logger
 
 logger = get_logger(__name__)
 
-
 class ErrorHandlingMiddleware:
     """
     Middleware for handling Supabase exceptions and providing consistent error responses.
@@ -291,10 +290,8 @@ class ErrorHandlingMiddleware:
             }
         )
 
-
 # Global middleware instance
 error_middleware = ErrorHandlingMiddleware()
-
 
 async def error_handler_middleware(request: Request, call_next):
     """

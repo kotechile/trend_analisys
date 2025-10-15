@@ -2,15 +2,11 @@
 Idea Burst Session model for managing idea generation sessions
 """
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, JSON, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import uuid
 
 Base = declarative_base()
-
 
 class IdeaBurstSession(Base):
     """Model for Idea Burst sessions"""
@@ -240,7 +236,6 @@ class IdeaBurstSession(Base):
             "session_duration": self.get_session_duration()
         }
 
-
 class SelectedIdea(Base):
     """Model for selected ideas in a session"""
     
@@ -283,7 +278,4 @@ class SelectedIdea(Base):
             selection_notes=data.get("selection_notes"),
             priority=data.get("priority", "medium")
         )
-
-
-
 

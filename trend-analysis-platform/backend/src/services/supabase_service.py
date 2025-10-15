@@ -12,7 +12,6 @@ from supabase.lib.client_options import ClientOptions
 
 logger = logging.getLogger(__name__)
 
-
 class SupabaseService:
     """Service for interacting with Supabase database"""
     
@@ -320,15 +319,12 @@ class SupabaseService:
         
         return matching_records
 
-
 # Global instance
 supabase_service = SupabaseService()
-
 
 def get_supabase_client() -> Client:
     """Get the global Supabase client instance"""
     return supabase_service.get_client()
-
 
 def get_supabase_service() -> SupabaseService:
     """Get the global Supabase service instance"""

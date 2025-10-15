@@ -30,7 +30,6 @@ validator = ValidationUtility()
 # In-memory storage for file processing status (in production, use Redis or database)
 file_status = {}
 
-
 @router.post("/")
 async def upload_file(
     background_tasks: BackgroundTasks,
@@ -129,7 +128,6 @@ async def upload_file(
         logger.error(f"Error uploading file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-
 @router.get("/{file_id}/status")
 async def get_upload_status(file_id: str) -> Dict[str, Any]:
     """
@@ -169,7 +167,6 @@ async def get_upload_status(file_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting upload status: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
-
 
 async def process_uploaded_file(file_id: str, file_path: str) -> None:
     """
@@ -236,7 +233,6 @@ async def process_uploaded_file(file_id: str, file_path: str) -> None:
             ahrefs_file.status = "error"
             ahrefs_file.error_message = str(e)
             await database.update_ahrefs_file(ahrefs_file)
-
 
 @router.delete("/{file_id}")
 async def delete_file(file_id: str) -> Dict[str, Any]:

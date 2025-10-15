@@ -9,7 +9,6 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-
 class EnhancedIdeaGenerator:
     """Enhanced idea generator with separate paths for blog and software ideas"""
     
@@ -327,10 +326,6 @@ class EnhancedIdeaGenerator:
             logger.error(f"Error generating ideas for Idea Burst: {str(e)}")
             return {'blog_ideas': [], 'software_ideas': []}
 
-
 # Global instance
 enhanced_idea_generator = EnhancedIdeaGenerator()
-
-
-
 

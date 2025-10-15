@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
-
 # Request/Response Models
 class LLMProviderSettings(BaseModel):
     """Model for LLM provider settings"""
@@ -31,13 +30,11 @@ class LLMProviderSettings(BaseModel):
             raise ValueError(f'Invalid provider. Must be one of: {valid_providers}')
         return v
 
-
 class SettingsResponse(BaseModel):
     """Response model for settings operations"""
     success: bool = Field(..., description="Whether the operation was successful")
     message: str = Field(..., description="Human-readable message")
     data: Optional[Dict[str, Any]] = Field(None, description="Response data")
-
 
 @router.get("/llm-providers", response_model=SettingsResponse)
 async def get_llm_providers():
@@ -81,7 +78,6 @@ async def get_llm_providers():
             detail=f"Failed to get LLM providers: {str(e)}"
         )
 
-
 @router.post("/llm-providers", response_model=SettingsResponse)
 async def set_default_llm_provider(settings: LLMProviderSettings):
     """Set the default LLM provider"""
@@ -114,7 +110,6 @@ async def set_default_llm_provider(settings: LLMProviderSettings):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to set LLM provider: {str(e)}"
         )
-
 
 @router.get("/status", response_model=SettingsResponse)
 async def get_settings_status():

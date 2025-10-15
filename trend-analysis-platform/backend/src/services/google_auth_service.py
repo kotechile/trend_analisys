@@ -165,4 +165,3 @@ def get_google_auth_service() -> GoogleAuthService:
     """Get Google Auth service instance"""
     return google_auth_service
 
-

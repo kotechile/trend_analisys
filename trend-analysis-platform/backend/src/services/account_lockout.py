@@ -3,8 +3,6 @@ Account lockout service for managing failed login attempts and account security
 """
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc
 import secrets
 import hashlib
 import logging
@@ -26,7 +24,7 @@ settings = get_settings()
 class AccountLockoutService:
     """Service for managing account lockouts and security events"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: SupabaseDatabaseService):
         self.db = db
         self.max_failed_attempts = settings.MAX_FAILED_LOGIN_ATTEMPTS
         self.lockout_duration = settings.ACCOUNT_LOCKOUT_DURATION

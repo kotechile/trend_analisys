@@ -2,15 +2,11 @@
 SEO Content Idea model for enhanced content ideas
 """
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, JSON, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import uuid
 
 Base = declarative_base()
-
 
 class SEOContentIdea(Base):
     """Model for SEO-optimized content ideas"""
@@ -286,7 +282,4 @@ class SEOContentIdea(Base):
             "generated_from_seed": self.generated_from_seed,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
-
-
-
 

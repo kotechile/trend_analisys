@@ -16,7 +16,6 @@ from ..models.autocomplete_result import AutocompleteResult
 from ..monitoring.performance_metrics import PerformanceMonitor, record_autocomplete_performance, record_decomposition_performance, performance_tracker
 from ..core.api_key_manager import api_key_manager
 
-
 logger = logging.getLogger(__name__)
 
 # Create router
@@ -44,7 +43,6 @@ enhanced_topic_service = EnhancedTopicDecompositionService(
     llm_provider=get_default_llm_provider()  # Use dynamic default LLM provider
 )
 
-
 # Request/Response Models
 class EnhancedTopicDecompositionRequest(BaseModel):
     """Request model for enhanced topic decomposition"""
@@ -66,7 +64,6 @@ class EnhancedTopicDecompositionRequest(BaseModel):
             raise ValueError('User ID cannot be empty')
         return v.strip()
 
-
 class EnhancedTopicDecompositionResponse(BaseModel):
     """Response model for enhanced topic decomposition"""
     success: bool = Field(..., description="Whether the operation was successful")
@@ -76,7 +73,6 @@ class EnhancedTopicDecompositionResponse(BaseModel):
     autocomplete_data: Optional[dict] = Field(None, description="Autocomplete data")
     processing_time: float = Field(..., description="Total processing time in seconds")
     enhancement_methods: list = Field(..., description="Methods used for enhancement")
-
 
 class AutocompleteRequest(BaseModel):
     """Request model for autocomplete suggestions"""
@@ -88,7 +84,6 @@ class AutocompleteRequest(BaseModel):
             raise ValueError('Query cannot be empty')
         return v.strip()
 
-
 class AutocompleteResponse(BaseModel):
     """Response model for autocomplete suggestions"""
     success: bool = Field(..., description="Whether the request was successful")
@@ -96,7 +91,6 @@ class AutocompleteResponse(BaseModel):
     suggestions: list = Field(..., description="Autocomplete suggestions")
     total_suggestions: int = Field(..., description="Total number of suggestions")
     processing_time: float = Field(..., description="Processing time in seconds")
-
 
 class MethodComparisonRequest(BaseModel):
     """Request model for method comparison"""
@@ -116,7 +110,6 @@ class MethodComparisonRequest(BaseModel):
             raise ValueError('User ID cannot be empty')
         return v.strip()
 
-
 class MethodComparisonResponse(BaseModel):
     """Response model for method comparison"""
     success: bool = Field(..., description="Whether the comparison was successful")
@@ -125,14 +118,12 @@ class MethodComparisonResponse(BaseModel):
     recommendation: str = Field(..., description="Recommendation based on comparison")
     processing_time: float = Field(..., description="Total processing time in seconds")
 
-
 class ErrorResponse(BaseModel):
     """Error response model"""
     success: bool = Field(default=False, description="Always false for errors")
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Human-readable error message")
     details: Optional[dict] = Field(None, description="Additional error details")
-
 
 # Rate limiting (simple in-memory implementation)
 class RateLimiter:
@@ -165,9 +156,7 @@ class RateLimiter:
         self.requests[user_id].append(current_time)
         return False
 
-
 rate_limiter = RateLimiter()
-
 
 # Simple request/response models for frontend compatibility
 class SimpleTopicAnalysisRequest(BaseModel):
@@ -278,7 +267,6 @@ async def decompose_topic_enhanced(request: EnhancedTopicDecompositionRequest):
             detail=f"Internal server error: {str(e)}"
         )
 
-
 @router.get("/autocomplete/{query}", response_model=AutocompleteResponse)
 async def get_autocomplete_suggestions(query: str):
     """
@@ -320,7 +308,6 @@ async def get_autocomplete_suggestions(query: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
         )
-
 
 @router.post("/compare-methods", response_model=MethodComparisonResponse)
 async def compare_decomposition_methods(request: MethodComparisonRequest):
@@ -368,7 +355,6 @@ async def compare_decomposition_methods(request: MethodComparisonRequest):
             detail=f"Internal server error: {str(e)}"
         )
 
-
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -392,7 +378,6 @@ async def health_check():
             "error": str(e)
         }
 
-
 @router.post("/cache/clear")
 async def clear_cache():
     """Clear all caches"""
@@ -412,7 +397,6 @@ async def clear_cache():
             detail=f"Failed to clear cache: {str(e)}"
         )
 
-
 @router.get("/cache/stats")
 async def get_cache_stats():
     """Get cache statistics"""
@@ -428,7 +412,6 @@ async def get_cache_stats():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get cache stats: {str(e)}"
         )
-
 
 @router.get("/performance/metrics")
 async def get_performance_metrics():
@@ -471,7 +454,6 @@ async def get_performance_metrics():
             detail=f"Failed to get performance metrics: {str(e)}"
         )
 
-
 @router.post("/performance/clear")
 async def clear_performance_metrics():
     """Clear performance metrics"""
@@ -488,6 +470,5 @@ async def clear_performance_metrics():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clear performance metrics: {str(e)}"
         )
-
 
 # Error handlers are handled at the app level in main.py

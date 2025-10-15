@@ -18,7 +18,6 @@ from ..models.software_solutions import SoftwareSolutions
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class CalendarService:
     """Service for content calendar management"""
     
@@ -38,7 +37,7 @@ class CalendarService:
         try:
             # Validate content exists
             db = next(get_db())
-            content = db.query(ContentIdeas).filter(ContentIdeas.id == content_id).first()
+            content = db.get_ContentIdeas_by_id(ContentIdeas.id == content_id)
             if not content:
                 raise ValueError("Content not found")
             
@@ -82,7 +81,7 @@ class CalendarService:
         try:
             # Validate software solution exists
             db = next(get_db())
-            software_solution = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == software_solution_id).first()
+            software_solution = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == software_solution_id)
             if not software_solution:
                 raise ValueError("Software solution not found")
             
@@ -153,7 +152,7 @@ class CalendarService:
                 
                 # Add content-specific data
                 if entry.content_idea_id:
-                    content = db.query(ContentIdeas).filter(ContentIdeas.id == entry.content_idea_id).first()
+                    content = db.get_ContentIdeas_by_id(ContentIdeas.id == entry.content_idea_id)
                     if content:
                         formatted_entry["content"] = {
                             "id": content.id,
@@ -163,7 +162,7 @@ class CalendarService:
                 
                 # Add software-specific data
                 if entry.software_solution_id:
-                    software = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == entry.software_solution_id).first()
+                    software = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == entry.software_solution_id)
                     if software:
                         formatted_entry["software"] = {
                             "id": software.id,
@@ -186,10 +185,10 @@ class CalendarService:
         """Update calendar entry"""
         try:
             db = next(get_db())
-            calendar_entry = db.query(ContentCalendar).filter(
+            calendar_entry = db.get_ContentCalendar_by_id(
                 ContentCalendar.id == calendar_entry_id,
                 ContentCalendar.user_id == user_id
-            ).first()
+            )
             
             if not calendar_entry:
                 raise ValueError("Calendar entry not found")
@@ -220,10 +219,10 @@ class CalendarService:
         """Delete calendar entry"""
         try:
             db = next(get_db())
-            calendar_entry = db.query(ContentCalendar).filter(
+            calendar_entry = db.get_ContentCalendar_by_id(
                 ContentCalendar.id == calendar_entry_id,
                 ContentCalendar.user_id == user_id
-            ).first()
+            )
             
             if not calendar_entry:
                 raise ValueError("Calendar entry not found")
@@ -269,7 +268,7 @@ class CalendarService:
                 
                 # Add content-specific data
                 if entry.content_idea_id:
-                    content = db.query(ContentIdeas).filter(ContentIdeas.id == entry.content_idea_id).first()
+                    content = db.get_ContentIdeas_by_id(ContentIdeas.id == entry.content_idea_id)
                     if content:
                         reminder["content"] = {
                             "id": content.id,
@@ -278,7 +277,7 @@ class CalendarService:
                 
                 # Add software-specific data
                 if entry.software_solution_id:
-                    software = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == entry.software_solution_id).first()
+                    software = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == entry.software_solution_id)
                     if software:
                         reminder["software"] = {
                             "id": software.id,

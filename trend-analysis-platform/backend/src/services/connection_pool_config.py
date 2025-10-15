@@ -5,10 +5,6 @@ import logging
 import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Engine
-from sqlalchemy.pool import QueuePool, StaticPool, NullPool
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker, Session
 import threading
 import queue
 
@@ -131,7 +127,7 @@ class ConnectionPoolConfig:
             self._update_pool_metrics("error")
             raise
     
-    def return_session(self, session: Session):
+    def return_session(self, session: SupabaseDatabaseService):
         """Return session to pool"""
         try:
             if session:
@@ -430,7 +426,7 @@ def get_database_session() -> Session:
     pool_config = get_connection_pool_config()
     return pool_config.get_session()
 
-def return_database_session(session: Session):
+def return_database_session(session: SupabaseDatabaseService):
     """Return database session to connection pool"""
     pool_config = get_connection_pool_config()
     pool_config.return_session(session)

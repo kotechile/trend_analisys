@@ -15,4 +15,3 @@ def get_current_user():
     # TODO: Implement proper user authentication
     return {"id": "admin", "role": "admin", "username": "admin"}
 
-

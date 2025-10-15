@@ -12,7 +12,6 @@ from ..core.config import settings
 
 logger = structlog.get_logger()
 
-
 class ValidationService:
     """Service for comprehensive data validation"""
     

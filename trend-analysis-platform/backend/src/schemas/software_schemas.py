@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
-
 class SoftwareType(str, Enum):
     """Software type enumeration"""
     CALCULATOR = "calculator"
@@ -19,7 +18,6 @@ class SoftwareType(str, Enum):
     COMPARATOR = "comparator"
     SIMULATOR = "simulator"
 
-
 class SoftwareStatus(str, Enum):
     """Software status enumeration"""
     IDEA = "idea"
@@ -29,7 +27,6 @@ class SoftwareStatus(str, Enum):
     MAINTENANCE = "maintenance"
     ARCHIVED = "archived"
 
-
 class DevelopmentComplexity(str, Enum):
     """Development complexity enumeration"""
     VERY_EASY = "very_easy"
@@ -38,7 +35,6 @@ class DevelopmentComplexity(str, Enum):
     HARD = "hard"
     VERY_HARD = "very_hard"
     EXPERT = "expert"
-
 
 class SoftwareSolutionRequest(BaseModel):
     """Request schema for software solution generation"""
@@ -60,7 +56,6 @@ class SoftwareSolutionRequest(BaseModel):
             raise ValueError('At least one keyword is required')
         return v
 
-
 class SoftwareGenerationRequest(BaseModel):
     """Request schema for software generation (alias for SoftwareSolutionRequest)"""
     title: str = Field(..., min_length=1, max_length=200, description="Software title")
@@ -80,7 +75,6 @@ class SoftwareGenerationRequest(BaseModel):
         if not v or len(v) == 0:
             raise ValueError('At least one keyword is required')
         return v
-
 
 class SoftwareSolutionResponse(BaseModel):
     """Response schema for software solution"""
@@ -129,7 +123,6 @@ class SoftwareSolutionResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update date")
     analyzed_at: Optional[datetime] = Field(None, description="Analysis completion date")
 
-
 class SoftwareGenerationResponse(BaseModel):
     """Response schema for software generation results"""
     solution_id: int = Field(..., description="Software solution ID")
@@ -140,7 +133,6 @@ class SoftwareGenerationResponse(BaseModel):
     model_used: Optional[str] = Field(None, description="AI model used")
     created_at: datetime = Field(..., description="Generation date")
 
-
 class SoftwareSolutionListResponse(BaseModel):
     """Response schema for software solution list"""
     solutions: List[SoftwareSolutionResponse] = Field(..., description="List of solutions")
@@ -148,7 +140,6 @@ class SoftwareSolutionListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class SoftwareSolutionsResponse(BaseModel):
     """Response schema for software solutions (alias for SoftwareSolutionResponse)"""
@@ -197,7 +188,6 @@ class SoftwareSolutionsResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update date")
     analyzed_at: Optional[datetime] = Field(None, description="Analysis completion date")
 
-
 class SoftwareSolutionsListResponse(BaseModel):
     """Response schema for software solutions list (alias for SoftwareSolutionListResponse)"""
     solutions: List[SoftwareSolutionsResponse] = Field(..., description="List of solutions")
@@ -205,7 +195,6 @@ class SoftwareSolutionsListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class SoftwareSolutionUpdateRequest(BaseModel):
     """Request schema for updating software solution"""
@@ -223,7 +212,6 @@ class SoftwareSolutionUpdateRequest(BaseModel):
     additional_requirements: Optional[str] = Field(None, description="Updated requirements")
     notes: Optional[str] = Field(None, description="Updated notes")
 
-
 class SoftwareUpdateRequest(BaseModel):
     """Request schema for updating software (alias for SoftwareSolutionUpdateRequest)"""
     title: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated title")
@@ -240,7 +228,6 @@ class SoftwareUpdateRequest(BaseModel):
     additional_requirements: Optional[str] = Field(None, description="Updated requirements")
     notes: Optional[str] = Field(None, description="Updated notes")
 
-
 class SoftwareAnalysisRequest(BaseModel):
     """Request schema for software analysis"""
     solution_id: int = Field(..., description="Solution ID to analyze")
@@ -250,7 +237,6 @@ class SoftwareAnalysisRequest(BaseModel):
     include_technical_analysis: Optional[bool] = Field(True, description="Include technical analysis")
     include_financial_analysis: Optional[bool] = Field(True, description="Include financial analysis")
     include_risk_analysis: Optional[bool] = Field(True, description="Include risk analysis")
-
 
 class SoftwareAnalysisResponse(BaseModel):
     """Response schema for software analysis results"""
@@ -266,7 +252,6 @@ class SoftwareAnalysisResponse(BaseModel):
     next_steps: List[str] = Field(..., description="Recommended next steps")
     created_at: datetime = Field(..., description="Analysis date")
 
-
 class SoftwareTemplateResponse(BaseModel):
     """Response schema for software template"""
     id: int = Field(..., description="Template ID")
@@ -280,7 +265,6 @@ class SoftwareTemplateResponse(BaseModel):
     created_at: datetime = Field(..., description="Template creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class SoftwareTemplateListResponse(BaseModel):
     """Response schema for software template list"""
     templates: List[SoftwareTemplateResponse] = Field(..., description="List of templates")
@@ -288,7 +272,6 @@ class SoftwareTemplateListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class SoftwareStatsResponse(BaseModel):
     """Response schema for software statistics"""

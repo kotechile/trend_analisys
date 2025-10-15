@@ -12,17 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # No database service needed - using Supabase cloud
 
     steps:
     - uses: actions/checkout@v4
@@ -66,8 +56,9 @@ jobs:
       working-directory: ./trend-analysis-platform/backend
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         SECRET_KEY: test-secret-key
+        REDIS_URL: redis://localhost:6379/0
       run: |
         pytest tests/ -v --cov=src --cov-report=xml --cov-report=html
     

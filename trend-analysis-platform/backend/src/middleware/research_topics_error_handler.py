@@ -13,7 +13,6 @@ from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
-
 class ResearchTopicsErrorHandler:
     """Error handler for research topics operations"""
     
@@ -174,7 +173,6 @@ class ResearchTopicsErrorHandler:
                 return await self.handle_generic_error(request, exc)
         else:
             return await self.handle_generic_error(request, exc)
-
 
 # Global error handler instance
 research_topics_error_handler = ResearchTopicsErrorHandler()

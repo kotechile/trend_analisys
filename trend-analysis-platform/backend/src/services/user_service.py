@@ -21,7 +21,6 @@ from ..models.content_calendar import ContentCalendar
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class UserService:
     """Service for user management and authentication"""
     
@@ -156,7 +155,7 @@ class UserService:
         """Get user profile"""
         try:
             db = next(get_db())
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             
             if not user:
                 raise ValueError("User not found")
@@ -188,7 +187,7 @@ class UserService:
         """Update user profile"""
         try:
             db = next(get_db())
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             
             if not user:
                 raise ValueError("User not found")
@@ -196,20 +195,20 @@ class UserService:
             # Update fields
             if username:
                 # Check if username is already taken
-                existing_user = db.query(User).filter(
+                existing_user = db.get_User_by_id(
                     User.username == username,
                     User.id != user_id
-                ).first()
+                )
                 if existing_user:
                     raise ValueError("Username already taken")
                 user.username = username
             
             if email:
                 # Check if email is already taken
-                existing_user = db.query(User).filter(
+                existing_user = db.get_User_by_id(
                     User.email == email,
                     User.id != user_id
-                ).first()
+                )
                 if existing_user:
                     raise ValueError("Email already taken")
                 user.email = email
@@ -232,7 +231,7 @@ class UserService:
         """Upgrade user subscription"""
         try:
             db = next(get_db())
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             
             if not user:
                 raise ValueError("User not found")
@@ -261,7 +260,7 @@ class UserService:
         """Deactivate user account"""
         try:
             db = next(get_db())
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             
             if not user:
                 raise ValueError("User not found")
@@ -282,7 +281,7 @@ class UserService:
         """Check if user has reached limits for resource type"""
         try:
             db = next(get_db())
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             
             if not user:
                 raise ValueError("User not found")
@@ -308,7 +307,7 @@ class UserService:
         """Get user dashboard data"""
         try:
             db = next(get_db())
-            user = db.query(User).filter(User.id == user_id).first()
+            user = db.get_User_by_id(User.id == user_id)
             
             if not user:
                 raise ValueError("User not found")

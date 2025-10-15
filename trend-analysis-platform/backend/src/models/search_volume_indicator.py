@@ -7,14 +7,12 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
-
 class IndicatorType(str, Enum):
     """Type of search volume indicator"""
     HIGH_SEARCH_VOLUME = "high_search_volume"
     TRENDING = "trending"
     COMMERCIAL_INTENT = "commercial_intent"
     LOW_COMPETITION = "low_competition"
-
 
 class SearchVolumeIndicator(BaseModel):
     """
@@ -178,7 +176,6 @@ class SearchVolumeIndicator(BaseModel):
                 f"confidence_level={self.confidence_level}, description='{self.description}', "
                 f"source_data={self.source_data})")
 
-
 class SearchVolumeIndicatorCreate(BaseModel):
     """Model for creating a new search volume indicator"""
     indicator_type: IndicatorType
@@ -186,13 +183,11 @@ class SearchVolumeIndicatorCreate(BaseModel):
     description: str = Field(..., min_length=1)
     source_data: List[str] = Field(..., min_items=1)
 
-
 class SearchVolumeIndicatorUpdate(BaseModel):
     """Model for updating a search volume indicator"""
     confidence_level: Optional[float] = Field(None, ge=0.0, le=1.0)
     description: Optional[str] = Field(None, min_length=1)
     source_data: Optional[List[str]] = None
-
 
 class SearchVolumeIndicatorResponse(BaseModel):
     """Response model for search volume indicator"""

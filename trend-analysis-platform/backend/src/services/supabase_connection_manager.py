@@ -168,7 +168,7 @@ class SupabaseConnectionManager:
         Get session by ID
         
         Args:
-            session_id: Session ID
+            session_id: SupabaseDatabaseService ID
             
         Returns:
             Session data or None
@@ -196,7 +196,7 @@ class SupabaseConnectionManager:
         Refresh session tokens
         
         Args:
-            session_id: Session ID
+            session_id: SupabaseDatabaseService ID
             access_token: New access token
             refresh_token: New refresh token
             expires_at: New expiration time
@@ -232,7 +232,7 @@ class SupabaseConnectionManager:
         Revoke a session
         
         Args:
-            session_id: Session ID
+            session_id: SupabaseDatabaseService ID
             
         Returns:
             True if successful

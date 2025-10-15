@@ -15,7 +15,6 @@ from ..models.trend_analysis import TrendAnalysis, CSVProcessingStatus
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class CSVProcessingService:
     """Service for processing CSV files with trend data"""
     
@@ -68,10 +67,10 @@ class CSVProcessingService:
                 )
             else:
                 # Update existing trend analysis
-                trend_analysis = self.db.query(TrendAnalysis).filter(
+                trend_analysis = self.db.get_TrendAnalysis_by_id(
                     TrendAnalysis.id == trend_analysis_id,
                     TrendAnalysis.user_id == user_id
-                ).first()
+                )
                 
                 if trend_analysis:
                     trend_analysis.csv_upload_id = str(uuid.uuid4())

@@ -17,7 +17,6 @@ from ..core.logging import db_operation_logger, get_logger
 
 logger = get_logger(__name__)
 
-
 class TimeoutMiddleware:
     """
     Middleware for handling request timeouts with a 60-second limit.
@@ -219,10 +218,8 @@ class TimeoutMiddleware:
             "is_critical": execution_time > (self.timeout_seconds * 1000 * 0.95)
         }
 
-
 # Global middleware instance
 timeout_middleware = TimeoutMiddleware(timeout_seconds=60)
-
 
 async def timeout_handler_middleware(request: Request, call_next):
     """

@@ -3,7 +3,6 @@ Keyword Management API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -27,33 +26,28 @@ from pydantic import BaseModel
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/keywords", tags=["keyword-management"])
 
-
 # Pydantic models for keyword generation
 class KeywordGenerationRequest(BaseModel):
     subtopics: List[str]
     topicId: str
     topicTitle: str
 
-
 class KeywordGenerationResponse(BaseModel):
     success: bool
     keywords: List[str]
     message: Optional[str] = None
 
-
-def get_keyword_service(db: Session = Depends(get_db)) -> KeywordService:
+def get_keyword_service(db: SupabaseDatabaseService = Depends(get_db)) -> KeywordService:
     """Get keyword service dependency"""
     return KeywordService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/upload", response_model=KeywordUploadResponse)
 async def upload_keywords(
@@ -102,7 +96,6 @@ async def upload_keywords(
         logger.error("Failed to upload keywords", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/crawl", response_model=KeywordCrawlResponse)
 async def crawl_keywords(
     request: KeywordCrawlRequest,
@@ -145,7 +138,6 @@ async def crawl_keywords(
         logger.error("Failed to start keyword crawl", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/data/{keyword_data_id}", response_model=KeywordDataResponse)
 async def get_keyword_data(
     keyword_data_id: str,
@@ -179,7 +171,6 @@ async def get_keyword_data(
     except Exception as e:
         logger.error("Failed to get keyword data", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/data", response_model=KeywordDataListResponse)
 async def list_keyword_data(
@@ -219,7 +210,6 @@ async def list_keyword_data(
         logger.error("Failed to list keyword data", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/data/{keyword_data_id}")
 async def delete_keyword_data(
     keyword_data_id: str,
@@ -249,7 +239,6 @@ async def delete_keyword_data(
     except Exception as e:
         logger.error("Failed to delete keyword data", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/data/{keyword_data_id}/analysis", response_model=KeywordAnalysisResponse)
 async def get_keyword_analysis(
@@ -287,7 +276,6 @@ async def get_keyword_analysis(
     except Exception as e:
         logger.error("Failed to get keyword analysis", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/data/{keyword_data_id}/clusters", response_model=List[KeywordClusterResponse])
 async def get_keyword_clusters(
@@ -327,7 +315,6 @@ async def get_keyword_clusters(
         logger.error("Failed to get keyword clusters", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/data/{keyword_data_id}/enrich")
 async def enrich_keywords(
     keyword_data_id: str,
@@ -358,7 +345,6 @@ async def enrich_keywords(
         logger.error("Failed to enrich keywords", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/data/{keyword_data_id}/cluster")
 async def cluster_keywords(
     keyword_data_id: str,
@@ -388,7 +374,6 @@ async def cluster_keywords(
     except Exception as e:
         logger.error("Failed to cluster keywords", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/data/{keyword_data_id}/export")
 async def export_keywords(
@@ -426,7 +411,6 @@ async def export_keywords(
         logger.error("Failed to export keywords", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/suggestions")
 async def get_keyword_suggestions(
     query: str,
@@ -456,7 +440,6 @@ async def get_keyword_suggestions(
         logger.error("Failed to get keyword suggestions", query=query, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/data/{keyword_data_id}/analytics", response_model=Dict[str, Any])
 async def get_keyword_analytics(
     keyword_data_id: str,
@@ -483,7 +466,6 @@ async def get_keyword_analytics(
     except Exception as e:
         logger.error("Failed to get keyword analytics", keyword_data_id=keyword_data_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/generate", response_model=KeywordGenerationResponse)
 async def generate_keywords(

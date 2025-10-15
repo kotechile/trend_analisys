@@ -3,7 +3,6 @@ Trend Analysis API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -23,20 +22,17 @@ from ..schemas.trend_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/trends", tags=["trend-analysis"])
 
-
-def get_trend_service(db: Session = Depends(get_db)) -> TrendService:
+def get_trend_service(db: SupabaseDatabaseService = Depends(get_db)) -> TrendService:
     """Get trend service dependency"""
     return TrendService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/analyze", response_model=TrendAnalysisResponse)
 async def start_trend_analysis(
@@ -83,7 +79,6 @@ async def start_trend_analysis(
         logger.error("Failed to start trend analysis", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/analysis/{analysis_id}", response_model=TrendAnalysisResponse)
 async def get_trend_analysis(
     analysis_id: str,
@@ -119,7 +114,6 @@ async def get_trend_analysis(
     except Exception as e:
         logger.error("Failed to get trend analysis", analysis_id=analysis_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/analysis", response_model=TrendAnalysisListResponse)
 async def list_trend_analyses(
@@ -157,7 +151,6 @@ async def list_trend_analyses(
     except Exception as e:
         logger.error("Failed to list trend analyses", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/analysis/{analysis_id}", response_model=TrendAnalysisResponse)
 async def update_trend_analysis(
@@ -202,7 +195,6 @@ async def update_trend_analysis(
         logger.error("Failed to update trend analysis", analysis_id=analysis_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/analysis/{analysis_id}")
 async def delete_trend_analysis(
     analysis_id: str,
@@ -232,7 +224,6 @@ async def delete_trend_analysis(
     except Exception as e:
         logger.error("Failed to delete trend analysis", analysis_id=analysis_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/analysis/{analysis_id}/forecast", response_model=TrendForecastResponse)
 async def get_trend_forecast(
@@ -270,7 +261,6 @@ async def get_trend_forecast(
         logger.error("Failed to get trend forecast", analysis_id=analysis_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/analysis/{analysis_id}/insights", response_model=Dict[str, Any])
 async def get_trend_insights(
     analysis_id: str,
@@ -297,7 +287,6 @@ async def get_trend_insights(
     except Exception as e:
         logger.error("Failed to get trend insights", analysis_id=analysis_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/analysis/{analysis_id}/refresh")
 async def refresh_trend_analysis(
@@ -329,7 +318,6 @@ async def refresh_trend_analysis(
         logger.error("Failed to refresh trend analysis", analysis_id=analysis_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/keywords/suggestions")
 async def get_keyword_suggestions(
     query: str,
@@ -355,7 +343,6 @@ async def get_keyword_suggestions(
     except Exception as e:
         logger.error("Failed to get keyword suggestions", query=query, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/regions", response_model=List[Dict[str, Any]])
 async def get_available_regions():
@@ -384,7 +371,6 @@ async def get_available_regions():
     except Exception as e:
         logger.error("Failed to get available regions", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/analysis/{analysis_id}/analytics", response_model=Dict[str, Any])
 async def get_analysis_analytics(

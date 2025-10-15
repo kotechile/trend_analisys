@@ -2,12 +2,8 @@
 TrendAnalysis model for TrendTap
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum, Float
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from ..core.database import Base
-
 
 class AnalysisStatus(PyEnum):
     """Analysis status enumeration"""
@@ -16,7 +12,6 @@ class AnalysisStatus(PyEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 class TrendAnalysis(Base):
     """Trend analysis model"""

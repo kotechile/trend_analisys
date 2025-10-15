@@ -20,7 +20,6 @@ db_service = DatabaseService()
 content_idea_generator = ContentIdeaGenerator()
 keyword_analyzer = KeywordAnalyzerService()
 
-
 @router.post("/{file_id}/generate-ideas")
 async def generate_ideas_with_ahrefs(
     file_id: str,
@@ -93,7 +92,6 @@ async def generate_ideas_with_ahrefs(
             detail="Internal server error"
         )
 
-
 @router.get("/{report_id}/ideas")
 async def get_content_ideas(
     report_id: str,
@@ -163,7 +161,6 @@ async def get_content_ideas(
             detail="Internal server error"
         )
 
-
 @router.post("/{report_id}/ideas/{idea_id}/select")
 async def select_content_idea(
     report_id: str,
@@ -226,7 +223,6 @@ async def select_content_idea(
             status_code=500,
             detail="Internal server error"
         )
-
 
 @router.post("/{report_id}/ideas/bulk-select")
 async def bulk_select_content_ideas(
@@ -292,7 +288,6 @@ async def bulk_select_content_ideas(
             detail="Internal server error"
         )
 
-
 @router.get("/{report_id}/ideas/{idea_id}/indicators")
 async def get_idea_indicators(
     report_id: str,
@@ -337,7 +332,6 @@ async def get_idea_indicators(
             status_code=500,
             detail="Internal server error"
         )
-
 
 @router.post("/{report_id}/ideas/compare")
 async def compare_content_ideas(
@@ -394,7 +388,6 @@ async def compare_content_ideas(
             status_code=500,
             detail="Internal server error"
         )
-
 
 @router.post("/{report_id}/ideas/export")
 async def export_content_ideas(
@@ -456,7 +449,6 @@ async def export_content_ideas(
             detail="Internal server error"
         )
 
-
 def _apply_idea_filters(
     ideas: List[Dict[str, Any]], 
     content_type: Optional[str], 
@@ -472,7 +464,6 @@ def _apply_idea_filters(
         filtered_ideas = [idea for idea in filtered_ideas if idea.get("priority") == priority]
     
     return filtered_ideas
-
 
 def _sort_ideas(
     ideas: List[Dict[str, Any]], 
@@ -495,14 +486,12 @@ def _sort_ideas(
     
     return ideas
 
-
 def _add_selection_indicators(ideas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Add selection indicators to content ideas"""
     for idea in ideas:
         idea["selection_indicators"] = _generate_selection_indicators(idea)
     
     return ideas
-
 
 def _generate_selection_indicators(idea: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Generate selection indicators for a content idea"""
@@ -560,7 +549,6 @@ def _generate_selection_indicators(idea: Dict[str, Any]) -> List[Dict[str, Any]]
     
     return indicators
 
-
 def _generate_idea_comparison(ideas: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Generate comparison between content ideas"""
     comparison = {
@@ -582,7 +570,6 @@ def _generate_idea_comparison(ideas: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
     
     return comparison
-
 
 def _generate_comparison_recommendations(ideas: List[Dict[str, Any]]) -> List[str]:
     """Generate recommendations based on idea comparison"""
@@ -609,7 +596,6 @@ def _generate_comparison_recommendations(ideas: List[Dict[str, Any]]) -> List[st
     
     return recommendations
 
-
 def _organize_ideas_by_subtopic(ideas: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
     """Organize ideas by sub-topic for better presentation"""
     subtopic_organization = {}
@@ -631,7 +617,6 @@ def _organize_ideas_by_subtopic(ideas: List[Dict[str, Any]]) -> Dict[str, List[D
         )
     
     return subtopic_organization
-
 
 def _determine_subtopic_from_idea(idea: Dict[str, Any]) -> str:
     """Determine sub-topic from idea content"""
@@ -664,7 +649,4 @@ def _determine_subtopic_from_idea(idea: Dict[str, Any]) -> str:
         return "keyword_research"
     else:
         return "general_seo"
-
-
-
 

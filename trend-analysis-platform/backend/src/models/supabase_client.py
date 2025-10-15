@@ -11,19 +11,16 @@ from enum import Enum
 from pydantic import BaseModel, Field, validator
 import uuid
 
-
 class ClientType(str, Enum):
     """Supabase client types."""
     SERVICE_ROLE = "service_role"
     ANON = "anon"
-
 
 class ConnectionStatus(str, Enum):
     """Connection status values."""
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     ERROR = "error"
-
 
 class SupabaseClient(BaseModel):
     """

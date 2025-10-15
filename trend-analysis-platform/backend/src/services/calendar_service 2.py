@@ -13,7 +13,6 @@ from ..core.redis import cache
 
 logger = structlog.get_logger()
 
-
 class CalendarService:
     """Service for content calendar management and scheduling"""
     

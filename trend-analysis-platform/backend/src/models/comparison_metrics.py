@@ -6,7 +6,6 @@ Represents performance and quality metrics for method comparison
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
 
-
 class ComparisonMetrics(BaseModel):
     """
     Represents performance and quality metrics for method comparison
@@ -228,7 +227,6 @@ class ComparisonMetrics(BaseModel):
                 f"hybrid_relevance_avg={self.hybrid_relevance_avg}, "
                 f"total_suggestions_found={self.total_suggestions_found})")
 
-
 class ComparisonMetricsCreate(BaseModel):
     """Model for creating new comparison metrics"""
     llm_processing_time: float = Field(..., ge=0)
@@ -239,7 +237,6 @@ class ComparisonMetricsCreate(BaseModel):
     hybrid_relevance_avg: float = Field(..., ge=0.0, le=1.0)
     total_suggestions_found: int = Field(..., ge=0)
 
-
 class ComparisonMetricsUpdate(BaseModel):
     """Model for updating comparison metrics"""
     llm_processing_time: Optional[float] = Field(None, ge=0)
@@ -249,7 +246,6 @@ class ComparisonMetricsUpdate(BaseModel):
     autocomplete_relevance_avg: Optional[float] = Field(None, ge=0.0, le=1.0)
     hybrid_relevance_avg: Optional[float] = Field(None, ge=0.0, le=1.0)
     total_suggestions_found: Optional[int] = Field(None, ge=0)
-
 
 class ComparisonMetricsResponse(BaseModel):
     """Response model for comparison metrics"""

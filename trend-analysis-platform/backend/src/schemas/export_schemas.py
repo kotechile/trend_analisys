@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
-
 class ExportFormat(str, Enum):
     """Export format enumeration"""
     CSV = "csv"
@@ -17,7 +16,6 @@ class ExportFormat(str, Enum):
     XML = "xml"
     HTML = "html"
 
-
 class ExportStatus(str, Enum):
     """Export status enumeration"""
     PENDING = "pending"
@@ -25,7 +23,6 @@ class ExportStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 class ExportType(str, Enum):
     """Export type enumeration"""
@@ -37,7 +34,6 @@ class ExportType(str, Enum):
     CONTENT_CALENDAR = "content_calendar"
     USER_DATA = "user_data"
     ANALYTICS = "analytics"
-
 
 class ExportRequest(BaseModel):
     """Request schema for creating export"""
@@ -58,7 +54,6 @@ class ExportRequest(BaseModel):
             raise ValueError('Fields list cannot be empty')
         return v
 
-
 class ExportResponse(BaseModel):
     """Response schema for export"""
     id: str = Field(..., description="Export ID")
@@ -77,7 +72,6 @@ class ExportResponse(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Export completion date")
     expires_at: Optional[datetime] = Field(None, description="Download expiration date")
 
-
 class ExportListResponse(BaseModel):
     """Response schema for export list"""
     exports: List[ExportResponse] = Field(..., description="List of exports")
@@ -85,7 +79,6 @@ class ExportListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class ExportTemplateResponse(BaseModel):
     """Response schema for export template"""
@@ -101,7 +94,6 @@ class ExportTemplateResponse(BaseModel):
     created_at: datetime = Field(..., description="Template creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class ExportTemplateListResponse(BaseModel):
     """Response schema for export template list"""
     templates: List[ExportTemplateResponse] = Field(..., description="List of templates")
@@ -109,7 +101,6 @@ class ExportTemplateListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class ExportTemplateCreateRequest(BaseModel):
     """Request schema for creating export template"""
@@ -120,14 +111,12 @@ class ExportTemplateCreateRequest(BaseModel):
     template_config: Dict[str, Any] = Field(..., description="Template configuration")
     is_public: Optional[bool] = Field(False, description="Make template public")
 
-
 class ExportTemplateUpdateRequest(BaseModel):
     """Request schema for updating export template"""
     name: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated name")
     description: Optional[str] = Field(None, description="Updated description")
     template_config: Optional[Dict[str, Any]] = Field(None, description="Updated configuration")
     is_public: Optional[bool] = Field(None, description="Updated public status")
-
 
 class ExportScheduleRequest(BaseModel):
     """Request schema for scheduling export"""
@@ -139,7 +128,6 @@ class ExportScheduleRequest(BaseModel):
     email_notification: Optional[bool] = Field(True, description="Send email notification")
     webhook_url: Optional[str] = Field(None, description="Webhook URL for notification")
     enabled: Optional[bool] = Field(True, description="Enable schedule")
-
 
 class ExportScheduleResponse(BaseModel):
     """Response schema for export schedule"""
@@ -158,7 +146,6 @@ class ExportScheduleResponse(BaseModel):
     created_at: datetime = Field(..., description="Schedule creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class ExportScheduleListResponse(BaseModel):
     """Response schema for export schedule list"""
     schedules: List[ExportScheduleResponse] = Field(..., description="List of schedules")
@@ -166,7 +153,6 @@ class ExportScheduleListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class ExportStatsResponse(BaseModel):
     """Response schema for export statistics"""
@@ -181,14 +167,12 @@ class ExportStatsResponse(BaseModel):
     active_schedules: int = Field(..., description="Active schedules")
     last_updated: datetime = Field(..., description="Last database update")
 
-
 class ExportValidationRequest(BaseModel):
     """Request schema for export validation"""
     export_type: ExportType = Field(..., description="Export type")
     format: ExportFormat = Field(..., description="Export format")
     filters: Optional[Dict[str, Any]] = Field(None, description="Export filters")
     fields: Optional[List[str]] = Field(None, description="Fields to include")
-
 
 class ExportValidationResponse(BaseModel):
     """Response schema for export validation"""
@@ -199,7 +183,6 @@ class ExportValidationResponse(BaseModel):
     warnings: List[str] = Field(..., description="Validation warnings")
     errors: List[str] = Field(..., description="Validation errors")
     recommendations: List[str] = Field(..., description="Recommendations")
-
 
 class ExportStatusResponse(BaseModel):
     """Response schema for export status"""

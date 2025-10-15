@@ -144,7 +144,7 @@ class RealTimeNotificationService:
             notification_data = {
                 "alert_type": alert_type,
                 "severity": severity,
-                **data or {}
+                **(data or {})
             }
             
             return await self.send_notification(

@@ -6,8 +6,6 @@ import hashlib
 import hmac
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
 import logging
 import json
 
@@ -26,7 +24,7 @@ settings = get_settings()
 class CSRFProtectionService:
     """Service for managing CSRF protection tokens"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: SupabaseDatabaseService):
         self.db = db
         self.token_length = 32
         self.token_ttl = settings.CSRF_TOKEN_TTL_HOURS * 3600  # Convert to seconds

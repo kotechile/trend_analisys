@@ -8,7 +8,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from ..models.content_calendar import EntryType, CalendarStatus
 
-
 class CalendarCreateRequest(BaseModel):
     """Request model for creating a content calendar"""
     user_id: str = Field(..., description="User ID")
@@ -16,7 +15,6 @@ class CalendarCreateRequest(BaseModel):
     software_solutions: List[Dict[str, Any]] = Field(..., description="List of software solutions to schedule")
     start_date: datetime = Field(..., description="Calendar start date")
     end_date: datetime = Field(..., description="Calendar end date")
-
 
 class CalendarEntryUpdateRequest(BaseModel):
     """Request model for updating a calendar entry"""
@@ -29,7 +27,6 @@ class CalendarEntryUpdateRequest(BaseModel):
     platform: Optional[str] = Field(None, description="Platform")
     notes: Optional[str] = Field(None, description="Additional notes")
 
-
 class CalendarResponse(BaseModel):
     """Response model for calendar operations"""
     success: bool = Field(..., description="Operation success status")
@@ -41,13 +38,11 @@ class CalendarResponse(BaseModel):
     end_date: Optional[str] = Field(None, description="End date")
     calendar_entries: Optional[List[Dict[str, Any]]] = Field(None, description="Calendar entries")
 
-
 class CalendarAnalyticsResponse(BaseModel):
     """Response model for calendar analytics"""
     success: bool = Field(..., description="Operation success status")
     analytics: Dict[str, Any] = Field(..., description="Analytics data")
     period: Dict[str, Any] = Field(..., description="Analytics period")
-
 
 class CalendarEntry(BaseModel):
     """Model for a calendar entry"""
@@ -65,7 +60,6 @@ class CalendarEntry(BaseModel):
     complexity: Optional[int] = Field(None, description="Complexity score")
     technical_requirements: Optional[List[str]] = Field(None, description="Technical requirements")
 
-
 class CalendarAnalytics(BaseModel):
     """Model for calendar analytics"""
     total_entries: int = Field(..., description="Total number of entries")
@@ -80,7 +74,6 @@ class CalendarAnalytics(BaseModel):
     time_distribution: Dict[str, int] = Field(..., description="Time distribution")
     platform_distribution: Dict[str, int] = Field(..., description="Platform distribution")
 
-
 class CalendarScheduleRequest(BaseModel):
     """Request model for scheduling calendar entries"""
     content_idea_id: Optional[int] = Field(None, description="Content idea ID")
@@ -94,13 +87,11 @@ class CalendarScheduleRequest(BaseModel):
     platform: Optional[str] = Field(None, description="Platform")
     notes: Optional[str] = Field(None, description="Additional notes")
 
-
 class CalendarScheduleResponse(BaseModel):
     """Response model for calendar scheduling"""
     success: bool = Field(..., description="Operation success status")
     calendar_id: Optional[int] = Field(None, description="Calendar entry ID")
     message: Optional[str] = Field(None, description="Response message")
-
 
 class CalendarEntryResponse(BaseModel):
     """Response model for calendar entry"""
@@ -121,7 +112,6 @@ class CalendarEntryResponse(BaseModel):
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
 
-
 class CalendarEntryListResponse(BaseModel):
     """Response model for calendar entry list"""
     success: bool = Field(..., description="Operation success status")
@@ -129,7 +119,6 @@ class CalendarEntryListResponse(BaseModel):
     total_count: int = Field(..., description="Total number of entries")
     page: int = Field(..., description="Current page")
     per_page: int = Field(..., description="Entries per page")
-
 
 class CalendarUpdateRequest(BaseModel):
     """Request model for updating calendar entries"""

@@ -16,7 +16,6 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-
 class ErrorHandler:
     """Centralized error handling for the application"""
     
@@ -125,7 +124,6 @@ class ErrorHandler:
             }
         )
 
-
 class LoggingMiddleware:
     """Middleware for request/response logging"""
     
@@ -163,7 +161,6 @@ class LoggingMiddleware:
             }
         )
 
-
 class DatabaseErrorHandler:
     """Handle database-related errors"""
     
@@ -194,7 +191,6 @@ class DatabaseErrorHandler:
             detail="Data constraint violation"
         )
 
-
 class FileProcessingErrorHandler:
     """Handle file processing errors"""
     
@@ -224,7 +220,6 @@ class FileProcessingErrorHandler:
             status_code=500,
             detail="File processing failed"
         )
-
 
 class AnalysisErrorHandler:
     """Handle analysis-related errors"""

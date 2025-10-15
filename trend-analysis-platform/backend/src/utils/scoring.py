@@ -13,7 +13,6 @@ from ..models.keyword import Keyword
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class ScoreWeights:
     """Weights for different scoring factors"""
@@ -21,7 +20,6 @@ class ScoreWeights:
     difficulty_weight: float = 0.3
     cpc_weight: float = 0.2
     intent_weight: float = 0.1
-
 
 class ScoringUtility:
     """Utility for calculating various scores for keywords and content ideas"""

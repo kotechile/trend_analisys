@@ -1,17 +1,17 @@
 """
-Supabase Database Service
-Uses Supabase SDK for all database operations
-Replaces SQLAlchemy-based database operations
+Supabase-only database service for TrendTap
+This replaces all PostgreSQL/SQLAlchemy dependencies with Supabase SDK
 """
 
 import os
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Generator
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import structlog
 import json
 from datetime import datetime
 import uuid
+from contextlib import contextmanager
 
 logger = structlog.get_logger()
 
@@ -23,36 +23,17 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    raise ValueError("Missing required Supabase environment variables")
+    raise ValueError("Missing required Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
 
 # Create Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 class SupabaseDatabaseService:
-    """Database service using Supabase SDK"""
+    """Main database service using Supabase API only"""
     
     def __init__(self):
         self.client = supabase
         logger.info("Supabase database service initialized")
-    
-    def health_check(self) -> Dict[str, Any]:
-        """Check database connection health"""
-        try:
-            # Simple query to test connection
-            result = self.client.table("users").select("id").limit(1).execute()
-            return {
-                "status": "healthy",
-                "database": "supabase",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        except Exception as e:
-            logger.error("Database health check failed", error=str(e))
-            return {
-                "status": "unhealthy",
-                "database": "supabase",
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
     
     # User operations
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
@@ -76,6 +57,10 @@ class SupabaseDatabaseService:
     def create_user(self, user_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Create a new user"""
         try:
+            user_data["id"] = str(uuid.uuid4())
+            user_data["created_at"] = datetime.utcnow().isoformat()
+            user_data["updated_at"] = datetime.utcnow().isoformat()
+            
             result = self.client.table("users").insert(user_data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
@@ -83,8 +68,10 @@ class SupabaseDatabaseService:
             return None
     
     def update_user(self, user_id: str, user_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update user"""
+        """Update user data"""
         try:
+            user_data["updated_at"] = datetime.utcnow().isoformat()
+            
             result = self.client.table("users").update(user_data).eq("id", user_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
@@ -100,140 +87,244 @@ class SupabaseDatabaseService:
             logger.error("Error deleting user", user_id=user_id, error=str(e))
             return False
     
-    # Affiliate research operations
-    def create_affiliate_research(self, research_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Create affiliate research record"""
+    # Affiliate Research operations
+    def get_affiliate_research_by_id(self, research_id: str) -> Optional[Dict[str, Any]]:
+        """Get affiliate research by ID"""
         try:
-            result = self.client.table("affiliate_research").insert(research_data).execute()
+            result = self.client.table("affiliate_researches").select("*").eq("id", research_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            logger.error("Error getting affiliate research by ID", research_id=research_id, error=str(e))
+            return None
+    
+    def get_affiliate_researches_by_user(self, user_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get affiliate researches by user ID"""
+        try:
+            result = self.client.table("affiliate_researches")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .range(offset, offset + limit - 1)\
+                .execute()
+            return result.data or []
+        except Exception as e:
+            logger.error("Error getting affiliate researches by user", user_id=user_id, error=str(e))
+            return []
+    
+    def create_affiliate_research(self, research_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create new affiliate research"""
+        try:
+            research_data["id"] = str(uuid.uuid4())
+            research_data["created_at"] = datetime.utcnow().isoformat()
+            research_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("affiliate_researches").insert(research_data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             logger.error("Error creating affiliate research", error=str(e))
             return None
     
-    def get_affiliate_research(self, research_id: str) -> Optional[Dict[str, Any]]:
-        """Get affiliate research by ID"""
+    def update_affiliate_research(self, research_id: str, research_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update affiliate research"""
         try:
-            result = self.client.table("affiliate_research").select("*").eq("id", research_id).execute()
+            research_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("affiliate_researches").update(research_data).eq("id", research_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            logger.error("Error getting affiliate research", research_id=research_id, error=str(e))
+            logger.error("Error updating affiliate research", research_id=research_id, error=str(e))
             return None
     
-    def get_affiliate_research_by_user(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all affiliate research for a user"""
+    # Trend Analysis operations
+    def get_trend_analysis_by_id(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Get trend analysis by ID"""
         try:
-            result = self.client.table("affiliate_research").select("*").eq("user_id", user_id).execute()
+            result = self.client.table("trend_analyses").select("*").eq("id", analysis_id).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            logger.error("Error getting trend analysis by ID", analysis_id=analysis_id, error=str(e))
+            return None
+    
+    def get_trend_analyses_by_user(self, user_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get trend analyses by user ID"""
+        try:
+            result = self.client.table("trend_analyses")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .range(offset, offset + limit - 1)\
+                .execute()
             return result.data or []
         except Exception as e:
-            logger.error("Error getting affiliate research by user", user_id=user_id, error=str(e))
+            logger.error("Error getting trend analyses by user", user_id=user_id, error=str(e))
             return []
     
-    def create_affiliate_offer(self, offer_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Create affiliate offer record"""
-        try:
-            result = self.client.table("affiliate_offers").insert(offer_data).execute()
-            return result.data[0] if result.data else None
-        except Exception as e:
-            logger.error("Error creating affiliate offer", error=str(e))
-            return None
-    
-    # Trend analysis operations
     def create_trend_analysis(self, analysis_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Create trend analysis record"""
+        """Create new trend analysis"""
         try:
-            result = self.client.table("trend_analysis").insert(analysis_data).execute()
+            analysis_data["id"] = str(uuid.uuid4())
+            analysis_data["created_at"] = datetime.utcnow().isoformat()
+            analysis_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("trend_analyses").insert(analysis_data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             logger.error("Error creating trend analysis", error=str(e))
             return None
     
-    def get_trend_analysis(self, analysis_id: str) -> Optional[Dict[str, Any]]:
-        """Get trend analysis by ID"""
+    def update_trend_analysis(self, analysis_id: str, analysis_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update trend analysis"""
         try:
-            result = self.client.table("trend_analysis").select("*").eq("id", analysis_id).execute()
+            analysis_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("trend_analyses").update(analysis_data).eq("id", analysis_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            logger.error("Error getting trend analysis", analysis_id=analysis_id, error=str(e))
+            logger.error("Error updating trend analysis", analysis_id=analysis_id, error=str(e))
             return None
     
-    def get_trend_analysis_by_user(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all trend analysis for a user"""
+    # Content Ideas operations
+    def get_content_ideas_by_user(self, user_id: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get content ideas by user ID"""
         try:
-            result = self.client.table("trend_analysis").select("*").eq("user_id", user_id).execute()
-            return result.data or []
-        except Exception as e:
-            logger.error("Error getting trend analysis by user", user_id=user_id, error=str(e))
-            return []
-    
-    # Content operations
-    def create_content_idea(self, content_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Create content idea record"""
-        try:
-            result = self.client.table("content_ideas").insert(content_data).execute()
-            return result.data[0] if result.data else None
-        except Exception as e:
-            logger.error("Error creating content idea", error=str(e))
-            return None
-    
-    def get_content_ideas_by_user(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get all content ideas for a user"""
-        try:
-            result = self.client.table("content_ideas").select("*").eq("user_id", user_id).execute()
+            result = self.client.table("content_ideas")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .range(offset, offset + limit - 1)\
+                .execute()
             return result.data or []
         except Exception as e:
             logger.error("Error getting content ideas by user", user_id=user_id, error=str(e))
             return []
     
-    # Generic CRUD operations
-    def create_record(self, table_name: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Create a record in any table"""
+    def create_content_idea(self, idea_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create new content idea"""
         try:
-            result = self.client.table(table_name).insert(data).execute()
+            idea_data["id"] = str(uuid.uuid4())
+            idea_data["created_at"] = datetime.utcnow().isoformat()
+            idea_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("content_ideas").insert(idea_data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            logger.error("Error creating record", table=table_name, error=str(e))
+            logger.error("Error creating content idea", error=str(e))
             return None
     
-    def get_record(self, table_name: str, record_id: str) -> Optional[Dict[str, Any]]:
-        """Get a record by ID from any table"""
+    def update_content_idea(self, idea_id: str, idea_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update content idea"""
         try:
-            result = self.client.table(table_name).select("*").eq("id", record_id).execute()
+            idea_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = self.client.table("content_ideas").update(idea_data).eq("id", idea_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            logger.error("Error getting record", table=table_name, record_id=record_id, error=str(e))
+            logger.error("Error updating content idea", idea_id=idea_id, error=str(e))
             return None
     
-    def update_record(self, table_name: str, record_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update a record in any table"""
+    # Generic operations
+    def execute_query(self, table: str, operation: str, **kwargs) -> Any:
+        """Execute a generic query on any table"""
         try:
-            result = self.client.table(table_name).update(data).eq("id", record_id).execute()
-            return result.data[0] if result.data else None
+            query = self.client.table(table)
+            
+            if operation == "select":
+                query = query.select(kwargs.get("columns", "*"))
+                if "filters" in kwargs:
+                    for filter_key, filter_value in kwargs["filters"].items():
+                        query = query.eq(filter_key, filter_value)
+                if "order_by" in kwargs:
+                    query = query.order(kwargs["order_by"], desc=kwargs.get("desc", False))
+                if "limit" in kwargs:
+                    query = query.limit(kwargs["limit"])
+                if "offset" in kwargs:
+                    query = query.range(kwargs["offset"], kwargs["offset"] + kwargs.get("limit", 1) - 1)
+                
+                result = query.execute()
+                return result.data
+            
+            elif operation == "insert":
+                data = kwargs.get("data", {})
+                if "id" not in data:
+                    data["id"] = str(uuid.uuid4())
+                data["created_at"] = datetime.utcnow().isoformat()
+                data["updated_at"] = datetime.utcnow().isoformat()
+                
+                result = query.insert(data).execute()
+                return result.data[0] if result.data else None
+            
+            elif operation == "update":
+                data = kwargs.get("data", {})
+                data["updated_at"] = datetime.utcnow().isoformat()
+                
+                filters = kwargs.get("filters", {})
+                for filter_key, filter_value in filters.items():
+                    query = query.eq(filter_key, filter_value)
+                
+                result = query.update(data).execute()
+                return result.data[0] if result.data else None
+            
+            elif operation == "delete":
+                filters = kwargs.get("filters", {})
+                for filter_key, filter_value in filters.items():
+                    query = query.eq(filter_key, filter_value)
+                
+                result = query.delete().execute()
+                return True
+            
+            else:
+                raise ValueError(f"Unsupported operation: {operation}")
+                
         except Exception as e:
-            logger.error("Error updating record", table=table_name, record_id=record_id, error=str(e))
+            logger.error("Error executing query", table=table, operation=operation, error=str(e))
             return None
     
-    def delete_record(self, table_name: str, record_id: str) -> bool:
-        """Delete a record from any table"""
+    def health_check(self) -> Dict[str, Any]:
+        """Check database health"""
         try:
-            result = self.client.table(table_name).delete().eq("id", record_id).execute()
-            return True
+            # Test connection with a simple query
+            result = self.client.table("users").select("id").limit(1).execute()
+            
+            return {
+                "healthy": True,
+                "status": "connected",
+                "timestamp": datetime.utcnow().isoformat(),
+                "supabase_url": SUPABASE_URL
+            }
         except Exception as e:
-            logger.error("Error deleting record", table=table_name, record_id=record_id, error=str(e))
-            return False
-    
-    def get_records_by_user(self, table_name: str, user_id: str) -> List[Dict[str, Any]]:
-        """Get all records for a user from any table"""
-        try:
-            result = self.client.table(table_name).select("*").eq("user_id", user_id).execute()
-            return result.data or []
-        except Exception as e:
-            logger.error("Error getting records by user", table=table_name, user_id=user_id, error=str(e))
-            return []
+            logger.error("Database health check failed", error=str(e))
+            return {
+                "healthy": False,
+                "status": "disconnected",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
 
-# Create global instance
-supabase_db = SupabaseDatabaseService()
+# Global instance
+_database_service: Optional[SupabaseDatabaseService] = None
 
-# Dependency function for FastAPI
-def get_supabase_db() -> SupabaseDatabaseService:
-    """Get Supabase database service dependency"""
-    return supabase_db
+def get_database_service() -> SupabaseDatabaseService:
+    """Get the global database service instance"""
+    global _database_service
+    if _database_service is None:
+        _database_service = SupabaseDatabaseService()
+    return _database_service
+
+# Dependency for FastAPI
+def get_db() -> Generator[SupabaseDatabaseService, None, None]:
+    """FastAPI dependency to get database service"""
+    yield get_database_service()
+
+# Context manager for database operations
+@contextmanager
+def get_db_session() -> Generator[SupabaseDatabaseService, None, None]:
+    """Context manager for database service"""
+    service = get_database_service()
+    try:
+        yield service
+    except Exception as e:
+        logger.error("Database session error", error=str(e))
+        raise
+    finally:
+        # Supabase client doesn't need explicit cleanup
+        pass

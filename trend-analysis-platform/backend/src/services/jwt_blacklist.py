@@ -6,8 +6,6 @@ import secrets
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
 import logging
 
 from ..models.jwt_blacklist import (
@@ -26,7 +24,7 @@ settings = get_settings()
 class JWTBlacklistService:
     """Service for managing JWT token blacklisting and revocation"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: SupabaseDatabaseService):
         self.db = db
         self.blacklist_ttl = settings.JWT_BLACKLIST_TTL_HOURS * 3600  # Convert to seconds
         self.cleanup_interval = settings.JWT_CLEANUP_INTERVAL_HOURS * 3600
@@ -67,9 +65,9 @@ class JWTBlacklistService:
             token_hash = self._hash_token(token)
             
             # Check if token is already blacklisted
-            existing = self.db.query(JWTBlacklist).filter(
+            existing = self.db.get_JWTBlacklist_by_id(
                 JWTBlacklist.jti == jti
-            ).first()
+            )
             
             if existing:
                 logger.warning(f"Token {jti} is already blacklisted")
@@ -266,9 +264,9 @@ class JWTBlacklistService:
             token_hash = self._hash_token(token)
             
             # Check if already whitelisted
-            existing = self.db.query(TokenWhitelist).filter(
+            existing = self.db.get_TokenWhitelist_by_id(
                 TokenWhitelist.jti == jti
-            ).first()
+            )
             
             if existing:
                 # Update last used time

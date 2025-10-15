@@ -14,9 +14,7 @@ from datetime import datetime, timedelta
 
 from ..models.autocomplete_result import AutocompleteResult, AutocompleteResultCreate
 
-
 logger = logging.getLogger(__name__)
-
 
 class GoogleAutocompleteService:
     """

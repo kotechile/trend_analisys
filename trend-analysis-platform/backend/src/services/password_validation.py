@@ -316,7 +316,7 @@ class PasswordValidator:
         
         if not requirements_met.get('min_special_chars', True):
             feedback.append(f"Password must contain at least {self.requirements.min_special_chars} special characters")
-            suggestions.append(f"Add {self.requirements.min_special_chars - len(re.findall(r'[!@#$%^&*(),.?":{}|<>]', password))} more special characters")
+            suggestions.append(f"Add {self.requirements.min_special_chars - len(re.findall(r'[!@#$%^&*(),.?\":{}|<>]', password))} more special characters")
         
         if not requirements_met.get('max_consecutive', True):
             feedback.append(f"Password contains more than {self.requirements.max_consecutive_chars} consecutive characters")

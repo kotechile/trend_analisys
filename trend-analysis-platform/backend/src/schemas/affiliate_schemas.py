@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
-
 class ResearchStatus(str, Enum):
     """Research status enumeration"""
     PENDING = "pending"
@@ -15,7 +14,6 @@ class ResearchStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 class AffiliateResearchRequest(BaseModel):
     """Request schema for creating affiliate research"""
@@ -35,7 +33,6 @@ class AffiliateResearchRequest(BaseModel):
             if v < values['min_commission']:
                 raise ValueError('max_commission must be greater than or equal to min_commission')
         return v
-
 
 class AffiliateProgramResponse(BaseModel):
     """Response schema for individual affiliate program"""
@@ -65,7 +62,6 @@ class AffiliateProgramResponse(BaseModel):
     created_at: datetime = Field(..., description="Program creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class AffiliateResearchResponse(BaseModel):
     """Response schema for affiliate research results"""
     id: int = Field(..., description="Research ID")
@@ -81,7 +77,6 @@ class AffiliateResearchResponse(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Completion date")
     error_message: Optional[str] = Field(None, description="Error message if failed")
 
-
 class AffiliateResearchListResponse(BaseModel):
     """Response schema for affiliate research list"""
     researches: List[AffiliateResearchResponse] = Field(..., description="List of researches")
@@ -89,7 +84,6 @@ class AffiliateResearchListResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     per_page: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
-
 
 class AffiliateResearchUpdate(BaseModel):
     """Request schema for updating affiliate research"""
@@ -103,7 +97,6 @@ class AffiliateResearchUpdate(BaseModel):
     cookie_duration: Optional[int] = Field(None, ge=1, description="Updated cookie duration")
     network_preferences: Optional[List[str]] = Field(None, description="Updated network preferences")
     exclude_networks: Optional[List[str]] = Field(None, description="Updated excluded networks")
-
 
 class AffiliateNetworkResponse(BaseModel):
     """Response schema for affiliate network information"""
@@ -126,7 +119,6 @@ class AffiliateNetworkResponse(BaseModel):
     created_at: datetime = Field(..., description="Network creation date")
     updated_at: datetime = Field(..., description="Last update date")
 
-
 class AffiliateCategoryResponse(BaseModel):
     """Response schema for affiliate category information"""
     name: str = Field(..., description="Category name")
@@ -136,7 +128,6 @@ class AffiliateCategoryResponse(BaseModel):
     top_networks: List[str] = Field(..., description="Top networks in category")
     created_at: datetime = Field(..., description="Category creation date")
     updated_at: datetime = Field(..., description="Last update date")
-
 
 class AffiliateStatsResponse(BaseModel):
     """Response schema for affiliate statistics"""
@@ -148,7 +139,6 @@ class AffiliateStatsResponse(BaseModel):
     top_networks: List[Dict[str, Any]] = Field(..., description="Top networks by program count")
     recent_searches: List[Dict[str, Any]] = Field(..., description="Recent search queries")
     last_updated: datetime = Field(..., description="Last database update")
-
 
 class AffiliateSearchFilters(BaseModel):
     """Request schema for affiliate search filters"""
@@ -171,7 +161,6 @@ class AffiliateSearchFilters(BaseModel):
     page: Optional[int] = Field(1, ge=1, description="Page number")
     per_page: Optional[int] = Field(20, ge=1, le=100, description="Items per page")
 
-
 # Additional schemas for the new API endpoints
 class AffiliateSearchRequest(BaseModel):
     """Request schema for affiliate search"""
@@ -180,26 +169,22 @@ class AffiliateSearchRequest(BaseModel):
     budget_range: Optional[str] = Field(None, max_length=50, description="Budget range")
     user_id: Optional[str] = Field(None, description="User ID")
 
-
 class AffiliateSearchResponse(BaseModel):
     """Response schema for affiliate search"""
     success: bool = Field(..., description="Success status")
     message: str = Field(..., description="Response message")
     data: Dict[str, Any] = Field(..., description="Search results data")
 
-
 class ContentIdeasRequest(BaseModel):
     """Request schema for content ideas generation"""
     selected_programs: List[str] = Field(..., description="Selected affiliate program IDs")
     user_id: Optional[str] = Field(None, description="User ID")
-
 
 class ContentIdeasResponse(BaseModel):
     """Response schema for content ideas"""
     success: bool = Field(..., description="Success status")
     message: str = Field(..., description="Response message")
     data: Dict[str, Any] = Field(..., description="Content ideas data")
-
 
 class ResearchHistoryResponse(BaseModel):
     """Response schema for research history"""

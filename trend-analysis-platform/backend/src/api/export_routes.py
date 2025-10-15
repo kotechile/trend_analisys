@@ -3,7 +3,6 @@ Export Integration API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -22,20 +21,17 @@ from ..schemas.export_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/export", tags=["export-integration"])
 
-
-def get_export_service(db: Session = Depends(get_db)) -> ExportService:
+def get_export_service(db: SupabaseDatabaseService = Depends(get_db)) -> ExportService:
     """Get export service dependency"""
     return ExportService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/google-docs", response_model=ExportResponse)
 async def export_to_google_docs(
@@ -69,7 +65,6 @@ async def export_to_google_docs(
         logger.error("Failed to export to Google Docs", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/notion", response_model=ExportResponse)
 async def export_to_notion(
     request: ExportRequest,
@@ -102,7 +97,6 @@ async def export_to_notion(
         logger.error("Failed to export to Notion", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.post("/wordpress", response_model=ExportResponse)
 async def export_to_wordpress(
     request: ExportRequest,
@@ -134,7 +128,6 @@ async def export_to_wordpress(
     except Exception as e:
         logger.error("Failed to export to WordPress", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/software/{software_solution_id}")
 async def export_software_solution(
@@ -171,7 +164,6 @@ async def export_software_solution(
     except Exception as e:
         logger.error("Failed to export software solution", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/calendar")
 async def export_calendar_entries(
@@ -211,7 +203,6 @@ async def export_calendar_entries(
         logger.error("Failed to export calendar entries", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/templates", response_model=ExportTemplateListResponse)
 async def get_export_templates(
     platform: Optional[str] = None,
@@ -246,7 +237,6 @@ async def get_export_templates(
         logger.error("Failed to get export templates", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/templates/{template_id}", response_model=ExportTemplateResponse)
 async def get_export_template(
     template_id: int,
@@ -275,7 +265,6 @@ async def get_export_template(
     except Exception as e:
         logger.error("Failed to get export template", template_id=template_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.post("/templates", response_model=ExportTemplateResponse)
 async def create_export_template(
@@ -318,7 +307,6 @@ async def create_export_template(
     except Exception as e:
         logger.error("Failed to create export template", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/templates/{template_id}", response_model=ExportTemplateResponse)
 async def update_export_template(
@@ -363,7 +351,6 @@ async def update_export_template(
         logger.error("Failed to update export template", template_id=template_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/templates/{template_id}")
 async def delete_export_template(
     template_id: int,
@@ -394,7 +381,6 @@ async def delete_export_template(
         logger.error("Failed to delete export template", template_id=template_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/status/{export_id}", response_model=ExportStatusResponse)
 async def get_export_status(
     export_id: str,
@@ -424,7 +410,6 @@ async def get_export_status(
     except Exception as e:
         logger.error("Failed to get export status", export_id=export_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/platforms", response_model=List[Dict[str, Any]])
 async def get_export_platforms():
@@ -459,7 +444,6 @@ async def get_export_platforms():
     except Exception as e:
         logger.error("Failed to get export platforms", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/history", response_model=List[Dict[str, Any]])
 async def get_export_history(

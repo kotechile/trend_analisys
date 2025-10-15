@@ -4,8 +4,6 @@ MigrationService for data migration from PostgreSQL to Supabase
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import structlog
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from ..database.migration import DatabaseMigration, MigrationType, MigrationStatus
 from ..models.database_operation import DatabaseOperation, OperationType, OperationStatus
@@ -15,7 +13,7 @@ logger = structlog.get_logger()
 class MigrationService:
     """Service for managing database migrations"""
     
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: SupabaseDatabaseService):
         self.db = db_session
         self.migration_manager = DatabaseMigration()
     

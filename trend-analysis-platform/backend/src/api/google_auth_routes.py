@@ -142,4 +142,3 @@ async def google_auth_health():
         "message": "Google OAuth service is running"
     }
 
-

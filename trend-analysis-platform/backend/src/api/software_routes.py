@@ -3,7 +3,6 @@ Software Generation API endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
@@ -24,20 +23,17 @@ from ..schemas.software_schemas import (
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/software", tags=["software-generation"])
 
-
-def get_software_service(db: Session = Depends(get_db)) -> SoftwareService:
+def get_software_service(db: SupabaseDatabaseService = Depends(get_db)) -> SoftwareService:
     """Get software service dependency"""
     return SoftwareService(db)
 
-
-def get_current_user(db: Session = Depends(get_db)) -> User:
+def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
     """Get current authenticated user (placeholder - implement auth middleware)"""
     # This is a placeholder - in real implementation, this would extract user from JWT token
     user = db.query(User).first()
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
-
 
 @router.post("/generate", response_model=SoftwareGenerationResponse)
 async def generate_software_solutions(
@@ -82,7 +78,6 @@ async def generate_software_solutions(
         logger.error("Failed to generate software solutions", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/solutions/{software_solutions_id}", response_model=SoftwareSolutionsResponse)
 async def get_software_solutions(
     software_solutions_id: str,
@@ -112,7 +107,6 @@ async def get_software_solutions(
     except Exception as e:
         logger.error("Failed to get software solutions", software_solutions_id=software_solutions_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/solutions", response_model=SoftwareSolutionsListResponse)
 async def list_software_solutions(
@@ -146,7 +140,6 @@ async def list_software_solutions(
     except Exception as e:
         logger.error("Failed to list software solutions", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/solution/{solution_id}", response_model=SoftwareSolutionResponse)
 async def get_software_solution(
@@ -186,7 +179,6 @@ async def get_software_solution(
     except Exception as e:
         logger.error("Failed to get software solution", solution_id=solution_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.put("/solution/{solution_id}", response_model=SoftwareSolutionResponse)
 async def update_software_solution(
@@ -242,7 +234,6 @@ async def update_software_solution(
         logger.error("Failed to update software solution", solution_id=solution_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.delete("/solution/{solution_id}")
 async def delete_software_solution(
     solution_id: str,
@@ -272,7 +263,6 @@ async def delete_software_solution(
     except Exception as e:
         logger.error("Failed to delete software solution", solution_id=solution_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/solution/{solution_id}/development-plan", response_model=Dict[str, Any])
 async def get_development_plan(
@@ -310,7 +300,6 @@ async def get_development_plan(
         logger.error("Failed to get development plan", solution_id=solution_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/solution/{solution_id}/monetization", response_model=Dict[str, Any])
 async def get_monetization_strategy(
     solution_id: str,
@@ -336,7 +325,6 @@ async def get_monetization_strategy(
         logger.error("Failed to get monetization strategy", solution_id=solution_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @router.get("/solution/{solution_id}/seo-optimization", response_model=Dict[str, Any])
 async def get_seo_optimization(
     solution_id: str,
@@ -361,7 +349,6 @@ async def get_seo_optimization(
     except Exception as e:
         logger.error("Failed to get SEO optimization", solution_id=solution_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/types", response_model=List[Dict[str, Any]])
 async def get_software_types():
@@ -410,7 +397,6 @@ async def get_software_types():
     except Exception as e:
         logger.error("Failed to get software types", error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @router.get("/solution/{solution_id}/analytics", response_model=Dict[str, Any])
 async def get_software_analytics(

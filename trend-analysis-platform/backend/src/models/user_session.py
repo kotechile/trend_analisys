@@ -2,7 +2,6 @@
 UserSession model for JWT session management.
 """
 import uuid
-from sqlalchemy import (
     Column,
     String,
     Boolean,
@@ -11,8 +10,6 @@ from sqlalchemy import (
     JSON,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from src.core.database import Base
 
 class UserSession(Base):

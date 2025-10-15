@@ -2,15 +2,15 @@
 Admin API routes for user management.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
-from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
 
 from src.core.database import get_db
+from src.core.supabase_database_service import SupabaseDatabaseService
 from src.core.config import settings
 from src.services.user_service import user_service
 from src.schemas.user_schemas import (
-    UserResponse, UserListResponse, AdminUserUpdate, MessageResponse
+    UserResponse, UserListResponse, AdminUserUpdate, MessageResponse, UserRole
 )
 from src.schemas.auth_schemas import TokenData
 from src.middleware.auth import get_current_user, require_admin
@@ -30,7 +30,7 @@ async def get_users_list(
     sort_by: str = Query("created_at", description="Sort field"),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get paginated list of users (admin only)."""
     user_list = user_service.get_users_list(
@@ -50,7 +50,7 @@ async def get_users_list(
 async def get_user_by_id(
     user_id: str,
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get user by ID (admin only)."""
     try:
@@ -77,7 +77,7 @@ async def update_user_admin(
     request: Request,
     current_user: TokenData = Depends(get_current_user),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Update user information (admin only)."""
     try:
@@ -115,7 +115,7 @@ async def deactivate_user_admin(
     request: Request,
     current_user: TokenData = Depends(get_current_user),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Deactivate user account (admin only)."""
     try:
@@ -151,7 +151,7 @@ async def reactivate_user_admin(
     request: Request,
     current_user: TokenData = Depends(get_current_user),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Reactivate user account (admin only)."""
     try:
@@ -185,7 +185,7 @@ async def reactivate_user_admin(
 async def get_user_sessions_admin(
     user_id: str,
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get user's active sessions (admin only)."""
     try:
@@ -206,7 +206,7 @@ async def revoke_user_session_admin(
     request: Request,
     current_user: TokenData = Depends(get_current_user),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Revoke a specific user session (admin only)."""
     try:
@@ -245,7 +245,7 @@ async def revoke_all_user_sessions_admin(
     request: Request,
     current_user: TokenData = Depends(get_current_user),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Revoke all user sessions (admin only)."""
     try:
@@ -280,7 +280,7 @@ async def revoke_all_user_sessions_admin(
 async def get_user_stats_admin(
     user_id: str,
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get user statistics (admin only)."""
     try:
@@ -304,7 +304,7 @@ async def get_user_stats_admin(
 async def cleanup_inactive_sessions(
     days_inactive: int = Query(30, ge=1, le=365, description="Days of inactivity"),
     current_user: TokenData = Depends(require_admin_permission(Permission.READ_ALL_USERS)),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Clean up inactive sessions (admin only)."""
     count = user_service.cleanup_inactive_sessions(db, days_inactive)

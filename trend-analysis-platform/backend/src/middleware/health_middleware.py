@@ -17,7 +17,6 @@ from ..core.logging import db_operation_logger, get_logger
 
 logger = get_logger(__name__)
 
-
 class HealthMonitoringMiddleware:
     """
     Middleware for monitoring Supabase connection health and automatic recovery.
@@ -244,13 +243,11 @@ class HealthMonitoringMiddleware:
         self._consecutive_failures = 0
         self._is_healthy = True
 
-
 # Global middleware instance
 health_middleware = HealthMonitoringMiddleware(
     health_check_interval=30,
     max_failures=3
 )
-
 
 async def health_monitoring_middleware(request: Request, call_next):
     """

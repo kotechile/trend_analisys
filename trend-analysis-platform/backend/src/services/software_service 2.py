@@ -18,7 +18,6 @@ from ..models.keyword_data import KeywordData
 logger = structlog.get_logger()
 settings = get_settings()
 
-
 class SoftwareService:
     """Service for software solution generation and management"""
     
@@ -52,8 +51,8 @@ class SoftwareService:
             
             # Get trend analysis and keyword data
             db = next(get_db())
-            trend_analysis = db.query(TrendAnalysis).filter(TrendAnalysis.id == trend_analysis_id).first()
-            keyword_data = db.query(KeywordData).filter(KeywordData.id == keyword_data_id).first()
+            trend_analysis = db.get_TrendAnalysis_by_id(TrendAnalysis.id == trend_analysis_id)
+            keyword_data = db.get_KeywordData_by_id(KeywordData.id == keyword_data_id)
             
             if not trend_analysis or not keyword_data:
                 raise ValueError("Trend analysis or keyword data not found")
@@ -84,7 +83,7 @@ class SoftwareService:
         """Get software solution by ID"""
         try:
             db = next(get_db())
-            software_solution = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == software_solution_id).first()
+            software_solution = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == software_solution_id)
             
             if not software_solution:
                 raise ValueError("Software solution not found")
@@ -100,7 +99,7 @@ class SoftwareService:
         """Update software solution status"""
         try:
             db = next(get_db())
-            software_solution = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == software_solution_id).first()
+            software_solution = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == software_solution_id)
             
             if not software_solution:
                 raise ValueError("Software solution not found")
@@ -125,7 +124,7 @@ class SoftwareService:
         """Generate software solutions in background"""
         try:
             db = next(get_db())
-            software_solutions = db.query(SoftwareSolutions).filter(SoftwareSolutions.id == software_solutions_id).first()
+            software_solutions = db.get_SoftwareSolutions_by_id(SoftwareSolutions.id == software_solutions_id)
             
             if not software_solutions:
                 return
@@ -541,10 +540,10 @@ class SoftwareService:
         """Delete software solution"""
         try:
             db = next(get_db())
-            software_solution = db.query(SoftwareSolutions).filter(
+            software_solution = db.get_SoftwareSolutions_by_id(
                 SoftwareSolutions.id == software_solution_id,
                 SoftwareSolutions.user_id == user_id
-            ).first()
+            )
             
             if not software_solution:
                 raise ValueError("Software solution not found")

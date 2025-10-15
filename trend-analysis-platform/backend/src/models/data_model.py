@@ -10,7 +10,6 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, validator
 import uuid
 
-
 class DataModel(BaseModel):
     """
     DataModel entity representing business entities in the database.

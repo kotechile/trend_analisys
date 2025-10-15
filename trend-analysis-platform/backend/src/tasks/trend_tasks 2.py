@@ -52,9 +52,9 @@ def analyze_trends_task(self, keywords: list, user_id: str, analysis_id: str):
         # Save results to database
         with get_db_session() as db:
             from ..models.trend_analysis import TrendAnalysis
-            analysis = db.query(TrendAnalysis).filter(
+            analysis = db.get_TrendAnalysis_by_id(
                 TrendAnalysis.id == analysis_id
-            ).first()
+            )
             
             if analysis:
                 analysis.status = "completed"
@@ -192,9 +192,9 @@ def compare_trends_task(self, keywords: list, user_id: str, comparison_id: str):
         # Save results to database
         with get_db_session() as db:
             from ..models.trend_analysis import TrendAnalysis
-            analysis = db.query(TrendAnalysis).filter(
+            analysis = db.get_TrendAnalysis_by_id(
                 TrendAnalysis.id == comparison_id
-            ).first()
+            )
             
             if analysis:
                 analysis.status = "completed"

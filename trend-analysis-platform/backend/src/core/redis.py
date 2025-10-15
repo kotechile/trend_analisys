@@ -31,7 +31,6 @@ redis_pool = redis.ConnectionPool.from_url(
 # Create Redis client
 redis_client = redis.Redis(connection_pool=redis_pool)
 
-
 class RedisCache:
     """
     Redis cache wrapper with common operations
@@ -285,15 +284,12 @@ class RedisCache:
             logger.error("Redis delete pattern error", pattern=pattern, error=str(e))
             return 0
 
-
 # Global cache instance
 cache = RedisCache()
-
 
 def get_redis_client() -> redis.Redis:
     """Get Redis client instance"""
     return redis_client
-
 
 def check_redis_connection() -> bool:
     """Check if Redis connection is healthy"""
@@ -304,7 +300,6 @@ def check_redis_connection() -> bool:
     except Exception as e:
         logger.error("Redis connection failed", error=str(e))
         return False
-
 
 def get_redis_info() -> dict:
     """Get Redis server information"""
@@ -320,7 +315,6 @@ def get_redis_info() -> dict:
     except Exception as e:
         logger.error("Redis info error", error=str(e))
         return {}
-
 
 # Cache decorators
 def cached(expire: int = 3600, key_prefix: str = ""):
@@ -347,7 +341,6 @@ def cached(expire: int = 3600, key_prefix: str = ""):
         return wrapper
     return decorator
 
-
 def cache_invalidate(pattern: str):
     """Decorator to invalidate cache on function call"""
     def decorator(func):
@@ -359,7 +352,6 @@ def cache_invalidate(pattern: str):
             return result
         return wrapper
     return decorator
-
 
 # Cache key patterns
 class CacheKeys:
@@ -381,7 +373,6 @@ class CacheKeys:
     def format(key_pattern: str, **kwargs) -> str:
         """Format cache key with parameters"""
         return key_pattern.format(**kwargs)
-
 
 # Cache utilities
 class CacheManager:
@@ -479,7 +470,6 @@ class CacheManager:
             "memory_usage": info.get("used_memory", "unknown"),
             "connected_clients": info.get("connected_clients", 0)
         }
-
 
 # Global cache manager
 cache_manager = CacheManager()

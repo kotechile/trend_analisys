@@ -13,7 +13,6 @@ from ..core.redis import cache
 
 logger = structlog.get_logger()
 
-
 class AnalyticsService:
     """Service for analytics, reporting, and insights"""
     

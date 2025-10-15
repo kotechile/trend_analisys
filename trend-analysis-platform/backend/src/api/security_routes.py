@@ -3,7 +3,6 @@ Security-related API routes for password validation and account lockout
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer
-from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import logging
@@ -32,14 +31,14 @@ security = HTTPBearer()
 @router.post("/validate-password", response_model=PasswordValidationResponse)
 async def validate_password(
     request: PasswordValidationRequest,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Validate password strength"""
     try:
         # Get user info for context if user is authenticated
         user_info = None
         if request.user_id:
-            user = db.query(User).filter(User.id == request.user_id).first()
+            user = db.get_User_by_id(User.id == request.user_id)
             if user:
                 user_info = {
                     "email": user.email,
@@ -73,7 +72,7 @@ async def validate_password(
 @router.post("/generate-password", response_model=PasswordGenerationResponse)
 async def generate_password(
     request: PasswordGenerationRequest,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Generate a strong password"""
     try:
@@ -106,7 +105,7 @@ async def generate_password(
 async def get_lockout_info(
     user_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get account lockout information"""
     try:
@@ -146,7 +145,7 @@ async def get_lockout_info(
 async def unlock_account(
     request: UnlockAccountRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Unlock an account"""
     try:
@@ -190,7 +189,7 @@ async def get_security_events(
     severity: Optional[str] = None,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get security events"""
     try:
@@ -235,7 +234,7 @@ async def get_security_events(
 async def get_security_summary(
     user_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Get comprehensive security summary for account"""
     try:
@@ -266,12 +265,12 @@ async def record_failed_login(
     ip_address: str,
     user_agent: Optional[str] = None,
     failure_reason: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Record a failed login attempt (public endpoint)"""
     try:
         # Get user by email
-        user = db.query(User).filter(User.email == email).first()
+        user = db.get_User_by_id(User.email == email)
         user_id = user.id if user else None
         
         lockout_service = AccountLockoutService(db)
@@ -299,7 +298,7 @@ async def record_failed_login(
 @router.get("/check-account-status/{user_id}")
 async def check_account_status(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Check if account is locked (public endpoint for login)"""
     try:
@@ -323,7 +322,7 @@ async def check_account_status(
 async def clear_failed_attempts(
     user_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ):
     """Clear failed login attempts (after successful login)"""
     try:

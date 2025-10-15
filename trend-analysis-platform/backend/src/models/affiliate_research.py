@@ -2,12 +2,8 @@
 AffiliateResearch model for TrendTap
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from enum import Enum as PyEnum
 from ..core.database import Base
-
 
 class ResearchStatus(PyEnum):
     """Research status enumeration"""
@@ -16,7 +12,6 @@ class ResearchStatus(PyEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
 
 class AffiliateResearch(Base):
     """Affiliate research model"""

@@ -25,7 +25,6 @@ router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 report_generator = ReportGenerator()
 database = DatabaseService()
 
-
 @router.get("/{report_id}")
 async def get_report(report_id: str) -> Dict[str, Any]:
     """
@@ -76,7 +75,6 @@ async def get_report(report_id: str) -> Dict[str, Any]:
         logger.error(f"Error getting report: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Report retrieval failed: {str(e)}")
 
-
 @router.get("/{report_id}/export")
 async def export_report(
     report_id: str, 
@@ -120,7 +118,6 @@ async def export_report(
     except Exception as e:
         logger.error(f"Error exporting report: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
-
 
 async def _export_json(
     analysis_report: KeywordAnalysisReport,
@@ -183,7 +180,6 @@ async def _export_json(
         }
     )
 
-
 async def _export_csv(
     analysis_report: KeywordAnalysisReport,
     keywords: List,
@@ -218,7 +214,6 @@ async def _export_csv(
         }
     )
 
-
 async def _export_pdf(
     analysis_report: KeywordAnalysisReport,
     keywords: List,
@@ -248,7 +243,6 @@ async def _export_pdf(
             "Content-Disposition": f"attachment; filename=report_{analysis_report.id}.pdf"
         }
     )
-
 
 @router.get("/")
 async def list_reports(
@@ -293,7 +287,6 @@ async def list_reports(
     except Exception as e:
         logger.error(f"Error listing reports: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Report listing failed: {str(e)}")
-
 
 @router.delete("/{report_id}")
 async def delete_report(report_id: str) -> Dict[str, Any]:

@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
 import structlog
 
 from ..core.config import settings
@@ -77,7 +76,7 @@ class AuthManager:
             logger.error("Failed to blacklist token", error=str(e))
             return False
     
-    def get_user_from_token(self, token: str, db: Session) -> Optional[User]:
+    def get_user_from_token(self, token: str, db: SupabaseDatabaseService) -> Optional[User]:
         """Get user from JWT token"""
         payload = self.verify_token(token)
         if not payload:
@@ -88,7 +87,7 @@ class AuthManager:
             return None
         
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.get_User_by_id(User.id == user_id)
         if not user or not user.is_active:
             return None
         
@@ -100,7 +99,7 @@ auth_manager = AuthManager()
 # Dependency functions
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: SupabaseDatabaseService = Depends(get_db)
 ) -> User:
     """Get current authenticated user"""
     token = credentials.credentials

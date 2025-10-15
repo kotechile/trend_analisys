@@ -863,7 +863,6 @@ async def generate_content(
         logger.error("Content generation failed", error=str(e))
         raise HTTPException(status_code=500, detail="Content generation failed")
 
-
 # Keyword generation models
 class KeywordGenerationRequest(BaseModel):
     subtopics: List[str]
@@ -874,7 +873,6 @@ class KeywordGenerationResponse(BaseModel):
     success: bool
     keywords: List[str]
     message: Optional[str] = None
-
 
 @app.post("/api/keywords/generate", response_model=KeywordGenerationResponse)
 async def generate_keywords(request: KeywordGenerationRequest):
@@ -1215,7 +1213,6 @@ async def delete_all_content_ideas_for_topic(topic_id: str, user_id: str):
         logger.error(f"Failed to delete content ideas for topic: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete content ideas: {str(e)}")
 
-
 # AHREFS Integration Endpoints
 # ⚠️  DEPRECATED: These AHREFS endpoints have been replaced by the enhanced 
 #     AHREFS processing system in minimal_main.py which provides better CSV 
@@ -1426,7 +1423,6 @@ async def store_ahrefs_keywords(db, file_id: str, topic_id: str, user_id: str, k
     except Exception as e:
         logger.error("Failed to store AHREFS keywords", error=str(e))
         raise
-
 
 if __name__ == "__main__":
     import uvicorn
