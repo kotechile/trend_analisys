@@ -199,11 +199,9 @@ async def revoke_token(
     try:
         csrf_service = CSRFProtectionService(db)
         
-        # Find the token
-        token = db.get_csrf_service.db.query(CSRFProtection_by_id(
-            CSRFProtection.id == token_id,
-            CSRFProtection.user_id == current_user.id
-        ))
+        # Find the token using Supabase
+        # Note: This is a placeholder - implement proper Supabase query
+        token = None  # TODO: Implement Supabase query for CSRF token
         
         if not token:
             raise HTTPException(

@@ -11,8 +11,8 @@ from ..core.database import get_db
 from ..services.software_service import SoftwareService
 from ..models.user import User
 from ..models.software_solutions import SoftwareSolutions, SoftwareType, DevelopmentStatus
-from ..schemas.software_schemas import (
 from src.core.supabase_database_service import SupabaseDatabaseService
+from ..schemas.software_schemas import (
     SoftwareGenerationRequest,
     SoftwareGenerationResponse,
     SoftwareSolutionsResponse,

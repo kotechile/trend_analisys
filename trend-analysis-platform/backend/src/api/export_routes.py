@@ -10,8 +10,8 @@ import structlog
 from ..core.database import get_db
 from ..services.export_service import ExportService
 from ..models.user import User
-from ..schemas.export_schemas import (
 from src.core.supabase_database_service import SupabaseDatabaseService
+from ..schemas.export_schemas import (
     ExportRequest,
     ExportResponse,
     ExportTemplateResponse,

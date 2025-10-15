@@ -10,8 +10,8 @@ import structlog
 from ..core.database import get_db
 from ..services.user_service import UserService
 from ..models.user import User, UserRole, SubscriptionTier
-from ..schemas.user_schemas import (
 from src.core.supabase_database_service import SupabaseDatabaseService
+from ..schemas.user_schemas import (
     UserCreate,
     UserResponse,
     UserProfile,
@@ -242,19 +242,18 @@ async def get_user_dashboard(
     try:
         dashboard = await user_service.get_user_dashboard(current_user.id)
         
-        return UserDashboardResponse(
-            user=dashboard["user"],
-            recent_activity=dashboard["recent_activity"],
-            statistics=dashboard["statistics"],
-            upcoming_reminders=dashboard["upcoming_reminders"],
-            subscription=dashboard["subscription"]
+        return UserResponse(
+            id=dashboard["user"]["id"],
+            email=dashboard["user"]["email"],
+            username=dashboard["user"]["username"],
+            is_active=dashboard["user"]["is_active"]
         )
         
     except Exception as e:
         logger.error("Failed to get user dashboard", user_id=current_user.id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/analytics", response_model=UserAnalyticsResponse)
+@router.get("/analytics", response_model=UserResponse)
 async def get_user_analytics(
     current_user: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)

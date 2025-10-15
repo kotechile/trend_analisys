@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime
-from ..services.database import DatabaseService
+from ..core.supabase_database_service import get_database_service
 from ..services.content_idea_generator import ContentIdeaGenerator
 from ..services.keyword_analyzer import KeywordAnalyzerService
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/idea-burst", tags=["idea-burst"])
 
 # Initialize services
-db_service = DatabaseService()
+database_service = get_database_service()
 content_idea_generator = ContentIdeaGenerator()
 keyword_analyzer = KeywordAnalyzerService()
 
