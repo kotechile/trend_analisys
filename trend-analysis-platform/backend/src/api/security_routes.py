@@ -77,6 +77,7 @@ async def generate_password(
     """Generate a strong password"""
     try:
         from ..services.password_validation import generate_strong_password
+from src.core.supabase_database_service import SupabaseDatabaseService
         
         password = generate_strong_password(
             length=request.length,

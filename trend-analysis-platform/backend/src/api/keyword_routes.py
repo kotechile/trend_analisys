@@ -22,6 +22,7 @@ from ..schemas.keyword_schemas import (
     KeywordClusterResponse
 )
 from pydantic import BaseModel
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/keywords", tags=["keyword-management"])

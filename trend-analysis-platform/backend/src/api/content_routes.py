@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..services.content_service import ContentService
 from ..models.user import User
 from ..models.content_ideas import ContentIdeas, ContentStatus
+from src.core.supabase_database_service import SupabaseDatabaseService
 from ..schemas.content_schemas import (
     ContentGenerationRequest,
     ContentGenerationResponse,

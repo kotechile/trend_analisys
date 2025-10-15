@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..services.affiliate_service import AffiliateService
 from ..models.user import User
 from ..models.affiliate_research import AffiliateResearch, ResearchStatus
+from src.core.supabase_database_service import SupabaseDatabaseService
 from ..schemas.affiliate_schemas import (
     AffiliateResearchRequest,
     AffiliateResearchResponse,

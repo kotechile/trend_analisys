@@ -8,6 +8,7 @@ from typing import Dict, Any
 import structlog
 
 from ..core.supabase_database_service import get_supabase_db, SupabaseDatabaseService
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/health", tags=["health"])

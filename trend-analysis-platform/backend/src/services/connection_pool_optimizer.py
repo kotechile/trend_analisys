@@ -9,6 +9,7 @@ import threading
 import queue
 
 from ..core.config import get_settings
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

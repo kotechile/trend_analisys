@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from ..database.supabase_client import get_supabase_client, test_supabase_connection
 from ..models.authentication_context import AuthenticationContext
 from ..models.supabase_client import ConnectionStatus
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 

@@ -1426,6 +1426,7 @@ async def store_ahrefs_keywords(db, file_id: str, topic_id: str, user_id: str, k
 
 if __name__ == "__main__":
     import uvicorn
+from src.core.supabase_database_service import SupabaseDatabaseService
     uvicorn.run(
         "simple_supabase_main:app",
         host="0.0.0.0",

@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..services.user_service import UserService
 from ..models.user import User, UserRole, SubscriptionTier
 from ..schemas.user_schemas import (
+from src.core.supabase_database_service import SupabaseDatabaseService
     UserCreate,
     UserResponse,
     UserProfile,

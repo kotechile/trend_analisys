@@ -178,6 +178,7 @@ async def affiliate_research(
     """Search for affiliate programs using real Linkup API and LLM analysis"""
     try:
         from ..services.affiliate_research_service import AffiliateResearchService
+from src.core.supabase_database_service import SupabaseDatabaseService
         
         # Initialize the real affiliate research service
         affiliate_service = AffiliateResearchService()

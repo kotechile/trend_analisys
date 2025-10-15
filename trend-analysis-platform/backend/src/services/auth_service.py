@@ -18,6 +18,7 @@ from src.schemas.user_schemas import UserResponse, ChangePasswordRequest
 from src.services.password_service import password_service
 from src.services.jwt_service import jwt_service
 from src.services.email_service import email_service
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = logging.getLogger(__name__)
 

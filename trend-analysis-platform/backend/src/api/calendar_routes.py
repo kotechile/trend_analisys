@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..services.calendar_service import CalendarService
 from ..models.user import User
 from ..models.content_calendar import ContentCalendar, EntryType, CalendarStatus
+from src.core.supabase_database_service import SupabaseDatabaseService
 from ..schemas.calendar_schemas import (
     CalendarScheduleRequest,
     CalendarScheduleResponse,

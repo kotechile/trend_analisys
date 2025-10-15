@@ -18,6 +18,7 @@ from ..schemas.affiliate_schemas import (
     ResearchStatus
 )
 from pydantic import BaseModel
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/affiliate", tags=["affiliate-research"])

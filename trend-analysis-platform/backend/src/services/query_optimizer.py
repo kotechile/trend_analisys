@@ -14,6 +14,7 @@ from ..models.user_session import UserSession
 from ..models.authentication_log import AuthenticationLog
 from ..models.password_reset import PasswordReset
 from ..models.jwt_blacklist import CSRFProtection, CSRFViolation
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

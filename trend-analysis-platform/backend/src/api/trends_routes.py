@@ -22,6 +22,7 @@ from ..schemas.trends_schemas import (
 from ..services.trend_service import TrendService
 from ..services.affiliate_research_service import AffiliateResearchService
 from ..services.content_service import ContentService
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 router = APIRouter()
 logger = structlog.get_logger()

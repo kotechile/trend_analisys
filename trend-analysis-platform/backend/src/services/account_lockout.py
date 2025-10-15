@@ -17,6 +17,7 @@ from ..models.account_lockout import (
 )
 # from ..models.user import User  # Commented out for testing
 from ..core.config import get_settings
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

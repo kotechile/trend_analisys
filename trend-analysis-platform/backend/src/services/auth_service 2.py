@@ -13,6 +13,7 @@ from ..core.logging import db_operation_logger
 from ..core.error_handler import safe_database_operation
 from ..models.auth_context import AuthenticationContext
 from .supabase_service import SupabaseService
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 class AuthenticationService:
     """

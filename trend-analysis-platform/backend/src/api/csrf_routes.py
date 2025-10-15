@@ -10,6 +10,7 @@ from ..core.database import get_db
 from ..core.security import get_current_user
 from ..services.csrf_protection import CSRFProtectionService
 from ..models.user import User
+from src.core.supabase_database_service import SupabaseDatabaseService
 from ..schemas.csrf_schemas import (
     CSRFTokenResponse,
     CSRFValidationRequest,

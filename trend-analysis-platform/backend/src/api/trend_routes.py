@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..services.trend_service import TrendService
 from ..models.user import User
 from ..models.trend_analysis import TrendAnalysis, AnalysisStatus
+from src.core.supabase_database_service import SupabaseDatabaseService
 from ..schemas.trend_schemas import (
     TrendAnalysisRequest,
     TrendAnalysisResponse,

@@ -264,6 +264,7 @@ async def get_redis_metrics() -> Dict[str, Any]:
     """Get Redis-specific metrics"""
     try:
         from ..core.redis import get_redis_client
+from src.core.supabase_database_service import SupabaseDatabaseService
         redis_client = await get_redis_client()
         
         # Get Redis info

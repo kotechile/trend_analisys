@@ -18,6 +18,11 @@ from .supabase_database_service import (
 
 logger = structlog.get_logger()
 
+# Placeholder Base class for backward compatibility (not used with Supabase)
+class Base:
+    """Placeholder Base class for backward compatibility with Supabase-only architecture"""
+    pass
+
 # Re-export Supabase functions for backward compatibility
 get_db = get_supabase_db
 get_db_session = get_supabase_db_session

@@ -7,6 +7,7 @@ import structlog
 
 from ..database.migration import DatabaseMigration, MigrationType, MigrationStatus
 from ..models.database_operation import DatabaseOperation, OperationType, OperationStatus
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 

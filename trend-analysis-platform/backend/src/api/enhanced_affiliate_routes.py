@@ -12,6 +12,7 @@ import structlog
 from ..core.supabase_database import get_supabase_db, SupabaseDatabaseService
 from ..services.enhanced_affiliate_research_service import EnhancedAffiliateResearchService
 from ..core.auth import get_current_user
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/enhanced-affiliate", tags=["Enhanced Affiliate Research"])

@@ -15,6 +15,7 @@ from ..core.config import settings
 from ..core.database import get_db
 from ..core.redis import cache_manager
 from ..models.user import User, UserRole
+from src.core.supabase_database_service import SupabaseDatabaseService
 
 logger = structlog.get_logger()
 
