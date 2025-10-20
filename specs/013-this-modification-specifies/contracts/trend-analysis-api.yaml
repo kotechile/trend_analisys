@@ -1,0 +1,550 @@
+openapi: 3.0.3
+info:
+  title: DataForSEO Trend Analysis API
+  description: API endpoints for enhanced trend analysis using DataForSEO APIs
+  version: 1.0.0
+  contact:
+    name: Trend Analysis Platform
+    email: support@trendanalysis.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+  - url: https://api.trendanalysis.com/v1
+    description: Production server
+
+paths:
+  /trend-analysis/dataforseo:
+    get:
+      summary: Get trend analysis for subtopics
+      description: Fetch trend data for all subtopics from affiliate research using DataForSEO Trends API
+      tags:
+        - Trend Analysis
+      parameters:
+        - name: subtopics
+          in: query
+          required: true
+          description: Comma-separated list of subtopics to analyze
+          schema:
+            type: string
+            example: "weight loss,keto diet,fitness"
+        - name: location
+          in: query
+          required: false
+          description: Geographic location for trend analysis
+          schema:
+            type: string
+            default: "United States"
+            example: "United States"
+        - name: time_range
+          in: query
+          required: false
+          description: Time range for trend analysis
+          schema:
+            type: string
+            enum: [1m, 3m, 6m, 12m, 24m]
+            default: "12m"
+      responses:
+        '200':
+          description: Successful trend analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrendData'
+                  metadata:
+                    type: object
+                    properties:
+                      total_subtopics:
+                        type: integer
+                        example: 3
+                      analysis_date:
+                        type: string
+                        format: date-time
+                      cache_status:
+                        type: string
+                        enum: [fresh, cached, expired]
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /trend-analysis/dataforseo/compare:
+    post:
+      summary: Compare trend data for multiple subtopics
+      description: Compare trend data side-by-side for selected subtopics
+      tags:
+        - Trend Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subtopics:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 2
+                  maxItems: 5
+                  example: ["weight loss", "keto diet"]
+                location:
+                  type: string
+                  default: "United States"
+                time_range:
+                  type: string
+                  enum: [1m, 3m, 6m, 12m, 24m]
+                  default: "12m"
+              required:
+                - subtopics
+      responses:
+        '200':
+          description: Successful comparison
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrendData'
+                  comparison_metrics:
+                    type: object
+                    properties:
+                      top_performer:
+                        type: string
+                        example: "keto diet"
+                      growth_leader:
+                        type: string
+                        example: "weight loss"
+                      average_trend:
+                        type: number
+                        example: 75.5
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /trend-analysis/dataforseo/suggestions:
+    post:
+      summary: Get trending subtopic suggestions
+      description: Get related trending subtopics based on current search data
+      tags:
+        - Trend Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                base_subtopics:
+                  type: array
+                  items:
+                    type: string
+                  example: ["weight loss", "fitness"]
+                max_suggestions:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 10
+                location:
+                  type: string
+                  default: "United States"
+              required:
+                - base_subtopics
+      responses:
+        '200':
+          description: Successful suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  suggestions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SubtopicSuggestion'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /keyword-research/dataforseo:
+    post:
+      summary: Get keyword research data
+      description: Generate keyword suggestions using DataForSEO Labs API
+      tags:
+        - Keyword Research
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seed_keywords:
+                  type: array
+                  items:
+                    type: string
+                  example: ["weight loss tips", "diet plans"]
+                max_difficulty:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                  default: 50
+                min_volume:
+                  type: integer
+                  minimum: 0
+                  default: 100
+                intent_types:
+                  type: array
+                  items:
+                    type: string
+                    enum: [INFORMATIONAL, COMMERCIAL, TRANSACTIONAL]
+                  default: [COMMERCIAL, TRANSACTIONAL]
+                max_results:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 100
+              required:
+                - seed_keywords
+      responses:
+        '200':
+          description: Successful keyword research
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KeywordData'
+                  metadata:
+                    type: object
+                    properties:
+                      total_keywords:
+                        type: integer
+                        example: 150
+                      filtered_keywords:
+                        type: integer
+                        example: 75
+                      average_difficulty:
+                        type: number
+                        example: 35.2
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /keyword-research/dataforseo/prioritize:
+    post:
+      summary: Prioritize keywords by commercial intent
+      description: Prioritize keywords based on commercial intent metrics and search volume
+      tags:
+        - Keyword Research
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keywords:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/KeywordData'
+                priority_factors:
+                  type: object
+                  properties:
+                    cpc_weight:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.3
+                    volume_weight:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.4
+                    trend_weight:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                      default: 0.3
+                  required:
+                    - cpc_weight
+                    - volume_weight
+                    - trend_weight
+              required:
+                - keywords
+      responses:
+        '200':
+          description: Successful prioritization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  prioritized_keywords:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/KeywordData'
+                        - type: object
+                          properties:
+                            priority_score:
+                              type: number
+                              description: Calculated priority score
+                            rank:
+                              type: integer
+                              description: Priority rank (1 = highest)
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TrendData:
+      type: object
+      required:
+        - keyword
+        - location
+        - time_series
+        - created_at
+      properties:
+        keyword:
+          type: string
+          example: "weight loss"
+        location:
+          type: string
+          example: "United States"
+        time_series:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+                example: "2024-01-01"
+              value:
+                type: number
+                minimum: 0
+                maximum: 100
+                example: 75
+        demographics:
+          type: object
+          properties:
+            age_groups:
+              type: array
+              items:
+                type: object
+                properties:
+                  age_range:
+                    type: string
+                    example: "25-34"
+                  percentage:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+            gender:
+              type: object
+              properties:
+                male:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                female:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+        related_queries:
+          type: array
+          items:
+            type: string
+          example: ["weight loss tips", "diet plans", "exercise routine"]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    KeywordData:
+      type: object
+      required:
+        - keyword
+        - created_at
+      properties:
+        keyword:
+          type: string
+          example: "weight loss tips"
+        search_volume:
+          type: integer
+          minimum: 0
+          example: 50000
+        keyword_difficulty:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 35
+        cpc:
+          type: number
+          minimum: 0
+          example: 2.50
+        competition:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.65
+        competition_level:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+          example: "MEDIUM"
+        trends:
+          type: object
+          properties:
+            monthly_data:
+              type: array
+              items:
+                type: object
+                properties:
+                  month:
+                    type: string
+                    format: date
+                  volume:
+                    type: integer
+            trend_direction:
+              type: string
+              enum: [RISING, FALLING, STABLE]
+            trend_percentage:
+              type: number
+        related_keywords:
+          type: array
+          items:
+            type: string
+          example: ["weight loss diet", "fat burning tips"]
+        intent:
+          type: string
+          enum: [INFORMATIONAL, COMMERCIAL, TRANSACTIONAL]
+          example: "COMMERCIAL"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SubtopicSuggestion:
+      type: object
+      required:
+        - topic
+        - trending_status
+        - growth_potential
+      properties:
+        topic:
+          type: string
+          example: "intermittent fasting"
+        trending_status:
+          type: string
+          enum: [TRENDING, STABLE, DECLINING]
+          example: "TRENDING"
+        growth_potential:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 85
+        related_queries:
+          type: array
+          items:
+            type: string
+          example: ["16:8 fasting", "OMAD diet"]
+        search_volume:
+          type: integer
+          minimum: 0
+          example: 25000
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "RATE_LIMIT_EXCEEDED"
+        message:
+          type: string
+          example: "API rate limit exceeded. Please try again later."
+        details:
+          type: object
+          properties:
+            retry_after:
+              type: integer
+              description: Seconds to wait before retrying
+            quota_remaining:
+              type: integer
+              description: Remaining API quota
+        timestamp:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

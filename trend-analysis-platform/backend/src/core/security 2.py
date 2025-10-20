@@ -11,7 +11,6 @@ def require_admin():
     return True
 
 def get_current_user():
-    """Get current user - for now, return a mock user"""
-    # TODO: Implement proper user authentication
-    return {"id": "admin", "role": "admin", "username": "admin"}
+    """Get current user - requires proper authentication"""
+    raise NotImplementedError("Use Supabase authentication instead")
 

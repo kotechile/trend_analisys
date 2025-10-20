@@ -179,14 +179,37 @@ class SupabaseResearchTopicsService {
     // Get current user ID
     const currentUserId = await this.getCurrentUserId();
     
-    const { error } = await supabase
-      .from(this.tableName)
-      .delete()
-      .eq('id', id)
-      .eq('user_id', currentUserId); // Ensure user can only delete their own topics
+    try {
+      // Use the new cascade delete endpoint that removes all related data
+      const response = await fetch(`http://localhost:8000/api/research-topics/${id}?user_id=${currentUserId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (error) {
-      throw new Error(`Failed to delete research topic: ${error.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to delete research topic: ${errorData.detail || response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Cascade delete result:', result);
+      
+    } catch (error) {
+      console.error('Error calling cascade delete endpoint:', error);
+      
+      // Fallback to direct Supabase delete if API fails
+      console.log('Falling back to direct Supabase delete...');
+      const { error: supabaseError } = await supabase
+        .from(this.tableName)
+        .delete()
+        .eq('id', id)
+        .eq('user_id', currentUserId);
+
+      if (supabaseError) {
+        throw new Error(`Failed to delete research topic: ${supabaseError.message}`);
+      }
     }
   }
 

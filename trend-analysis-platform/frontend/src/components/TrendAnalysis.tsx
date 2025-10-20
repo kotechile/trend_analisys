@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   Box,
   Typography,
@@ -48,7 +49,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const navigationState = location.state as { selectedTopicId?: string; selectedTopicTitle?: string } | null;
+  const navigationState = location.state as { selectedTopicId?: string; selectedTopicTitle?: string; subtopics?: string[] } | null;
   
   // State management
   const [researchTopics, setResearchTopics] = useState<any[]>([]);
@@ -71,15 +72,53 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
     loadResearchTopics();
   }, []);
 
-  // Handle pre-selected topic
+  // Handle pre-selected topic from navigation state immediately
+  useEffect(() => {
+    if (selectedTopicId && selectedTopicTitle && !selectedTopic) {
+      console.log('TrendAnalysis - Setting pre-selected topic immediately:', selectedTopicTitle, 'ID:', selectedTopicId);
+      // Create a temporary topic object for the pre-selected topic
+      const tempTopic = {
+        id: selectedTopicId,
+        title: selectedTopicTitle,
+        description: `Research topic: ${selectedTopicTitle}`,
+        status: 'active',
+        version: 1
+      };
+      setSelectedTopic(tempTopic);
+      
+      // If we have subtopics from navigation state, use them
+      if (navigationState?.subtopics && navigationState.subtopics.length > 0) {
+        console.log('TrendAnalysis - Using subtopics from navigation state immediately:', navigationState.subtopics);
+        setSubtopics(navigationState.subtopics);
+      }
+    }
+  }, [selectedTopicId, selectedTopicTitle, selectedTopic, navigationState?.subtopics]);
+
+  // Handle pre-selected topic - update with full topic data when researchTopics are loaded
   useEffect(() => {
     if (selectedTopicId && researchTopics.length > 0) {
       const topic = researchTopics.find(t => t.id === selectedTopicId);
+      console.log('TrendAnalysis - Looking for topic with ID:', selectedTopicId, 'in topics:', researchTopics.map(t => ({ id: t.id, title: t.title })));
       if (topic) {
-        handleTopicChange(selectedTopicId);
+        console.log('TrendAnalysis - Found topic in database:', topic);
+        // Update the selectedTopic with the full data from database
+        setSelectedTopic(topic);
+        
+        // If we don't have subtopics yet, load them
+        if (subtopics.length === 0) {
+          if (navigationState?.subtopics && navigationState.subtopics.length > 0 && 
+              selectedTopicId === navigationState.selectedTopicId) {
+            console.log('TrendAnalysis - Using subtopics from navigation state:', navigationState.subtopics);
+            setSubtopics(navigationState.subtopics);
+          } else {
+            handleTopicChange(selectedTopicId);
+          }
+        }
+      } else {
+        console.log('TrendAnalysis - Topic not found for ID:', selectedTopicId);
       }
     }
-  }, [selectedTopicId, researchTopics]);
+  }, [selectedTopicId, researchTopics, navigationState?.subtopics, navigationState?.selectedTopicId, subtopics.length]);
 
   const loadResearchTopics = async () => {
     try {
@@ -89,10 +128,12 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
       
       // Handle the response format - it might be wrapped in an object
       const topics = Array.isArray(response) ? response : (response?.items || []);
-      console.log('Loaded research topics:', topics);
+      console.log('TrendAnalysis - Loaded research topics:', topics);
+      console.log('TrendAnalysis - Topics count:', topics.length);
+      console.log('TrendAnalysis - Topic IDs:', topics.map(t => t.id));
       setResearchTopics(topics);
     } catch (error) {
-      console.error('Failed to load research topics:', error);
+      console.error('TrendAnalysis - Failed to load research topics:', error);
       setError('Failed to load research topics');
       setResearchTopics([]); // Ensure it's always an array
     } finally {
@@ -101,19 +142,31 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   };
 
   const handleTopicChange = async (topicId: string) => {
+    console.log('TrendAnalysis - handleTopicChange called with topicId:', topicId);
     const topic = researchTopics.find(t => t.id === topicId);
+    console.log('TrendAnalysis - Found topic:', topic);
     setSelectedTopic(topic);
     
     if (topic) {
-      // Load existing subtopics for this topic
-      await loadSubtopicsForTopic(topic);
+      // Check if this is the same topic from navigation state and we have subtopics
+      if (navigationState?.subtopics && navigationState.subtopics.length > 0 && 
+          topicId === navigationState.selectedTopicId) {
+        console.log('TrendAnalysis - Using subtopics from navigation state for pre-selected topic:', navigationState.subtopics);
+        setSubtopics(navigationState.subtopics);
+      } else {
+        // Load existing subtopics for this topic from database
+        console.log('TrendAnalysis - Loading subtopics for topic:', topic.title, 'with ID:', topic.id);
+        await loadSubtopicsForTopic(topic);
+      }
+    } else {
+      console.log('TrendAnalysis - No topic found for ID:', topicId);
     }
   };
 
   const loadSubtopicsForTopic = async (topic: any) => {
     try {
+      console.log('TrendAnalysis - loadSubtopicsForTopic called for topic:', topic.title, 'ID:', topic.id);
       setLoading(true);
-      const { affiliateResearchService } = await import('../services/affiliateResearchService');
       
       if (!user?.id) {
         console.log('TrendAnalysis - No user ID available, using topic title only');
@@ -121,27 +174,78 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
         return;
       }
       
-      // Use the new method to get subtopics from the database
-      const existingSubtopics = await affiliateResearchService.getSubtopicsForTopic(topic.id, user.id);
+      console.log('TrendAnalysis - User ID available:', user.id);
       
-      if (existingSubtopics && existingSubtopics.length > 0) {
-        // If we have subtopics from the database, use them
-        const allSubtopics = [topic.title, ...existingSubtopics];
-        setSubtopics(allSubtopics);
-        console.log('TrendAnalysis - Loaded subtopics from database:', allSubtopics);
+      // Use direct Supabase query (same as Page 2) to get subtopics from the database
+      console.log('TrendAnalysis - Querying Supabase directly for subtopics...');
+      const { data, error } = await supabase
+        .from('topic_decompositions')
+        .select('subtopics, research_topic_id, user_id, created_at')
+        .eq('research_topic_id', topic.id)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      console.log('TrendAnalysis - Supabase query result:', { data, error });
+
+      if (error) {
+        console.error('TrendAnalysis - Error fetching subtopics from Supabase:', error);
+        setSubtopics([topic.title]);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const existingSubtopics = data[0].subtopics || [];
+        console.log('TrendAnalysis - Found existing subtopics in database:', existingSubtopics);
+        
+        if (existingSubtopics.length > 0) {
+          // If we have subtopics from the database, use them
+          const allSubtopics = [topic.title, ...existingSubtopics];
+          setSubtopics(allSubtopics);
+          console.log('TrendAnalysis - Loaded subtopics from database:', allSubtopics);
+        } else {
+          // No subtopics in the data, generate new ones
+          console.log('TrendAnalysis - No subtopics in database data, generating new ones...');
+          await generateAndStoreSubtopics(topic);
+        }
       } else {
-        // Fallback: try to generate subtopics using the old method
-        console.log('TrendAnalysis - No subtopics in database, generating new ones...');
-        const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic.title, user.id);
-        const allSubtopics = [topic.title, ...generatedSubtopics];
-        setSubtopics(allSubtopics);
-        console.log('TrendAnalysis - Generated subtopics:', allSubtopics);
+        // No data found, generate new subtopics
+        console.log('TrendAnalysis - No data found in database, generating new subtopics...');
+        await generateAndStoreSubtopics(topic);
       }
     } catch (error) {
-      console.error('Failed to load subtopics:', error);
+      console.error('TrendAnalysis - Failed to load subtopics:', error);
       setSubtopics([topic.title]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateAndStoreSubtopics = async (topic: any) => {
+    try {
+      const { affiliateResearchService } = await import('../services/affiliateResearchService');
+      
+      console.log('TrendAnalysis - Generating subtopics for topic:', topic.title);
+      const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic.title, user.id);
+      const allSubtopics = [topic.title, ...generatedSubtopics];
+      setSubtopics(allSubtopics);
+      console.log('TrendAnalysis - Generated subtopics:', allSubtopics);
+      
+      // Store the generated subtopics in the database for future use
+      try {
+        await affiliateResearchService.storeSubtopics(
+          generatedSubtopics,
+          user.id,
+          topic.title,
+          topic.id
+        );
+        console.log('TrendAnalysis - Stored generated subtopics in database');
+      } catch (storeError) {
+        console.error('TrendAnalysis - Failed to store generated subtopics:', storeError);
+      }
+    } catch (error) {
+      console.error('TrendAnalysis - Failed to generate subtopics:', error);
+      setSubtopics([topic.title]);
     }
   };
 
@@ -361,6 +465,12 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
               ))
             ) : (
               <MenuItem disabled>No topics available</MenuItem>
+            )}
+            {/* Add the selected topic if it's not in the list yet (for pre-selected topics) */}
+            {selectedTopic && !researchTopics.find(t => t.id === selectedTopic.id) && (
+              <MenuItem key={selectedTopic.id} value={selectedTopic.id}>
+                {selectedTopic.title} (Pre-selected)
+              </MenuItem>
             )}
           </Select>
         </FormControl>

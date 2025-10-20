@@ -6,8 +6,8 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } f
 import { ApiResult, ApiError } from '../types/api';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-const API_TIMEOUT = 30000;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_TIMEOUT = 90000; // 90 seconds to allow for LLM processing
 
 // Token management
 class TokenManager {
@@ -23,19 +23,19 @@ class TokenManager {
 
   setToken(token: string): void {
     this.token = token;
-    localStorage.setItem('auth_token', token);
+    localStorage.setItem('trendtap_token', token);
   }
 
   getToken(): string | null {
     if (!this.token) {
-      this.token = localStorage.getItem('auth_token');
+      this.token = localStorage.getItem('trendtap_token');
     }
     return this.token;
   }
 
   clearToken(): void {
     this.token = null;
-    localStorage.removeItem('auth_token');
+    localStorage.removeItem('trendtap_token');
   }
 
   isAuthenticated(): boolean {

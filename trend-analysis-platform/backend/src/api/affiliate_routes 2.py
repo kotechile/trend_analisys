@@ -27,30 +27,24 @@ def get_affiliate_service() -> AffiliateResearchService:
     """Get affiliate service dependency"""
     return AffiliateResearchService()
 
-def get_current_user():
-    """Get current authenticated user (placeholder - implement auth middleware)"""
-    # This is a placeholder - in real implementation, this would extract user from JWT token
-    # For now, return a mock user to avoid authentication issues
-    class MockUser:
-        def __init__(self):
-            self.id = "mock-user-id"
-            self.email = "test@example.com"
-            self.role = "user"
-    
-    return MockUser()
+from ..core.supabase_auth import get_current_user
 
 @router.post("/research", response_model=AffiliateResearchResponse)
 async def start_affiliate_research(
     request: AffiliateResearchRequest,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Start affiliate research for a niche"""
     try:
-        logger.info("Starting affiliate research", user_id=current_user.id, niche=request.niche)
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
+        logger.info("Starting affiliate research", user_id=user_id, niche=request.niche)
         
         # Check user limits
-        if not await affiliate_service.check_user_limits(current_user.id, "affiliate_researches"):
+        if not await affiliate_service.check_user_limits(user_id, "affiliate_researches"):
             raise HTTPException(
                 status_code=403,
                 detail="Affiliate research limit reached for your subscription tier"
@@ -58,14 +52,14 @@ async def start_affiliate_research(
         
         # Start research
         research = await affiliate_service.start_affiliate_research(
-            user_id=current_user.id,
+            user_id=user_id,
             niche=request.niche,
             target_audience=request.target_audience,
             budget_range=request.budget_range,
             preferred_networks=request.preferred_networks
         )
         
-        logger.info("Affiliate research started", research_id=research.id, user_id=current_user.id)
+        logger.info("Affiliate research started", research_id=research.id, user_id=user_id)
         
         return AffiliateResearchResponse(
             id=research.id,
@@ -202,18 +196,22 @@ async def save_affiliate_research(
 @router.get("/research/{research_id}", response_model=AffiliateResearchResponse)
 async def get_affiliate_research(
     research_id: str,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Get affiliate research by ID"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         research = await affiliate_service.get_affiliate_research(research_id)
         
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         
         # Check if user owns this research
-        if research.user_id != current_user.id:
+        if research.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         return AffiliateResearchResponse(
@@ -238,13 +236,17 @@ async def list_affiliate_researches(
     skip: int = 0,
     limit: int = 20,
     status: Optional[ResearchStatus] = None,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """List user's affiliate researches"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         researches = await affiliate_service.list_user_researches(
-            user_id=current_user.id,
+            user_id=user_id,
             skip=skip,
             limit=limit,
             status=status
@@ -269,7 +271,7 @@ async def list_affiliate_researches(
         )
         
     except Exception as e:
-        logger.error("Failed to list affiliate researches", user_id=current_user.id, error=str(e))
+        logger.error("Failed to list affiliate researches", user_id=user_id, error=str(e))
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/research-by-user", response_model=Dict[str, Any])
@@ -320,18 +322,22 @@ async def get_researches_by_user_id(
 async def update_affiliate_research(
     research_id: str,
     request: AffiliateResearchUpdate,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Update affiliate research"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         research = await affiliate_service.get_affiliate_research(research_id)
         
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         
         # Check if user owns this research
-        if research.user_id != current_user.id:
+        if research.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Update research
@@ -361,18 +367,22 @@ async def update_affiliate_research(
 @router.delete("/research/{research_id}")
 async def delete_affiliate_research(
     research_id: str,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Delete affiliate research"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         research = await affiliate_service.get_affiliate_research(research_id)
         
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         
         # Check if user owns this research
-        if research.user_id != current_user.id:
+        if research.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         success = await affiliate_service.delete_affiliate_research(research_id)
@@ -391,18 +401,22 @@ async def delete_affiliate_research(
 @router.get("/research/{research_id}/programs", response_model=List[AffiliateProgramResponse])
 async def get_affiliate_programs(
     research_id: str,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Get affiliate programs from research"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         research = await affiliate_service.get_affiliate_research(research_id)
         
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         
         # Check if user owns this research
-        if research.user_id != current_user.id:
+        if research.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         programs = research.programs_data.get("programs", [])
@@ -434,18 +448,22 @@ async def get_affiliate_programs(
 async def select_affiliate_programs(
     research_id: str,
     program_ids: List[str],
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Select affiliate programs from research"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         research = await affiliate_service.get_affiliate_research(research_id)
         
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         
         # Check if user owns this research
-        if research.user_id != current_user.id:
+        if research.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         success = await affiliate_service.select_affiliate_programs(
@@ -520,18 +538,22 @@ async def get_affiliate_networks():
 @router.get("/research/{research_id}/analytics", response_model=Dict[str, Any])
 async def get_research_analytics(
     research_id: str,
-    current_user = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     affiliate_service: AffiliateResearchService = Depends(get_affiliate_service)
 ):
     """Get research analytics"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         research = await affiliate_service.get_affiliate_research(research_id)
         
         if not research:
             raise HTTPException(status_code=404, detail="Research not found")
         
         # Check if user owns this research
-        if research.user_id != current_user.id:
+        if research.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         analytics = await affiliate_service.get_research_analytics(research_id)

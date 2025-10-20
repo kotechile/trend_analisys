@@ -51,15 +51,6 @@ const IdeaBurst = () => (
   </Box>
 );
 
-const KeywordArmoury = () => (
-  <Box sx={{ p: 3 }}>
-    <Typography variant="h4" gutterBottom>🛡️ Keyword Armoury</Typography>
-    <Typography variant="body1">
-      Advanced keyword research and analysis tools.
-    </Typography>
-  </Box>
-);
-
 const Calendar = () => (
   <Box sx={{ p: 3 }}>
     <Typography variant="h4" gutterBottom>📅 Calendar</Typography>
@@ -112,9 +103,9 @@ function AppContent() {
       case 3:
         return <TrendValidation />;
       case 4:
-        return <IdeaBurst />;
+        return <IdeaBurst />; // Keywords Armoury
       case 5:
-        return <KeywordArmoury />;
+        return <IdeaBurst />; // Idea Burst
       case 6:
         return <Calendar />;
       case 7:
@@ -148,8 +139,8 @@ function AppContent() {
           <Tab label="Affiliate Research" />
           <Tab label="Enhanced Workflow" icon={<Rocket />} />
           <Tab label="Trend Validation" />
+          <Tab label="Keywords Armoury" />
           <Tab label="Idea Burst" />
-          <Tab label="Keyword Armoury" />
           <Tab label="Calendar" />
           <Tab label="Settings" />
         </Tabs>

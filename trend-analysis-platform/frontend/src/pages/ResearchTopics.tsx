@@ -151,7 +151,7 @@ const ResearchTopics: React.FC<ResearchTopicsProps> = ({ onNavigateToAffiliateRe
   };
 
   const handleDeleteTopic = async (topic: ResearchTopic) => {
-    if (window.confirm(`Are you sure you want to delete "${topic.title}"?`)) {
+    if (window.confirm(`Are you sure you want to delete? Type DELETE "${topic.title}"?`)) {
       try {
         await deleteMutation.mutateAsync(topic.id);
         refetch();

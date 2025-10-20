@@ -39,8 +39,10 @@ def get_current_user_id(request: Request) -> UUID:
         return UUID(user_info["user_id"])
     except Exception as e:
         logger.error(f"Error getting current user ID: {e}")
-        # Fallback to mock user ID for testing
-        return UUID("123e4567-e89b-12d3-a456-426614174000")
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required"
+        )
 
 # Common dependency for all routes
 async def get_user_id(request: Request) -> UUID:

@@ -18,7 +18,7 @@ class ContentIdeaGenerationRequest(BaseModel):
     topic_id: str
     topic_title: str
     subtopics: List[str]
-    keywords: List[str]
+    keywords: List[Dict[str, Any]]  # Changed to accept rich keyword data
     user_id: str
     content_types: Optional[List[str]] = None  # ['blog', 'software'] or None for both
 

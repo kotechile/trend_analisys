@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Typography, AppBar, Toolbar, Tabs, Tab, Paper, Button, TextField, Chip, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import IdeaBurstPage from './components/IdeaBurstPage';
+import { KeywordsArmoury } from './pages/keywords_armoury';
+import IdeaBurstGeneration from './pages/IdeaBurstGeneration';
+import EnhancedIdeaBurst from './pages/EnhancedIdeaBurst';
+import { Settings } from './pages/Settings';
 import TrendAnalysis from './components/TrendAnalysis';
 import { supabaseResearchTopicsService } from './services/supabaseResearchTopicsService';
+import { supabase } from './lib/supabase';
 import { ResearchTopic, ResearchTopicCreate, ResearchTopicStatus } from './types/researchTopics';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
@@ -14,13 +18,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
+  // Log authentication state for debugging
   useEffect(() => {
-    console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'user:', user);
-    if (!isLoading && !isAuthenticated) {
-      console.log('ProtectedRoute - redirecting to login');
-      navigate('/login');
-    }
-  }, [isAuthenticated, isLoading, navigate]);
+    console.log('🛡️ ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'user:', user);
+  }, [isAuthenticated, isLoading, user]);
 
   if (isLoading) {
     console.log('ProtectedRoute - showing loading screen');
@@ -32,37 +33,20 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!isAuthenticated) {
-    console.log('ProtectedRoute - not authenticated, returning null');
-    return null; // Will redirect to login
+    console.log('ProtectedRoute - not authenticated, redirecting to login');
+    console.log('ProtectedRoute - current location:', window.location.pathname);
+    navigate('/login');
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Typography>Redirecting to login...</Typography>
+      </Box>
+    );
   }
 
   console.log('ProtectedRoute - authenticated, rendering children');
   return <>{children}</>;
 };
 
-// Simple Dashboard component
-const Dashboard = () => {
-  const { user } = useAuth();
-  
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>🚀 Idea Burst Dashboard</Typography>
-      <Typography variant="body1" gutterBottom>
-        Welcome back, {user?.firstName || user?.email || 'User'}! 
-      </Typography>
-      <Typography variant="body1">
-        This system features advanced LLM-powered semantic analysis for affiliate research.
-      </Typography>
-    </Box>
-  );
-};
-
-// Simple Idea Burst component
-const IdeaBurst = () => (
-  <Box sx={{ flexGrow: 1 }}>
-    <IdeaBurstPage />
-  </Box>
-);
 
 // Research Topics component for managing research topics
 const ResearchTopics = () => {
@@ -71,23 +55,27 @@ const ResearchTopics = () => {
   const [topics, setTopics] = useState<ResearchTopic[]>([]);
   const [newTopic, setNewTopic] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // Subtopic management states
   const [isGeneratingSubtopics, setIsGeneratingSubtopics] = useState(false);
-  const [subtopics, setSubtopics] = useState<string[]>([]);
-  const [editingSubtopics, setEditingSubtopics] = useState(false);
-  const [newSubtopic, setNewSubtopic] = useState('');
+  const [topicSubtopics, setTopicSubtopics] = useState<Record<string, string[]>>({});
 
   // Load topics on component mount
   useEffect(() => {
     console.log('ResearchTopics component mounted, user:', user);
-    // Load topics regardless of user state for development
-    loadTopics();
+    // Only load topics if user is authenticated
+    if (user?.id) {
+      loadTopics();
+    }
   }, [user]);
 
   const loadTopics = async () => {
+    if (!user?.id) {
+      console.log('No user ID available, skipping topic loading');
+      return;
+    }
+    
     try {
       console.log('Loading research topics...');
       console.log('Current user:', user);
@@ -95,12 +83,16 @@ const ResearchTopics = () => {
       console.log('Is authenticated:', isAuthenticated);
       setLoading(true);
       
-      // For development, always try to load topics even if user is null
       const response = await supabaseResearchTopicsService.listResearchTopics();
       console.log('Research topics response:', response);
       setTopics(response.items);
       console.log('Set topics to:', response.items);
       console.log('Topics count:', response.items.length);
+      
+      // Load subtopics for each topic
+      if (response.items.length > 0) {
+        await loadSubtopicsForTopics(response.items);
+      }
       
       if (response.items.length === 0) {
         console.log('No topics found - this might be due to user ID mismatch');
@@ -110,6 +102,51 @@ const ResearchTopics = () => {
       setError('Failed to load research topics. Please check your connection.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSubtopicsForTopics = async (topics: any[]) => {
+    if (!user?.id) return;
+    
+    try {
+      for (const topic of topics) {
+        try {
+          // Load existing subtopics from database
+          const { data: subtopicData, error } = await supabase
+            .from('topic_decompositions')
+            .select('subtopics')
+            .eq('research_topic_id', topic.id)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (error) {
+            console.error(`Error loading subtopics for topic ${topic.id}:`, error);
+            continue;
+          }
+          
+          if (subtopicData && subtopicData.length > 0) {
+            const subtopics = subtopicData[0].subtopics || [];
+            // Include the main topic as the first subtopic
+            const allSubtopics = [topic.title, ...subtopics];
+            
+            setTopicSubtopics(prev => ({
+              ...prev,
+              [topic.id]: allSubtopics
+            }));
+            
+            console.log(`Loaded subtopics for topic ${topic.title}:`, allSubtopics);
+          } else {
+            // If no subtopics found, generate them
+            console.log(`No subtopics found for topic ${topic.title}, generating...`);
+            await generateAndSaveSubtopics(topic.title, topic.id);
+          }
+        } catch (error) {
+          console.error(`Failed to load subtopics for topic ${topic.title}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load subtopics for topics:', error);
     }
   };
 
@@ -129,8 +166,8 @@ const ResearchTopics = () => {
       // Create the research topic (user ID will be obtained from Supabase auth)
       const createdTopic = await supabaseResearchTopicsService.createResearchTopic(topicData);
       
-      // Generate subtopics using the enhanced API
-      await generateSubtopics(newTopic);
+      // Generate and save subtopics automatically
+      await generateAndSaveSubtopics(newTopic, createdTopic.id);
       
       setTopics(prev => [createdTopic, ...prev]);
       setNewTopic('');
@@ -145,95 +182,178 @@ const ResearchTopics = () => {
     }
   };
 
-  const generateSubtopics = async (topic: string) => {
+  const generateIntelligentFallbackSubtopics = (topicTitle: string): string[] => {
+    // Generate intelligent fallback subtopics based on common research patterns
+    const baseSubtopics = [
+      `${topicTitle} benefits`,
+      `${topicTitle} costs`,
+      `${topicTitle} trends`,
+      `${topicTitle} market analysis`,
+      `${topicTitle} investment opportunities`,
+      `${topicTitle} challenges`,
+      `${topicTitle} future outlook`,
+      `${topicTitle} comparison`
+    ];
+    
+    // Return a subset of the most relevant ones
+    return baseSubtopics.slice(0, 6);
+  };
+
+  const generateAndSaveSubtopics = async (topic: string, topicId: string) => {
     if (!user?.id) return;
     
     setIsGeneratingSubtopics(true);
+    
+    // Import the service once at the beginning
+    const { affiliateResearchService } = await import('./services/affiliateResearchService');
+    
     try {
-      const { affiliateResearchService } = await import('./services/affiliateResearchService');
       const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic, user.id);
       
-      // Always include the main topic as the first subtopic
+      // Always include the main topic in the subtopics list
       const allSubtopics = [topic, ...generatedSubtopics];
-      setSubtopics(allSubtopics);
-      setEditingSubtopics(true);
+      
+      // Update the topicSubtopics state
+      setTopicSubtopics(prev => ({
+        ...prev,
+        [topicId]: allSubtopics
+      }));
       
       console.log('Generated subtopics:', allSubtopics);
+      
+      // Automatically save subtopics to database
+      try {
+        await affiliateResearchService.storeSubtopics(
+          generatedSubtopics, // Exclude the main topic (first item)
+          user.id,
+          topic, // Main topic
+          topicId // Research topic ID
+        );
+        console.log('Subtopics automatically saved to database:', generatedSubtopics);
+      } catch (saveError) {
+        console.error('Failed to auto-save subtopics:', saveError);
+        // Don't fail the whole operation if saving fails
+      }
     } catch (error) {
       console.error('Failed to generate subtopics:', error);
-      // Fallback to just the main topic
-      setSubtopics([topic]);
-      setEditingSubtopics(true);
+      // Use intelligent fallback when LLM is unavailable
+      const fallbackSubtopics = generateIntelligentFallbackSubtopics(topic);
+      const allSubtopics = [topic, ...fallbackSubtopics];
+      
+      // Update the topicSubtopics state
+      setTopicSubtopics(prev => ({
+        ...prev,
+        [topicId]: allSubtopics
+      }));
+      
+      // Also save fallback subtopics
+      try {
+        await affiliateResearchService.storeSubtopics(
+          fallbackSubtopics, // Exclude the main topic (first item)
+          user.id,
+          topic, // Main topic
+          topicId // Research topic ID
+        );
+        console.log('Fallback subtopics automatically saved to database:', fallbackSubtopics);
+      } catch (saveError) {
+        console.error('Failed to auto-save fallback subtopics:', saveError);
+      }
     } finally {
       setIsGeneratingSubtopics(false);
     }
   };
 
-  const addSubtopic = () => {
-    if (newSubtopic.trim() && !subtopics.includes(newSubtopic.trim())) {
-      setSubtopics(prev => [...prev, newSubtopic.trim()]);
-      setNewSubtopic('');
-    }
-  };
-
-  const removeSubtopic = (index: number) => {
-    setSubtopics(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const saveSubtopics = async () => {
-    if (!user?.id || subtopics.length === 0) return;
-    
-    try {
-      const { affiliateResearchService } = await import('./services/affiliateResearchService');
-      
-      // Save subtopics to database
-      await affiliateResearchService.storeSubtopics(
-        subtopics.slice(1), // Exclude the main topic (first item)
-        user.id,
-        subtopics[0], // Main topic
-        selectedTopicId // Research topic ID
-      );
-      
-      console.log('Subtopics saved to database:', subtopics);
-      setEditingSubtopics(false);
-    } catch (error) {
-      console.error('Failed to save subtopics:', error);
-      // Still close editing mode even if save fails
-      setEditingSubtopics(false);
-    }
-  };
 
   const handleDeleteTopic = async (topicId: string) => {
-    if (!confirm('Are you sure you want to delete this topic and all related data?')) return;
+    const topic = topics.find(t => t.id === topicId);
+    const topicTitle = topic?.title || 'this topic';
+    
+    const confirmMessage = `⚠️ PERMANENT DELETE WARNING ⚠️
+
+Are you sure you want to delete "${topicTitle}" and ALL related data?
+
+This will permanently delete:
+• The research topic itself
+• All content ideas generated for this topic
+• All keyword research data
+• All topic decompositions/subtopics
+• All affiliate research data
+• All trend analysis data
+
+This action CANNOT be undone!
+
+Type "DELETE" to confirm:`;
+
+    const userInput = prompt(confirmMessage);
+    if (userInput !== 'DELETE') {
+      console.log('Topic deletion cancelled by user');
+      return;
+    }
     
     setError(null);
     try {
+      console.log(`🗑️ Starting cascade delete for topic: ${topicTitle} (${topicId})`);
       await supabaseResearchTopicsService.deleteResearchTopic(topicId);
       setTopics(prev => prev.filter(topic => topic.id !== topicId));
-      console.log('Topic deleted successfully');
+      
+      // Remove subtopics from state
+      setTopicSubtopics(prev => {
+        const newState = { ...prev };
+        delete newState[topicId];
+        return newState;
+      });
+      
+      console.log('✅ Topic and all related data deleted successfully');
     } catch (error) {
-      console.error('Failed to delete topic:', error);
-      setError('Failed to delete research topic. Please try again.');
+      console.error('❌ Failed to delete topic:', error);
+      setError(`Failed to delete research topic: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-      const handleNavigateToAffiliateResearch = (topicId: string) => {
-        setSelectedTopicId(topicId);
+      const handleNavigateToAffiliateResearch = async (topicId: string) => {
         // Find the topic to get its subtopics
         const topic = topics.find(t => t.id === topicId);
         
         console.log('handleNavigateToAffiliateResearch - navigating to /affiliate-research');
         console.log('Current location before navigation:', window.location.pathname);
         
+        // Load subtopics from database for this topic
+        let topicSubtopics: string[] = [];
+        if (user?.id) {
+          try {
+            // Query topic_decompositions table directly using Supabase
+            const { data, error } = await supabase
+              .from('topic_decompositions')
+              .select('subtopics, research_topic_id, user_id, created_at')
+              .eq('research_topic_id', topicId)
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (!error && data && data.length > 0) {
+              const dbSubtopics = data[0].subtopics || [];
+              // Ensure main topic is included in navigation subtopics
+              if (!dbSubtopics.includes(topic?.title)) {
+                topicSubtopics = [topic?.title, ...dbSubtopics];
+              } else {
+                topicSubtopics = dbSubtopics;
+              }
+              console.log('Loaded subtopics for navigation:', topicSubtopics);
+            }
+          } catch (error) {
+            console.error('Failed to load subtopics for navigation:', error);
+          }
+        }
+        
         // Navigate to affiliate research tab with selected topic ID and subtopics
         navigate('/affiliate-research', { 
           state: { 
             selectedTopicId: topicId,
-            subtopics: subtopics.length > 0 ? subtopics : undefined,
-            topicTitle: topic?.title
+            selectedTopicTitle: topic?.title,
+            subtopics: topicSubtopics.length > 0 ? topicSubtopics : undefined
           } 
         });
-        console.log('Navigate to affiliate research with topic ID:', topicId, 'and subtopics:', subtopics);
+        console.log('Navigate to affiliate research with topic ID:', topicId, 'and subtopics:', topicSubtopics);
       };
 
   return (
@@ -274,82 +394,12 @@ const ResearchTopics = () => {
         </Typography>
       </Paper>
 
-      {/* Subtopic Management */}
-      {editingSubtopics && (
-        <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
-          <Typography variant="h6" gutterBottom>Manage Subtopics</Typography>
-          
-          {isGeneratingSubtopics && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                🤖 Generating intelligent subtopics using Google Autocomplete + LLM...
-              </Typography>
-            </Box>
-          )}
-          
-          {subtopics.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Generated Subtopics ({subtopics.length}):
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                {subtopics.map((subtopic, index) => (
-                  <Chip
-                    key={index}
-                    label={subtopic}
-                    color={index === 0 ? "primary" : "default"}
-                    variant={index === 0 ? "filled" : "outlined"}
-                    onDelete={index > 0 ? () => removeSubtopic(index) : undefined}
-                    deleteIcon={<span>×</span>}
-                  />
-                ))}
-              </Box>
-              {subtopics.length > 0 && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  💡 The first subtopic (highlighted) is your main topic. You can remove others but not the main topic.
-                </Typography>
-              )}
-            </Box>
-          )}
-          
-          {/* Add New Subtopic */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              fullWidth
-              placeholder="Add a custom subtopic..."
-              value={newSubtopic}
-              onChange={(e) => setNewSubtopic(e.target.value)}
-              size="small"
-            />
-            <Button
-              variant="outlined"
-              onClick={addSubtopic}
-              disabled={!newSubtopic.trim() || subtopics.includes(newSubtopic.trim())}
-              size="small"
-            >
-              Add
-            </Button>
-          </Box>
-          
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="contained"
-              onClick={saveSubtopics}
-              disabled={subtopics.length === 0}
-            >
-              Save Subtopics
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setEditingSubtopics(false);
-                setSubtopics([]);
-              }}
-            >
-              Cancel
-            </Button>
-          </Box>
+      {/* Loading indicator for subtopic generation */}
+      {isGeneratingSubtopics && (
+        <Paper sx={{ p: 2, mb: 3, backgroundColor: '#f8f9fa' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+            🤖 Generating intelligent subtopics using LLM...
+          </Typography>
         </Paper>
       )}
 
@@ -366,48 +416,72 @@ const ResearchTopics = () => {
           </Typography>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {topics.map((topic) => (
-              <Box key={topic.id} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      {topic.title}
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                      <Chip 
-                        label={topic.status} 
-                        color={topic.status === 'completed' ? 'success' : topic.status === 'active' ? 'primary' : 'default'}
-                        size="small" 
-                      />
-                      {topic.description && (
-                        <Chip label={topic.description} variant="outlined" size="small" />
+            {topics.map((topic) => {
+              const subtopics = topicSubtopics[topic.id] || [];
+              return (
+                <Box key={topic.id} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        {topic.title}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                        <Chip 
+                          label={topic.status} 
+                          color={topic.status === 'completed' ? 'success' : topic.status === 'active' ? 'primary' : 'default'}
+                          size="small" 
+                        />
+                        {topic.description && (
+                          <Chip label={topic.description} variant="outlined" size="small" />
+                        )}
+                      </Box>
+                      
+                      {/* Display subtopics */}
+                      {subtopics.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            Subtopics ({subtopics.length}):
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {subtopics.map((subtopic, index) => (
+                              <Chip
+                                key={index}
+                                label={subtopic}
+                                color={index === 0 ? "primary" : "default"}
+                                variant={index === 0 ? "filled" : "outlined"}
+                                size="small"
+                              />
+                            ))}
+                          </Box>
+                        </Box>
                       )}
+                      
+                      <Typography variant="body2" color="text.secondary">
+                        Created: {new Date(topic.created_at).toLocaleDateString()}
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Created: {new Date(topic.created_at).toLocaleDateString()}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => handleNavigateToAffiliateResearch(topic.id)}
-                      disabled={topic.status === 'archived'}
-                    >
-                      Research
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      onClick={() => handleDeleteTopic(topic.id)}
-                    >
-                      Delete
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleNavigateToAffiliateResearch(topic.id)}
+                        disabled={topic.status === 'archived'}
+                      >
+                        Research
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => handleDeleteTopic(topic.id)}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
-            ))}
+              );
+            })}
           </Box>
         )}
       </Paper>
@@ -427,9 +501,7 @@ const AffiliateResearch = () => {
   );
   
   // Get passed subtopics from navigation state
-  const [passedSubtopics, setPassedSubtopics] = useState<string[] | null>(
-    location.state?.subtopics || null
-  );
+  // Removed passedSubtopics - always generate fresh subtopics with LLM
   
   const [researchTopics, setResearchTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
@@ -442,6 +514,12 @@ const AffiliateResearch = () => {
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Debug: Monitor subtopics state changes
+  useEffect(() => {
+    console.log('🔄 Subtopics state changed:', subtopics);
+    console.log('🔍 Rendering subtopics in UI:', subtopics);
+  }, [subtopics]);
   
   // Subtopic management states
   const [editingSubtopics, setEditingSubtopics] = useState(false);
@@ -453,12 +531,7 @@ const AffiliateResearch = () => {
   }, [user]);
 
   // Handle passed subtopics when component first loads
-  useEffect(() => {
-    if (passedSubtopics && passedSubtopics.length > 0) {
-      console.log('Setting passed subtopics on component mount:', passedSubtopics);
-      setSubtopics(passedSubtopics);
-    }
-  }, [passedSubtopics]);
+  // Now checks Supabase first, then generates only if none exist
 
   // Load selected topic details when topic ID changes
   useEffect(() => {
@@ -467,17 +540,14 @@ const AffiliateResearch = () => {
       if (topic) {
         setSelectedTopic(topic);
         
-        // If we have passed subtopics, use them first
-        if (passedSubtopics && passedSubtopics.length > 0) {
-          console.log('Using passed subtopics:', passedSubtopics);
-          setSubtopics(passedSubtopics);
-        } else if (user?.id) {
-          // Otherwise load subtopics for the pre-selected topic
+        // First check for existing subtopics in Supabase, then generate if none exist
+        console.log('🔍 Checking for existing subtopics in Supabase for topic:', topic.title);
+        if (user?.id) {
           handleTopicChange(selectedTopicId);
         }
       }
     }
-  }, [selectedTopicId, researchTopics, user, passedSubtopics]);
+  }, [selectedTopicId, researchTopics, user]);
 
   const loadResearchTopics = async () => {
     if (!user?.id) return;
@@ -498,19 +568,39 @@ const AffiliateResearch = () => {
     if (!user?.id || !topicId) return [];
     
     try {
-      // Use the affiliate research service to load subtopics
-      const { affiliateResearchService } = await import('./services/affiliateResearchService');
       console.log('Loading subtopics for topic ID:', topicId, 'user:', user.id);
       
-      const subtopics = await affiliateResearchService.getSubtopicsForTopic(topicId, user.id);
-      console.log('Loaded existing subtopics from database:', subtopics);
-      
-      return subtopics;
+      // Query topic_decompositions table directly using Supabase
+      const { data, error } = await supabase
+        .from('topic_decompositions')
+        .select('subtopics, research_topic_id, user_id, created_at')
+        .eq('research_topic_id', topicId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      console.log('Supabase query result:', { data, error });
+
+      if (error) {
+        console.error('Error fetching subtopics from Supabase:', error);
+        return [];
+      }
+
+      if (data && data.length > 0) {
+        const subtopics = data[0].subtopics || [];
+        console.log('Loaded existing subtopics from Supabase:', subtopics);
+        return subtopics;
+      }
+
+      console.log('No subtopics found for topic:', topicId);
+      return [];
     } catch (error) {
-      console.error('Failed to load subtopics from database:', error);
+      console.error('Failed to load subtopics from Supabase:', error);
       return [];
     }
   };
+
+
 
   const handleTopicChange = async (topicId: string) => {
     console.log('handleTopicChange called with topicId:', topicId);
@@ -522,9 +612,12 @@ const AffiliateResearch = () => {
     // Only clear results if we're actually changing to a different topic
     if (selectedTopicId !== topicId) {
       console.log('Different topic selected, clearing previous results');
+      console.log('Previous selectedTopicId:', selectedTopicId, 'New topicId:', topicId);
       setSubtopics([]);
       setAffiliateOffers([]);
       setOffersBySubtopic({});
+    } else {
+      console.log('Same topic selected, keeping existing results');
     }
     
     // Load existing subtopics for the selected topic
@@ -534,21 +627,24 @@ const AffiliateResearch = () => {
         const existingSubtopics = await loadSubtopicsFromDatabase(topic.id);
         console.log('Existing subtopics from database:', existingSubtopics);
         
-        if (existingSubtopics.length > 0) {
-          // Use existing subtopics from database
-          const allSubtopics = [topic.title, ...existingSubtopics];
+        if (existingSubtopics && existingSubtopics.length > 0) {
+          // Use existing subtopics from database (created in the first page)
+          console.log('✅ Found existing subtopics in Supabase, using them');
+          // Check if main topic is already included, if not add it
+          let allSubtopics = existingSubtopics;
+          if (!existingSubtopics.includes(topic.title)) {
+            allSubtopics = [topic.title, ...existingSubtopics];
+          }
           setSubtopics(allSubtopics);
-          console.log('Loaded existing subtopics for topic:', topic.title, allSubtopics);
+          console.log('✅ Loaded existing subtopics for topic:', topic.title, allSubtopics);
+          console.log('✅ Subtopics state set to:', allSubtopics);
         } else {
-          // Fallback: generate new subtopics if none exist in database
-          console.log('No existing subtopics found, generating new ones...');
-          const { affiliateResearchService } = await import('./services/affiliateResearchService');
-          const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic.title, user.id);
-          
-          // Always include the main topic as the first subtopic
-          const allSubtopics = [topic.title, ...generatedSubtopics];
-          setSubtopics(allSubtopics);
-          console.log('Generated new subtopics for topic:', topic.title, allSubtopics);
+          // No subtopics found in database - this should not happen if topics were created properly in first page
+          console.log('⚠️ No subtopics found in database for topic:', topic.title);
+          console.log('⚠️ This topic may not have been properly created in the Research Topics page');
+          // Fallback to just the main topic
+          setSubtopics([topic.title]);
+          console.log('⚠️ Using only main topic as subtopic:', topic.title);
         }
         
         // Load existing affiliate offers for this topic
@@ -604,20 +700,16 @@ const AffiliateResearch = () => {
       setLoadingOffers(true);
       setIsProcessing(true);
       
-      // Use existing subtopics if available, otherwise generate new ones
+      // Use existing subtopics from database (created in first page)
       let searchSubtopics = subtopics;
       
       if (searchSubtopics.length === 0) {
-        console.log('No existing subtopics, generating new ones...');
-        const { affiliateResearchService } = await import('./services/affiliateResearchService');
-        const generatedSubtopics = await affiliateResearchService.decomposeTopic(
-          selectedTopic.title,
-          user.id
-        );
-        searchSubtopics = [selectedTopic.title, ...generatedSubtopics];
+        console.log('⚠️ No existing subtopics found - this should not happen if topic was created properly in Research Topics page');
+        console.log('⚠️ Using only main topic for search:', selectedTopic.title);
+        searchSubtopics = [selectedTopic.title];
         setSubtopics(searchSubtopics);
       } else {
-        console.log('Using existing subtopics:', searchSubtopics);
+        console.log('✅ Using existing subtopics from database:', searchSubtopics);
       }
       
       // Step 2: Search for affiliate offers for ALL subtopics
@@ -663,7 +755,7 @@ const AffiliateResearch = () => {
       
     } catch (err) {
       console.error('Affiliate research failed:', err);
-      setError(`Failed to search affiliate offers: ${err.message || 'Unknown error'}`);
+      setError(`Failed to search affiliate offers: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       console.log('Setting loading states to false');
       setLoadingSubtopics(false);
@@ -673,18 +765,19 @@ const AffiliateResearch = () => {
   };
 
   const handleNavigateToTrendAnalysis = () => {
-    // Navigate to trend analysis tab with pre-selected topic
+    // Navigate to trend analysis tab with pre-selected topic and subtopics
     if (selectedTopic) {
       navigate('/trend-validation', { 
         state: { 
           selectedTopicId: selectedTopic.id,
-          selectedTopicTitle: selectedTopic.title 
+          selectedTopicTitle: selectedTopic.title,
+          subtopics: subtopics // Pass the current subtopics
         } 
       });
     } else {
       navigate('/trend-validation');
     }
-    console.log('Navigate to trend analysis with topic:', selectedTopic?.title);
+    console.log('Navigate to trend analysis with topic:', selectedTopic?.title, 'and subtopics:', subtopics);
   };
 
   // Subtopic management functions
@@ -746,7 +839,7 @@ const AffiliateResearch = () => {
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Choose a research topic</InputLabel>
             <Select
-              value={researchTopics.find(t => t.id === selectedTopicId) ? selectedTopicId : ''}
+              value={selectedTopicId || ''}
               onChange={(e) => handleTopicChange(e.target.value)}
               label="Choose a research topic"
             >
@@ -991,7 +1084,7 @@ const AffiliateResearch = () => {
                             <strong>Relevant to:</strong>
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                            {offer.subtopics.map((subtopic, idx) => (
+                            {offer.subtopics.map((subtopic: string, idx: number) => (
                               <Chip 
                                 key={idx}
                                 label={subtopic} 
@@ -1133,13 +1226,7 @@ const AffiliateResearch = () => {
 };
 
 
-// Placeholder components for other tabs
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <Box sx={{ p: 3 }}>
-    <Typography variant="h4" gutterBottom>{title}</Typography>
-    <Typography variant="body1">This feature is coming soon!</Typography>
-  </Box>
-);
+// Placeholder components for other tabs (removed - no longer needed)
 
 // Main App Content (protected)
 const AppContent = () => {
@@ -1149,7 +1236,7 @@ const AppContent = () => {
 
   // Ensure user is on a valid route
   useEffect(() => {
-    const validRoutes = ['/', '/affiliate-research', '/trend-validation', '/idea-burst', '/keyword-armoury', '/calendar', '/settings'];
+    const validRoutes = ['/', '/affiliate-research', '/trend-validation', '/keywords_armoury', '/idea-burst-generation', '/settings'];
     const currentPath = location.pathname;
     
     if (!validRoutes.includes(currentPath)) {
@@ -1159,14 +1246,14 @@ const AppContent = () => {
   }, [location.pathname, navigate]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    const routes = ['/', '/affiliate-research', '/trend-validation', '/idea-burst', '/keyword-armoury', '/calendar', '/settings'];
+    const routes = ['/', '/affiliate-research', '/trend-validation', '/keywords_armoury', '/idea-burst-generation', '/settings'];
     const targetRoute = routes[newValue];
     console.log('handleTabChange - newValue:', newValue, 'targetRoute:', targetRoute, 'routes:', routes);
     navigate(targetRoute);
   };
 
   const getCurrentTab = () => {
-    const routes = ['/', '/affiliate-research', '/trend-validation', '/idea-burst', '/keyword-armoury', '/calendar', '/settings'];
+    const routes = ['/', '/affiliate-research', '/trend-validation', '/keywords_armoury', '/idea-burst-generation', '/settings'];
     const currentPath = location.pathname;
     const tabIndex = routes.indexOf(currentPath);
     console.log('getCurrentTab - currentPath:', currentPath, 'tabIndex:', tabIndex, 'routes:', routes);
@@ -1182,10 +1269,16 @@ const AppContent = () => {
 
   const handleLogout = async () => {
     try {
+      console.log('🔐 Logout button clicked');
       await logout();
+      console.log('🔐 Logout completed, navigating to login');
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
+      // Force logout by clearing everything manually
+      console.log('🔐 Forcing manual logout');
+      localStorage.clear();
+      window.location.href = '/login';
     }
   };
 
@@ -1200,9 +1293,9 @@ const AppContent = () => {
           <Typography variant="body2" sx={{ mr: 2 }}>
             Welcome, {user?.firstName || user?.email || 'User'}
           </Typography>
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
-          </Button>
+              <Button color="inherit" onClick={handleLogout}>
+                Logout
+              </Button>
         </Toolbar>
       </AppBar>
 
@@ -1218,9 +1311,8 @@ const AppContent = () => {
           <Tab label="Research Topics" />
           <Tab label="Affiliate Research" />
           <Tab label="Trend Analysis" />
+          <Tab label="Keywords Armoury" />
           <Tab label="Idea Burst" />
-          <Tab label="Keyword Armoury" />
-          <Tab label="Calendar" />
           <Tab label="Settings" />
         </Tabs>
       </Box>
@@ -1232,10 +1324,10 @@ const AppContent = () => {
           <Route path="/" element={<ResearchTopics />} />
           <Route path="/affiliate-research" element={<AffiliateResearch />} />
           <Route path="/trend-validation" element={<TrendAnalysis />} />
-          <Route path="/idea-burst" element={<IdeaBurst />} />
-          <Route path="/keyword-armoury" element={<PlaceholderPage title="Keyword Armoury" />} />
-          <Route path="/calendar" element={<PlaceholderPage title="Calendar" />} />
-          <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+          <Route path="/keywords_armoury" element={<KeywordsArmoury />} />
+          <Route path="/idea-burst" element={<EnhancedIdeaBurst />} />
+          <Route path="/idea-burst-generation" element={<IdeaBurstGeneration />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
         </Paper>
       </Box>

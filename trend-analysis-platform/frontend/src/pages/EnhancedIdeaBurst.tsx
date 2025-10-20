@@ -227,16 +227,16 @@ const EnhancedIdeaBurst: React.FC = () => {
         }
       });
 
-      const response = await fetch('/api/content-ideas/generate-seo-ideas', {
+      const response = await fetch('/api/content-ideas/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          research_id: researchId,
-          user_id: userId,
+          topic_id: researchId,
+          topic_title: selectedSubtopics.join(', '),
           subtopics: selectedSubtopics,
-          keywords_by_subtopic: keywordsBySubtopic,
-          num_ideas: 15,
-          append: true
+          keywords: Object.values(keywordsBySubtopic).flat(),
+          user_id: userId,
+          content_types: ['blog', 'software']
         })
       });
 
@@ -245,7 +245,7 @@ const EnhancedIdeaBurst: React.FC = () => {
       
       console.log('Generated ideas result:', result);
       setContentIdeas(result.ideas || []);
-      setSuccess(`Generated ${result.count} SEO-optimized ideas!`);
+      setSuccess(`Generated ${result.total_ideas || result.ideas?.length || 0} SEO-optimized ideas!`);
       setActiveStep(3);
     } catch (err: any) {
       setError(err.message || 'Failed to generate ideas');
@@ -262,16 +262,16 @@ const EnhancedIdeaBurst: React.FC = () => {
       const userData = localStorage.getItem('trendtap_user');
       const userId = userData ? JSON.parse(userData).id : 'demo-user';
       
-      const response = await fetch('/api/content-ideas/generate-seo-ideas', {
+      const response = await fetch('/api/content-ideas/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          research_id: researchId,
-          user_id: userId,
+          topic_id: researchId,
+          topic_title: selectedSubtopics.join(', '),
           subtopics: selectedSubtopics,
-          keywords_by_subtopic: {},
-          num_ideas: 10,
-          append: true
+          keywords: [],
+          user_id: userId,
+          content_types: ['blog', 'software']
         })
       });
 
@@ -280,7 +280,7 @@ const EnhancedIdeaBurst: React.FC = () => {
       
       console.log('Generated basic ideas result:', result);
       setContentIdeas(result.ideas || []);
-      setSuccess(`Generated ${result.count} basic ideas!`);
+      setSuccess(`Generated ${result.total_ideas || result.ideas?.length || 0} basic ideas!`);
       setActiveStep(3);
     } catch (err: any) {
       setError(err.message || 'Failed to generate ideas');

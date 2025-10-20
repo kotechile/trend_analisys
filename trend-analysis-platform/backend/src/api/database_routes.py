@@ -36,15 +36,22 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> str:
             detail={"error": "Unauthorized", "message": "Missing or invalid authorization header"}
         )
     
-    # In a real implementation, you would validate the JWT token here
-    # For now, we'll extract a mock user ID
+    # Validate the JWT token with Supabase
     token = authorization.replace("Bearer ", "")
-    if token == "test-token":
-        return "test-user-id"
-    else:
+    try:
+        from ..core.supabase_auth import supabase_auth_service
+        user = supabase_auth_service.get_user_by_token(token)
+        if user and user.get("id"):
+            return user["id"]
+        else:
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "Unauthorized", "message": "Invalid token"}
+            )
+    except Exception as e:
         raise HTTPException(
             status_code=401,
-            detail={"error": "Unauthorized", "message": "Invalid token"}
+            detail={"error": "Unauthorized", "message": "Token validation failed"}
         )
 
 @router.post("/operations")

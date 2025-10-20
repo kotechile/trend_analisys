@@ -11,6 +11,7 @@ from ..core.database import get_db
 from ..services.keyword_service import KeywordService
 from ..models.user import User
 from ..models.keyword_data import KeywordData, KeywordSource
+from ..core.supabase_auth import get_current_user
 from ..schemas.keyword_schemas import (
     KeywordUploadRequest,
     KeywordUploadResponse,
@@ -42,13 +43,6 @@ def get_keyword_service(db: SupabaseDatabaseService = Depends(get_db)) -> Keywor
     """Get keyword service dependency"""
     return KeywordService(db)
 
-def get_current_user(db: SupabaseDatabaseService = Depends(get_db)) -> User:
-    """Get current authenticated user (placeholder - implement auth middleware)"""
-    # This is a placeholder - in real implementation, this would extract user from JWT token
-    user = db.query(User).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return user
 
 @router.post("/upload", response_model=KeywordUploadResponse)
 async def upload_keywords(
@@ -471,18 +465,22 @@ async def get_keyword_analytics(
 @router.post("/generate", response_model=KeywordGenerationResponse)
 async def generate_keywords(
     request: KeywordGenerationRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     keyword_service: KeywordService = Depends(get_keyword_service)
 ):
     """Generate keywords using LLM based on subtopics"""
     try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
         logger.info("Generating keywords with LLM", 
-                   user_id=current_user.id, 
+                   user_id=user_id, 
                    topic_id=request.topicId,
                    subtopics_count=len(request.subtopics))
         
         # Check user limits
-        if not await keyword_service.check_user_limits(current_user.id, "keyword_data"):
+        if not await keyword_service.check_user_limits(user_id, "keyword_data"):
             raise HTTPException(
                 status_code=403,
                 detail="Keyword data limit reached for your subscription tier"
@@ -492,11 +490,11 @@ async def generate_keywords(
         keywords = await keyword_service.generate_keywords_with_llm(
             subtopics=request.subtopics,
             topic_title=request.topicTitle,
-            user_id=current_user.id
+            user_id=user_id
         )
         
         logger.info("Keywords generated successfully", 
-                   user_id=current_user.id, 
+                   user_id=user_id, 
                    keywords_count=len(keywords))
         
         return KeywordGenerationResponse(

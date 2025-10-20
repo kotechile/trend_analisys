@@ -38,7 +38,7 @@ export interface TrendAnalysisResult {
 }
 
 class GoogleTrendsService {
-  private baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   /**
    * Analyze trends for a specific keyword/subtopic

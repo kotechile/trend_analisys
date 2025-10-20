@@ -23,9 +23,10 @@ class ExportService:
     """Service for content export to various platforms"""
     
     def __init__(self):
-        self.google_docs_api_key = settings.google_docs_api_key
-        self.notion_api_key = settings.notion_api_key
-        self.wordpress_api_key = settings.wordpress_api_key
+        # API keys are now retrieved from database as needed
+        self.google_docs_api_key = None
+        self.notion_api_key = None
+        self.wordpress_api_key = None
         self.wordpress_site_url = settings.wordpress_site_url
         
         # Export templates

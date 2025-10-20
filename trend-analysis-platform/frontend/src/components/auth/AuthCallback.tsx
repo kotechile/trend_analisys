@@ -24,22 +24,30 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({
       try {
         setLoading(true);
         console.log('AuthCallback: Starting OAuth callback processing...');
+        console.log('AuthCallback: Current URL:', window.location.href);
+        console.log('AuthCallback: URL hash:', window.location.hash);
+        console.log('AuthCallback: URL search:', window.location.search);
+        
+        // Check if we have OAuth parameters in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        console.log('AuthCallback: URL params:', Object.fromEntries(urlParams));
+        console.log('AuthCallback: Hash params:', Object.fromEntries(hashParams));
 
-        // Get the session from the URL hash
+        // Simple approach - just get the session directly
         const { data, error } = await supabase.auth.getSession();
-        console.log('AuthCallback: Session data:', { data: !!data, session: !!data?.session, error });
+        console.log('AuthCallback: Session check:', { data: !!data, session: !!data?.session, error });
 
         if (error) {
-          console.error('AuthCallback: Supabase session error:', error);
+          console.error('AuthCallback: Session error:', error);
           throw error;
         }
 
         if (data.session) {
-          console.log('AuthCallback: Session found, processing user data...');
+          console.log('AuthCallback: Session found, processing...');
           const user = data.session.user;
           setUser(user);
           
-          // Store user data in localStorage for the app
           const userData = {
             id: user.id,
             email: user.email,
@@ -50,35 +58,23 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({
           
           localStorage.setItem('trendtap_user', JSON.stringify(userData));
           localStorage.setItem('trendtap_token', data.session.access_token);
-          
-          // Set a flag to indicate successful OAuth
           localStorage.setItem('oauth_success', 'true');
           
           onSuccess?.(user);
-
-          // Force a page reload to refresh the auth state
-          console.log('OAuth successful, redirecting to:', redirectTo);
-          console.log('Stored user data:', userData);
-          console.log('Stored token:', data.session.access_token);
+          console.log('AuthCallback: OAuth successful, redirecting to:', redirectTo);
           
-          // Use a more reliable redirect method
           setTimeout(() => {
             window.location.replace(redirectTo);
-          }, 2000);
+          }, 1000);
         } else {
-          console.warn('AuthCallback: No session found, waiting for session...');
-          // Wait a bit and try again in case the session is still being processed
+          console.log('AuthCallback: No session found, waiting...');
+          // Wait a bit and try again
           setTimeout(async () => {
             try {
               const { data: retryData, error: retryError } = await supabase.auth.getSession();
-              console.log('AuthCallback: Retry session data:', { data: !!retryData, session: !!retryData?.session, error: retryError });
-              
-              if (retryError) {
-                throw retryError;
-              }
+              if (retryError) throw retryError;
               
               if (retryData.session) {
-                console.log('AuthCallback: Session found on retry, processing...');
                 const user = retryData.session.user;
                 setUser(user);
                 
@@ -95,7 +91,6 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({
                 localStorage.setItem('oauth_success', 'true');
                 
                 onSuccess?.(user);
-                console.log('AuthCallback: OAuth successful on retry, redirecting to:', redirectTo);
                 setTimeout(() => {
                   window.location.replace(redirectTo);
                 }, 1000);
@@ -104,18 +99,17 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({
               }
             } catch (retryErr: any) {
               console.error('AuthCallback: Retry failed:', retryErr);
-              setError(retryErr.message || 'Authentication failed after retry');
-              onError?.(retryErr.message || 'Authentication failed after retry');
+              setError(retryErr.message || 'Authentication failed');
+              onError?.(retryErr.message || 'Authentication failed');
             }
           }, 2000);
-          return;
         }
+
       } catch (err: any) {
         console.error('Auth callback error:', err);
         const errorMessage = err.message || 'Authentication failed';
         setError(errorMessage);
         onError?.(errorMessage);
-      } finally {
         setLoading(false);
       }
     };
@@ -142,6 +136,17 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({
         <Typography variant="body2" color="text.secondary">
           Please wait while we set up your account.
         </Typography>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            console.log('AuthCallback: Manual bypass clicked');
+            // Force redirect to login
+            window.location.href = '/login';
+          }}
+          sx={{ mt: 2 }}
+        >
+          If this takes too long, click here
+        </Button>
       </Box>
     );
   }

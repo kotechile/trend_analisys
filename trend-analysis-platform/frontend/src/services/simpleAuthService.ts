@@ -22,6 +22,7 @@ export class SimpleAuthService {
   getCurrentUser(): User | null {
     try {
       const storedUser = localStorage.getItem(this.userStorageKey);
+      console.log('🔐 AuthService getCurrentUser:', { storedUser: !!storedUser });
       if (storedUser) {
         return JSON.parse(storedUser);
       }
@@ -33,14 +34,18 @@ export class SimpleAuthService {
 
   // Get current token
   getToken(): string | null {
-    return localStorage.getItem(this.tokenStorageKey);
+    const token = localStorage.getItem(this.tokenStorageKey);
+    console.log('🔐 AuthService getToken:', { token: !!token });
+    return token;
   }
 
   // Check if user is authenticated
   isAuthenticated(): boolean {
     const user = this.getCurrentUser();
     const token = this.getToken();
-    return !!(user && token);
+    const isAuth = !!(user && token);
+    console.log('🔐 AuthService isAuthenticated check:', { user: !!user, token: !!token, isAuth });
+    return isAuth;
   }
 
   // Login with email and password
@@ -90,28 +95,41 @@ export class SimpleAuthService {
   // Register new user
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     try {
+      console.log('🔐 AuthService register - starting registration for:', userData.email);
+      console.log('🔐 AuthService register - userData:', { 
+        email: userData.email, 
+        firstName: userData.firstName, 
+        lastName: userData.lastName 
+      });
+      
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: {
           data: {
-            full_name: userData.name,
+            full_name: `${userData.firstName} ${userData.lastName}`.trim(),
           },
         },
       });
+      
+      console.log('🔐 AuthService register - Supabase response:', { data: !!data, error: !!error });
 
       if (error) {
+        console.error('🔐 AuthService register - Supabase error:', error);
         throw new Error(error.message);
       }
 
       if (!data.user) {
+        console.error('🔐 AuthService register - No user returned from Supabase');
         throw new Error('Registration failed - no user returned');
       }
+      
+      console.log('🔐 AuthService register - User created successfully:', data.user.id);
 
       const user: User = {
         id: data.user.id,
         email: data.user.email || '',
-        name: userData.name,
+        name: `${userData.firstName} ${userData.lastName}`.trim(),
         avatar: '',
         role: 'user',
         created_at: data.user.created_at,
@@ -122,9 +140,11 @@ export class SimpleAuthService {
 
       // Store user (no token yet as email verification might be required)
       localStorage.setItem(this.userStorageKey, JSON.stringify(user));
+      console.log('🔐 AuthService register - User stored in localStorage');
 
       return { user };
     } catch (error: any) {
+      console.error('🔐 AuthService register - Registration failed:', error);
       throw new Error(error.message || 'Registration failed');
     }
   }
@@ -132,13 +152,34 @@ export class SimpleAuthService {
   // Logout
   async logout(): Promise<void> {
     try {
-      await supabase.auth.signOut();
+      console.log('🔐 AuthService logout started');
+      
+      // Try Supabase logout with timeout
+      const supabaseLogoutPromise = supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase logout timeout')), 3000)
+      );
+      
+      try {
+        const { error } = await Promise.race([supabaseLogoutPromise, timeoutPromise]);
+        if (error) {
+          console.error('Supabase logout error:', error);
+        } else {
+          console.log('🔐 Supabase logout successful');
+        }
+      } catch (timeoutError) {
+        console.warn('Supabase logout timed out, continuing with local cleanup');
+      }
+      
     } catch (error) {
-      console.error('Supabase logout error:', error);
+      console.error('Logout error:', error);
+      // Don't throw the error, just log it and continue with cleanup
     } finally {
-      // Clear local storage
+      // Always clear local storage regardless of Supabase status
+      console.log('🔐 Clearing local storage');
       localStorage.removeItem(this.userStorageKey);
       localStorage.removeItem(this.tokenStorageKey);
+      console.log('🔐 Local storage cleared');
     }
   }
 

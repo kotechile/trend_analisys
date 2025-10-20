@@ -68,7 +68,7 @@ export class RequestInterceptor {
     // Add request metadata
     config.headers['X-Request-ID'] = this.generateRequestId();
     config.headers['X-Request-Time'] = Date.now().toString();
-    config.headers['X-Client-Version'] = process.env.REACT_APP_VERSION || '1.0.0';
+    config.headers['X-Client-Version'] = import.meta.env.VITE_APP_VERSION || '1.0.0';
 
     // Add user context if available
     if (this.authContext?.user) {
@@ -517,9 +517,9 @@ export class SessionStorageTokenStorage implements TokenStorage {
 
 export function createAxiosInstance(config: Partial<InterceptorConfig> = {}): AxiosInstance {
   const defaultConfig: InterceptorConfig = {
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     timeout: 30000,
-    enableLogging: process.env.NODE_ENV === 'development',
+    enableLogging: import.meta.env.DEV,
     enableRetry: true,
     maxRetries: 3,
     retryDelay: 1000,
@@ -546,9 +546,9 @@ export function createInterceptorManager(
   tokenStorage: TokenStorage = new LocalStorageTokenStorage()
 ): InterceptorManager {
   const defaultConfig: InterceptorConfig = {
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     timeout: 30000,
-    enableLogging: process.env.NODE_ENV === 'development',
+    enableLogging: import.meta.env.DEV,
     enableRetry: true,
     maxRetries: 3,
     retryDelay: 1000,

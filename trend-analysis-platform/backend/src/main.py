@@ -9,7 +9,8 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import structlog
 
 # Import API routers
-from .api import health_routes
+from .api import health_routes, keyword_routes, keyword_enhancer_routes, affiliate_research_routes, content_ideas_routes
+from .routers import dataforseo_router
 
 # Configure structured logging
 structlog.configure(
@@ -44,7 +45,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://trendtap.com"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://trendtap.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,6 +69,11 @@ async def root():
 
 # Include API routers
 app.include_router(health_routes.router)
+app.include_router(dataforseo_router.router)
+app.include_router(keyword_routes.router)
+app.include_router(keyword_enhancer_routes.router)
+app.include_router(affiliate_research_routes.router)
+app.include_router(content_ideas_routes.router)
 
 if __name__ == "__main__":
     import uvicorn

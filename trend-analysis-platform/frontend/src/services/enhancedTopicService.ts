@@ -29,7 +29,7 @@ export class EnhancedTopicsApiService implements EnhancedTopicsService {
     this.baseUrl = baseUrl;
     this.api = axios.create({
       baseURL: baseUrl,
-      timeout: 30000, // 30 seconds
+      timeout: 90000, // 90 seconds to allow for LLM processing
       headers: {
         'Content-Type': 'application/json',
       },
@@ -150,133 +150,7 @@ export class EnhancedTopicsApiService implements EnhancedTopicsService {
   }
 }
 
-/**
- * Autocomplete Service
- * Specialized service for autocomplete functionality
- */
-export class AutocompleteApiService implements AutocompleteService {
-  private api: AxiosInstance;
-  private baseUrl: string;
-
-  constructor(baseUrl: string = '/api/enhanced-topics') {
-    this.baseUrl = baseUrl;
-    this.api = axios.create({
-      baseURL: baseUrl,
-      timeout: 10000, // 10 seconds for autocomplete
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
-
-  /**
-   * Get autocomplete suggestions for a query
-   */
-  async getSuggestions(query: string): Promise<AutocompleteResponse> {
-    try {
-      const response: AxiosResponse<AutocompleteResponse> = await this.api.get(
-        `/autocomplete/${encodeURIComponent(query)}`
-      );
-      return response.data;
-    } catch (error) {
-      throw this.handleApiError(error);
-    }
-  }
-
-  /**
-   * Get suggestions for multiple queries
-   */
-  async getSuggestionsBatch(queries: string[]): Promise<AutocompleteResponse[]> {
-    try {
-      const promises = queries.map(query => this.getSuggestions(query));
-      return await Promise.all(promises);
-    } catch (error) {
-      throw this.handleApiError(error);
-    }
-  }
-
-  /**
-   * Get suggestions with query variations
-   */
-  async getSuggestionsWithVariations(baseQuery: string): Promise<AutocompleteResponse> {
-    try {
-      // Generate query variations
-      const variations = [
-        baseQuery,
-        `${baseQuery} affiliate`,
-        `${baseQuery} program`,
-        `${baseQuery} marketing`,
-        `best ${baseQuery}`,
-        `${baseQuery} review`
-      ];
-
-      // Get suggestions for all variations
-      const results = await this.getSuggestionsBatch(variations);
-
-      // Combine all successful results
-      const allSuggestions: string[] = [];
-      let totalProcessingTime = 0;
-
-      for (const result of results) {
-        if (result.success) {
-          allSuggestions.push(...result.suggestions);
-          totalProcessingTime = Math.max(totalProcessingTime, result.processing_time);
-        }
-      }
-
-      // Remove duplicates while preserving order
-      const uniqueSuggestions = Array.from(new Set(allSuggestions));
-
-      return {
-        success: true,
-        query: baseQuery,
-        suggestions: uniqueSuggestions.slice(0, 15), // Limit to 15 total suggestions
-        total_suggestions: uniqueSuggestions.length,
-        processing_time: totalProcessingTime
-      };
-    } catch (error) {
-      throw this.handleApiError(error);
-    }
-  }
-
-  /**
-   * Clear autocomplete cache
-   */
-  async clearCache(): Promise<void> {
-    try {
-      await this.api.post('/cache/clear');
-    } catch (error) {
-      throw this.handleApiError(error);
-    }
-  }
-
-  /**
-   * Get autocomplete cache statistics
-   */
-  async getCacheStats(): Promise<Record<string, any>> {
-    try {
-      const response: AxiosResponse<Record<string, any>> = await this.api.get('/cache/stats');
-      return response.data;
-    } catch (error) {
-      throw this.handleApiError(error);
-    }
-  }
-
-  /**
-   * Handle API errors
-   */
-  private handleApiError(error: any): Error {
-    if (error.response) {
-      const { status, data } = error.response;
-      const message = data?.message || data?.error || `HTTP ${status}`;
-      return new Error(`Autocomplete API Error (${status}): ${message}`);
-    } else if (error.request) {
-      return new Error('Autocomplete Network Error: No response from server');
-    } else {
-      return new Error(`Autocomplete Request Error: ${error.message}`);
-    }
-  }
-}
+// REMOVED: AutocompleteApiService - Google Autocomplete API was causing rate limiting and CORS issues
 
 /**
  * Service Factory
@@ -284,7 +158,6 @@ export class AutocompleteApiService implements AutocompleteService {
  */
 export class EnhancedTopicsServiceFactory {
   private static instance: EnhancedTopicsApiService | null = null;
-  private static autocompleteInstance: AutocompleteApiService | null = null;
 
   /**
    * Get singleton instance of Enhanced Topics API Service
@@ -297,21 +170,10 @@ export class EnhancedTopicsServiceFactory {
   }
 
   /**
-   * Get singleton instance of Autocomplete API Service
-   */
-  static getAutocompleteInstance(baseUrl?: string): AutocompleteApiService {
-    if (!this.autocompleteInstance) {
-      this.autocompleteInstance = new AutocompleteApiService(baseUrl);
-    }
-    return this.autocompleteInstance;
-  }
-
-  /**
    * Reset singleton instances (useful for testing)
    */
   static resetInstances(): void {
     this.instance = null;
-    this.autocompleteInstance = null;
   }
 }
 

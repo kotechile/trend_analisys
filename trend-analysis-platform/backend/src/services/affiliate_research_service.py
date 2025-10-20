@@ -13,7 +13,19 @@ from ..core.supabase_database import get_supabase_db
 from ..core.redis import cache
 from ..core.llm_config import LLMConfigManager
 from .web_search_service import WebSearchService
-from ..integrations.linkup_api import linkup_api
+# Import LinkUp API directly to avoid relative import issues
+try:
+    from integrations.linkup_api import linkup_api
+except ImportError:
+    # Fallback if LinkUp API is not available
+    linkup_api = None
+
+# Import Real Affiliate Search Service for web scraping
+try:
+    from services.real_affiliate_search import RealAffiliateSearchService
+except ImportError:
+    # Fallback if Real Affiliate Search is not available
+    RealAffiliateSearchService = None
 
 logger = structlog.get_logger()
 
@@ -149,63 +161,66 @@ class AffiliateResearchService:
                        total_programs=len(programs),
                        relevant_programs=len(relevant_programs))
             
-            # Always try LinkUp.so for better results, but make it optional
-            linkup_programs = []
-            if len(relevant_programs) < 5:  # Increased threshold
-                print(f"DEBUG: Searching LinkUp.so for additional programs: {search_term}")
-                logger.info("Searching LinkUp.so for additional programs", 
+            # Try LinkUp.so, Real Affiliate Search, and LLM with timeout handling
+            # Always search for additional programs to get the most comprehensive results
+            if True:  # Always search for additional programs
+                logger.info("Searching for additional programs", 
                            search_term=search_term, found_programs=len(programs))
                 
+                # Run all searches in parallel with timeout
                 try:
-                    # Search LinkUp.so for real-time affiliate offers with combined search terms
-                    print(f"DEBUG: About to call _search_linkup_offers")
-                    # Combine main search term with category and affiliate networks for better results
-                    networks = "Shopify Collabs AWIN CJ Affiliate ClickBank FlexOffers Avangate Rakuten Impact affiliaXe GiddyUp ShareASale"
-                    combined_search = f"{search_term} {analysis_result.get('category', '')} {networks}".strip()
-                    linkup_programs = await self._search_linkup_offers(combined_search, analysis_result.get('category'))
-                    print(f"DEBUG: LinkUp.so returned {len(linkup_programs) if linkup_programs else 0} programs")
+                    # Create tasks for parallel execution
+                    tasks = []
                     
+                    # LinkUp.so search task
+                    linkup_task = asyncio.create_task(
+                        self._safe_linkup_search(search_term, analysis_result.get('category'))
+                    )
+                    tasks.append(('linkup', linkup_task))
+                    
+                    # Real Affiliate Search task (web scraping)
+                    real_search_task = asyncio.create_task(
+                        self._safe_real_affiliate_search(search_term, analysis_result.get('category'))
+                    )
+                    tasks.append(('real_search', real_search_task))
+                    
+                    # LLM search task
+                    llm_task = asyncio.create_task(
+                        self._safe_llm_search(search_term, analysis_result.get('category'))
+                    )
+                    tasks.append(('llm', llm_task))
+                    
+                    # Wait for all tasks with timeout
+                    results = await asyncio.wait_for(
+                        asyncio.gather(*[task for _, task in tasks], return_exceptions=True),
+                        timeout=60.0  # 60 second timeout for all searches
+                    )
+                    
+                    # Process LinkUp.so results
+                    linkup_programs = results[0] if not isinstance(results[0], Exception) else []
                     if linkup_programs:
-                        # Filter out low-quality results more strictly
                         quality_programs = [p for p in linkup_programs if self._is_quality_program(p)]
-                        # Only add Linkup programs if they're actually high-quality
                         if quality_programs:
                             programs.extend(quality_programs)
                             logger.info("LinkUp.so search completed", 
                                        linkup_programs_found=len(quality_programs), 
                                        total_programs=len(programs))
-                        else:
-                            logger.info("LinkUp.so found programs but none were high-quality, skipping")
-                    else:
-                        logger.info("No LinkUp.so results found")
                     
-                    # Use LLM to identify specific companies and their affiliate programs (only once per search)
-                    if not hasattr(self, '_llm_programs_cache'):
-                        self._llm_programs_cache = {}
-                    
-                    cache_key = f"{search_term}_{analysis_result.get('category', 'general')}"
-                    if cache_key not in self._llm_programs_cache:
-                        # Get subtopics from the analysis result if available
-                        subtopics = analysis_result.get('subtopics', []) if isinstance(analysis_result, dict) else []
-                        llm_identified_programs = await self._get_llm_identified_programs(
-                            search_term, 
-                            analysis_result.get('category'),
-                            subtopics
-                        )
-                        self._llm_programs_cache[cache_key] = llm_identified_programs
-                        logger.info("Added LLM-identified programs", 
-                                   llm_programs_found=len(llm_identified_programs), 
+                    # Process Real Affiliate Search results (web scraping)
+                    real_search_programs = results[1] if not isinstance(results[1], Exception) else []
+                    if real_search_programs:
+                        programs.extend(real_search_programs)
+                        logger.info("Real affiliate search completed", 
+                                   real_search_programs_found=len(real_search_programs), 
                                    total_programs=len(programs))
-                    else:
-                        llm_identified_programs = self._llm_programs_cache[cache_key]
-                        logger.info("Using cached LLM-identified programs", 
-                                   llm_programs_found=len(llm_identified_programs))
                     
-                    programs.extend(llm_identified_programs)
-                    
-                    # Skip fallback programs - focus on real LLM-identified and Linkup results only
-                    logger.info("Skipping fallback programs - using only real results", 
-                               total_programs=len(programs))
+                    # Process LLM results
+                    llm_programs = results[2] if not isinstance(results[2], Exception) else []
+                    if llm_programs:
+                        programs.extend(llm_programs)
+                        logger.info("LLM search completed", 
+                                   llm_programs_found=len(llm_programs), 
+                                   total_programs=len(programs))
                     
                     # Deduplicate and consolidate affiliate programs
                     programs = self._deduplicate_programs(programs)
@@ -214,8 +229,11 @@ class AffiliateResearchService:
                     # Prioritize quality programs over generic ones
                     programs = self._prioritize_quality_programs(programs)
                     logger.info("Programs prioritized", total_programs=len(programs))
+                    
+                except asyncio.TimeoutError:
+                    logger.warning("Timeout reached for additional program searches")
                 except Exception as e:
-                    logger.warning("LinkUp.so search failed, continuing with available programs", error=str(e))
+                    logger.warning("Additional program searches failed", error=str(e))
             else:
                 # Update usage statistics for found programs
                 for program in programs:
@@ -732,10 +750,66 @@ class AffiliateResearchService:
     
     # Hardcoded programs removed - using LinkUp.so and web search for better relevance
     
+    async def _safe_linkup_search(self, search_term: str, category: str = None) -> List[Dict[str, Any]]:
+        """
+        Safely search LinkUp.so with timeout handling
+        """
+        try:
+            return await asyncio.wait_for(
+                self._search_linkup_offers(search_term, category),
+                timeout=30.0  # 30 second timeout for LinkUp search
+            )
+        except asyncio.TimeoutError:
+            logger.warning("LinkUp.so search timed out", search_term=search_term)
+            return []
+        except Exception as e:
+            logger.warning("LinkUp.so search failed", search_term=search_term, error=str(e))
+            return []
+    
+    async def _safe_real_affiliate_search(self, search_term: str, category: str = None) -> List[Dict[str, Any]]:
+        """
+        Safely search using Real Affiliate Search Service with timeout handling
+        """
+        if not RealAffiliateSearchService:
+            logger.warning("Real Affiliate Search Service not available, skipping search")
+            return []
+            
+        try:
+            return await asyncio.wait_for(
+                self._search_real_affiliate_programs(search_term, category),
+                timeout=30.0  # 30 second timeout for real affiliate search
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Real affiliate search timed out", search_term=search_term)
+            return []
+        except Exception as e:
+            logger.warning("Real affiliate search failed", search_term=search_term, error=str(e))
+            return []
+    
+    async def _safe_llm_search(self, search_term: str, category: str = None) -> List[Dict[str, Any]]:
+        """
+        Safely search using LLM with timeout handling
+        """
+        try:
+            return await asyncio.wait_for(
+                self._get_llm_identified_programs(search_term, category, []),
+                timeout=45.0  # 45 second timeout for LLM search
+            )
+        except asyncio.TimeoutError:
+            logger.warning("LLM search timed out", search_term=search_term)
+            return []
+        except Exception as e:
+            logger.warning("LLM search failed", search_term=search_term, error=str(e))
+            return []
+
     async def _search_linkup_offers(self, search_term: str, category: str = None) -> List[Dict[str, Any]]:
         """
         Search LinkUp.so for real-time affiliate offers
         """
+        if not linkup_api:
+            logger.warning("LinkUp API not available, skipping search")
+            return []
+            
         try:
             # Map our category to LinkUp category if needed
             linkup_category = self._map_category_to_linkup(category) if category else None
@@ -756,6 +830,40 @@ class AffiliateResearchService:
             
         except Exception as e:
             logger.error("LinkUp.so search failed", 
+                        search_term=search_term, 
+                        error=str(e))
+            return []
+    
+    async def _search_real_affiliate_programs(self, search_term: str, category: str = None) -> List[Dict[str, Any]]:
+        """
+        Search for real affiliate programs using web scraping
+        """
+        try:
+            async with RealAffiliateSearchService() as search_service:
+                programs = await search_service.search_affiliate_programs(search_term, category or "general")
+                
+                # Convert to our format
+                formatted_programs = []
+                for program in programs:
+                    formatted_programs.append({
+                        "id": program.get("id", f"real_{hash(program.get('name', ''))}"),
+                        "name": program.get("name", "Unknown Program"),
+                        "description": program.get("description", "No description available"),
+                        "commission_rate": program.get("commission_rate", "Unknown"),
+                        "network": program.get("network", "Unknown"),
+                        "epc": program.get("epc", "0.00"),
+                        "link": program.get("link", "#"),
+                        "source": "real_search"
+                    })
+                
+                logger.info("Real affiliate search completed", 
+                           search_term=search_term, 
+                           programs_found=len(formatted_programs))
+                
+                return formatted_programs
+                
+        except Exception as e:
+            logger.error("Real affiliate search failed", 
                         search_term=search_term, 
                         error=str(e))
             return []

@@ -43,7 +43,6 @@ const navigationItems = [
   { text: 'Affiliate Research', icon: <SearchIcon />, path: '/affiliate-research' },
   { text: 'Trend Validation', icon: <TrendingUpIcon />, path: '/trend-validation' },
   { text: 'Idea Burst', icon: <SearchIcon />, path: '/idea-burst' },
-  { text: 'Keyword Armoury', icon: <SearchIcon />, path: '/keyword-armoury' },
   { text: 'Calendar', icon: <CalendarIcon />, path: '/calendar' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   { text: 'Admin', icon: <AdminIcon />, path: '/admin' },

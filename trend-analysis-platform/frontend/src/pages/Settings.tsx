@@ -43,8 +43,9 @@ import {
   Storage,
   Api,
 } from '@mui/icons-material';
-import { useUser } from '../hooks/useUser';
-import { LoadingSpinner } from '../components/common';
+import { useAuth } from '../contexts/AuthContext';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import LLMProviderSelector from '../components/settings/LLMProviderSelector';
 
 export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -78,9 +79,9 @@ export const Settings: React.FC = () => {
     crashReporting: true,
   });
 
-  const { useUserProfile, updateUserProfile, isUpdatingProfile, updateProfileError } = useUser();
-
-  const { data: userData, isLoading, error } = useUserProfile();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [updateProfileError, setUpdateProfileError] = useState<Error | null>(null);
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({
@@ -91,11 +92,20 @@ export const Settings: React.FC = () => {
 
   const handleSaveSettings = async () => {
     try {
-      await updateUserProfile({
-        preferences: settings,
-      });
+      setIsUpdatingProfile(true);
+      setUpdateProfileError(null);
+      
+      // TODO: Implement settings save to backend
+      console.log('Saving settings:', settings);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
     } catch (error) {
       console.error('Failed to save settings:', error);
+      setUpdateProfileError(error as Error);
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
@@ -103,10 +113,10 @@ export const Settings: React.FC = () => {
     return <LoadingSpinner message="Loading settings..." fullHeight />;
   }
 
-  if (error) {
+  if (!isAuthenticated) {
     return (
       <Alert severity="error">
-        {error.message || 'Failed to load settings'}
+        Please log in to access settings
       </Alert>
     );
   }
@@ -114,6 +124,7 @@ export const Settings: React.FC = () => {
   const tabs = [
     { label: 'General', icon: <Palette /> },
     { label: 'Notifications', icon: <Notifications /> },
+    { label: 'LLM Models', icon: <Api /> },
     { label: 'API Keys', icon: <Api /> },
     { label: 'Export', icon: <Storage /> },
     { label: 'Privacy', icon: <Security /> },
@@ -309,8 +320,18 @@ export const Settings: React.FC = () => {
                 </Box>
               )}
 
-              {/* API Keys Settings */}
+              {/* LLM Models Settings */}
               {activeTab === 2 && (
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    LLM Model Configuration
+                  </Typography>
+                  <LLMProviderSelector />
+                </Box>
+              )}
+
+              {/* API Keys Settings */}
+              {activeTab === 3 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
                     API Keys
@@ -354,7 +375,7 @@ export const Settings: React.FC = () => {
               )}
 
               {/* Export Settings */}
-              {activeTab === 3 && (
+              {activeTab === 4 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
                     Export Settings
@@ -406,7 +427,7 @@ export const Settings: React.FC = () => {
               )}
 
               {/* Privacy Settings */}
-              {activeTab === 4 && (
+              {activeTab === 5 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
                     Privacy Settings

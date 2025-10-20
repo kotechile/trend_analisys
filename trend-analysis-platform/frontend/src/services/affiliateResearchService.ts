@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { llmApiService } from './llmApiService';
 
 export interface AffiliateOffer {
   id: string;
@@ -60,81 +61,30 @@ export interface TopicDecompositionResponse {
 class AffiliateResearchService {
   private baseUrl = 'http://localhost:8000'; // Backend API URL
 
-  /**
-   * Get Google autocomplete suggestions
-   */
-  async getGoogleAutocompleteSuggestions(query: string): Promise<string[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/google-autocomplete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.suggestions || [];
-    } catch (error) {
-      console.error('Google autocomplete error:', error);
-      return [];
-    }
-  }
+  // REMOVED: Google Autocomplete API - was causing rate limiting and CORS issues
 
   /**
-   * Decompose topic into subtopics using Google Autocomplete + LLM hybrid approach
+   * Decompose topic into subtopics using direct LLM API calls with Supabase credentials
    */
   async decomposeTopic(searchQuery: string, userId: string): Promise<string[]> {
     try {
-      // Create abort controller for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
+      console.log('🔄 Decomposing topic using direct LLM API:', searchQuery);
+      
+      // Try direct LLM API call first
       try {
-        // Try enhanced approach first (Google Autocomplete + LLM)
-        const enhancedResponse = await fetch(`${this.baseUrl}/api/enhanced-topic-decomposition`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            search_query: searchQuery,
-            user_id: userId,
-            max_subtopics: 8,
-            use_autocomplete: true,
-            use_llm: true,
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (enhancedResponse.ok) {
-          const enhancedData = await enhancedResponse.json();
-          if (enhancedData.subtopics && Array.isArray(enhancedData.subtopics)) {
-            console.log('Using enhanced approach (Google Autocomplete + LLM)');
-            return enhancedData.subtopics;
-          }
-        }
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.log('Enhanced API timeout, falling back to LLM-only approach');
-        } else {
-          console.log('Enhanced API failed, falling back to LLM-only approach');
-        }
+        const subtopics = await llmApiService.generateSubtopics(searchQuery, 8);
+        console.log('✅ LLM API generated subtopics:', subtopics);
+        return subtopics;
+      } catch (llmError) {
+        console.error('Direct LLM API failed:', llmError);
+        console.log('Falling back to backend API...');
       }
 
-      // Fallback to simple LLM-only approach with timeout
-      const controller2 = new AbortController();
-      const timeoutId2 = setTimeout(() => controller2.abort(), 8000); // 8 second timeout
-
+      // Fallback to backend API if direct LLM fails
       try {
-        console.log('Falling back to LLM-only approach');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
         const response = await fetch(`${this.baseUrl}/api/topic-decomposition`, {
           method: 'POST',
           headers: {
@@ -144,33 +94,29 @@ class AffiliateResearchService {
             search_query: searchQuery,
             user_id: userId,
             max_subtopics: 8,
-            use_autocomplete: true,
-            use_llm: true,
           }),
-          signal: controller2.signal,
+          signal: controller.signal,
         });
 
-        clearTimeout(timeoutId2);
+        clearTimeout(timeoutId);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.subtopics && Array.isArray(data.subtopics)) {
+            console.log('✅ Backend API generated subtopics:', data.subtopics);
+            return data.subtopics;
+          }
         }
-
-        const data = await response.json();
-        return data.subtopics || [];
-      } catch (fetchError) {
-        clearTimeout(timeoutId2);
-        if (fetchError.name === 'AbortError') {
-          console.log('LLM API timeout, using fallback subtopics');
-        } else {
-          console.log('LLM API failed, using fallback subtopics');
-        }
-        throw fetchError;
+      } catch (backendError) {
+        console.error('Backend API also failed:', backendError);
       }
+
+      // Final fallback: generate basic subtopics
+      console.log('Using intelligent fallback subtopics generation');
+      return this.generateFallbackSubtopics(searchQuery);
     } catch (error) {
       console.error('Topic decomposition error:', error);
-      console.log('Using fallback subtopics generation');
-      // Fallback to basic subtopics
+      console.log('Using intelligent fallback subtopics generation');
       return this.generateFallbackSubtopics(searchQuery);
     }
   }
@@ -305,7 +251,7 @@ class AffiliateResearchService {
     try {
       // Create abort controller for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for full functionality
 
       const response = await fetch(`${this.baseUrl}/api/affiliate-research`, {
         method: 'POST',
@@ -315,7 +261,6 @@ class AffiliateResearchService {
         body: JSON.stringify({
           search_term: searchTerm,
           topic: topic,
-          user_id: userId,
         }),
         signal: controller.signal,
       });
@@ -745,30 +690,25 @@ class AffiliateResearchService {
   }
 
   /**
-   * Generate fallback subtopics when LLM is not available
+   * Generate intelligent fallback subtopics when LLM is not available
    */
   private generateFallbackSubtopics(topic: string): string[] {
-    // More sophisticated fallback subtopics based on common patterns
-    const fallbackSubtopics = [
-      `${topic} for beginners`,
-      `${topic} advanced techniques`,
-      `${topic} tools and resources`,
-      `${topic} best practices`,
-      `${topic} case studies`,
-      `${topic} trends 2024`,
-      `${topic} comparison`,
-      `${topic} reviews`,
-      `${topic} tutorials`,
-      `${topic} guides`,
-      `${topic} tips and tricks`,
-      `${topic} strategies`,
-      `${topic} examples`,
+    console.log('LLM not available, generating intelligent fallback subtopics');
+    
+    // Generate intelligent fallback subtopics based on common research patterns
+    const baseSubtopics = [
       `${topic} benefits`,
+      `${topic} costs`,
+      `${topic} trends`,
+      `${topic} market analysis`,
+      `${topic} investment opportunities`,
       `${topic} challenges`,
+      `${topic} future outlook`,
+      `${topic} comparison`
     ];
     
-    // Return 8-12 subtopics for better variety
-    return fallbackSubtopics.slice(0, Math.min(12, fallbackSubtopics.length));
+    // Return a subset of the most relevant ones
+    return baseSubtopics.slice(0, 6);
   }
 
 }

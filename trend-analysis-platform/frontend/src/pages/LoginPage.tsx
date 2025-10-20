@@ -47,7 +47,7 @@ export function LoginPage({
   const location = useLocation();
   const { isAuthenticated, user, isLoading } = useAuth();
   
-  console.log('LoginPage rendered - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
+  console.log('🔑 LoginPage rendered - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
 
   // =============================================================================
   // EFFECTS

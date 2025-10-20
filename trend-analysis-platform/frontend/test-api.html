@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .loading { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>API Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Backend Health Check</h2>
+        <button onclick="testBackendHealth()">Test Backend</button>
+        <div id="backend-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Trend Analysis API Test</h2>
+        <button onclick="testTrendAnalysis()">Test Trend Analysis</button>
+        <div id="trend-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Keyword Research API Test</h2>
+        <button onclick="testKeywordResearch()">Test Keyword Research</button>
+        <div id="keyword-result"></div>
+    </div>
+
+    <script>
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = '<div class="loading">Testing backend health...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/trend-analysis/dataforseo?subtopics=phone&location=United%20States&time_range=12m');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Backend is working!</h3>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Backend Error</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testTrendAnalysis() {
+            const resultDiv = document.getElementById('trend-result');
+            resultDiv.innerHTML = '<div class="loading">Testing trend analysis...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/trend-analysis/dataforseo?subtopics=phone,technology&location=United%20States&time_range=12m');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Trend Analysis Working!</h3>
+                        <p>Found ${data.length} trends</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Trend Analysis Error</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testKeywordResearch() {
+            const resultDiv = document.getElementById('keyword-result');
+            resultDiv.innerHTML = '<div class="loading">Testing keyword research...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/keyword-research/dataforseo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        seed_keywords: ['phone'],
+                        max_difficulty: 50,
+                        max_keywords: 5,
+                        location: 'United States'
+                    })
+                });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Keyword Research Working!</h3>
+                        <p>Found ${data.length} keywords</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Keyword Research Error</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Auto-run tests on page load
+        window.onload = function() {
+            testBackendHealth();
+        };
+    </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { apiClient } from './apiClient';
 
 export interface Keyword {
   id: string;
@@ -17,6 +18,7 @@ export interface KeywordGenerationRequest {
   subtopics: string[];
   topicId: string;
   topicTitle: string;
+  userId: string;
 }
 
 export interface KeywordGenerationResponse {
@@ -101,51 +103,30 @@ class KeywordService {
    */
   async generateKeywordsWithLLM(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
     try {
-      // Use the working endpoint from minimal_main.py
-      const response = await fetch('http://localhost:8000/api/keywords/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          subtopics: request.subtopics,
-          topic_title: request.topicTitle,
-          user_id: 'demo-user' // Use demo user for now
-        }),
+      // Use the authenticated API client
+      const response = await apiClient.post('/api/keywords/generate', {
+        subtopics: request.subtopics,
+        topicId: request.topicId,
+        topicTitle: request.topicTitle
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to generate keywords');
       }
 
-      const data = await response.json();
-      
       // Transform the response to match the expected interface
       return {
         success: true,
-        keywords: data.keywords || [],
-        message: `Generated ${data.keywords?.length || 0} keywords`
+        keywords: response.data.keywords || [],
+        message: `Generated ${response.data.keywords?.length || 0} keywords`
       };
     } catch (error) {
       console.error('Failed to generate keywords with LLM:', error);
       
-      // Return mock keywords as fallback
-      const mockKeywords = [];
-      for (const subtopic of request.subtopics.slice(0, 5)) {
-        mockKeywords.push(
-          `${subtopic} guide`,
-          `${subtopic} tips`,
-          `best ${subtopic}`,
-          `${subtopic} tutorial`,
-          `how to ${subtopic}`,
-          `${subtopic} for beginners`
-        );
-      }
-      
       return {
-        success: true,
-        keywords: mockKeywords.slice(0, 20),
-        message: 'Generated mock keywords (backend unavailable)'
+        success: false,
+        keywords: [],
+        message: error instanceof Error ? error.message : 'Failed to generate keywords'
       };
     }
   }

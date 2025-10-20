@@ -22,12 +22,13 @@ class SoftwareService:
     """Service for software solution generation and management"""
     
     def __init__(self):
-        self.openai_api_key = settings.openai_api_key
-        self.anthropic_api_key = settings.anthropic_api_key
-        self.google_ai_api_key = settings.google_ai_api_key
+        # API keys are now retrieved from database as needed
+        self.openai_api_key = None
+        self.anthropic_api_key = None
+        self.google_ai_api_key = None
         
-        # Model configuration
-        self.llm_model = "gpt-4" if self.openai_api_key else "claude-3-sonnet"
+        # Model configuration - will be determined dynamically
+        self.llm_model = "gpt-4"  # Default, will be updated based on available API keys
         self.max_solutions = 10
         self.software_types = [SoftwareType.CALCULATOR, SoftwareType.ANALYZER, SoftwareType.GENERATOR, SoftwareType.CONVERTER, SoftwareType.ESTIMATOR]
         

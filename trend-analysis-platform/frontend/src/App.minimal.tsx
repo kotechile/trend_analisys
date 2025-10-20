@@ -68,8 +68,8 @@ function App() {
           <Tab label="Affiliate Research" />
           <Tab label="LLM Test Suite" />
           <Tab label="Trend Validation" />
+          <Tab label="Keywords Armoury" />
           <Tab label="Idea Burst" />
-          <Tab label="Keyword Armoury" />
           <Tab label="Calendar" />
           <Tab label="Settings" />
         </Tabs>
@@ -83,8 +83,9 @@ function App() {
             <Route path="/affiliate-research" element={<PlaceholderPage title="Affiliate Research" />} />
             <Route path="/llm-test-suite" element={<PlaceholderPage title="LLM Test Suite" />} />
             <Route path="/trend-validation" element={<PlaceholderPage title="Trend Validation" />} />
+            <Route path="/keywords_armoury" element={<IdeaBurst />} />
             <Route path="/idea-burst" element={<IdeaBurst />} />
-            <Route path="/keyword-armoury" element={<PlaceholderPage title="Keyword Armoury" />} />
+            <Route path="/keyword-armoury" element={<PlaceholderPage title="Idea Burst" />} />
             <Route path="/calendar" element={<PlaceholderPage title="Calendar" />} />
             <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
           </Routes>

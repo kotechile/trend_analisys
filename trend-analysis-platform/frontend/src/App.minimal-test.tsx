@@ -22,10 +22,10 @@ function App() {
             Trend Validation
           </button>
           <button style={{ padding: '10px 20px', border: '1px solid #ccc', background: '#f0f0f0' }}>
-            Idea Burst
+            Keywords Armoury
           </button>
           <button style={{ padding: '10px 20px', border: '1px solid #ccc', background: '#f0f0f0' }}>
-            Keyword Armoury
+            Idea Burst
           </button>
           <button style={{ padding: '10px 20px', border: '1px solid #ccc', background: '#f0f0f0' }}>
             Calendar

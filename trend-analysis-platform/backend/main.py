@@ -88,6 +88,23 @@ app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1", "*.localhost"]
 )
 
+# Import and include DataForSEO router
+try:
+    from src.routers.dataforseo_router import router as dataforseo_router
+    app.include_router(dataforseo_router)
+    logger.info("DataForSEO router included successfully")
+except ImportError as e:
+    logger.warning(f"Could not import DataForSEO router: {e}")
+    # Fallback to functional router
+    try:
+        from src.routers.functional_dataforseo_router import router as dataforseo_router
+        app.include_router(dataforseo_router)
+        logger.info("Functional DataForSEO router included as fallback")
+    except Exception as fallback_error:
+        logger.error(f"Could not import any DataForSEO router: {fallback_error}")
+except Exception as e:
+    logger.error(f"Error including DataForSEO router: {e}")
+
 class TopicDecompositionRequest(BaseModel):
     search_query: str
     user_id: str
@@ -175,8 +192,7 @@ class GoogleAutocompleteService:
             logger.warning(f"Google Autocomplete error: {str(e)}")
             return []
 
-# Initialize Google Autocomplete service
-google_autocomplete = GoogleAutocompleteService()
+# REMOVED: Google Autocomplete service - was causing rate limiting and CORS issues
 
 # Database helper functions
 def save_content_ideas(ideas: List[Dict[str, Any]], user_id: str, topic_id: str) -> bool:
@@ -358,8 +374,8 @@ async def generate_content_with_llm(prompt: str, provider: str = "openai") -> Di
         
         logger.info(f"🔍 Using active provider: {provider_type} with model: {model_name}")
         
-        # Get API key for the active provider
-        response = supabase.table('api_keys').select('key_value').eq('key_name', f'{provider_type}_api_key').eq('is_active', True).execute()
+        # Get API key for the active provider - always read from Supabase by provider
+        response = supabase.table('api_keys').select('key_value').eq('provider', provider_type).eq('is_active', True).execute()
         
         if not response.data:
             logger.warning(f"No API key found for provider: {provider_type}")
@@ -438,6 +454,45 @@ async def generate_content_with_llm(prompt: str, provider: str = "openai") -> Di
                     }
                 else:
                     logger.error(f"❌ DeepSeek response missing choices: {data}")
+                    return {"content": "", "error": "Invalid response format"}
+        
+        elif provider_type == "neurorouters":
+            # NeuroRouters API for GPT-5 Mini
+            payload = {
+                "model": f"openai/{model_name}",  # Format: openai/gpt-5-mini
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 2000,
+                "temperature": 0.7
+            }
+            
+            # Get the base URL from provider config
+            base_url = active_provider.get('base_url', 'https://neurorouters.com/api/v1')
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                logger.info(f"✅ NeuroRouters API successful with model: {model_name}")
+                logger.info(f"🔍 NeuroRouters response data: {data}")
+                
+                if "choices" in data and data["choices"] and "message" in data["choices"][0]:
+                    content = data["choices"][0]["message"]["content"]
+                    logger.info(f"🔍 NeuroRouters content: {content[:100]}...")
+                    return {
+                        "content": content,
+                        "provider": "neurorouters",
+                        "model": model_name
+                    }
+                else:
+                    logger.error(f"❌ NeuroRouters response missing choices: {data}")
                     return {"content": "", "error": "Invalid response format"}
         
         else:
@@ -598,36 +653,21 @@ async def enhanced_decompose_topic(request: TopicDecompositionRequest):
         logger.info(f"🔍 Attempting enhanced LLM generation for topic: {topic}")
         
         # Get Google Autocomplete suggestions if enabled
-        autocomplete_suggestions = []
-        if request.use_autocomplete:
-            logger.info("🔍 Getting Google Autocomplete suggestions...")
-            autocomplete_suggestions = await google_autocomplete.get_suggestions(topic)
-            logger.info(f"🔍 Got {len(autocomplete_suggestions)} autocomplete suggestions: {autocomplete_suggestions[:5]}")
+        # REMOVED: Google Autocomplete suggestions - was causing rate limiting and CORS issues
         
-        # Create enhanced prompt with real Google Autocomplete data
-        autocomplete_context = ""
-        if autocomplete_suggestions:
-            autocomplete_context = f"""
-            
-            REAL GOOGLE AUTOCOMPLETE SUGGESTIONS for "{topic}":
-            {', '.join(autocomplete_suggestions[:8])}
-            
-            Use these real search suggestions to inform your subtopic generation. Focus on the most commercial and affiliate-friendly suggestions.
-            """
+        # Create enhanced prompt without autocomplete data
         
         prompt = f"""
-        Analyze the topic "{topic}" for affiliate marketing research. Use the real Google search data provided below to create highly targeted subtopics.
+        Analyze the topic "{topic}" for affiliate marketing research and create highly targeted subtopics.
         
         Break it down into {max_subtopics} specific, high-value subtopics that would be excellent for affiliate marketing content:
         
         Each subtopic should be:
-        - Based on the actual search behavior shown in the autocomplete data
         - Highly commercial and affiliate-friendly
         - Specific enough to target long-tail keywords
         - Different enough to avoid keyword cannibalization
         - Actionable for content creators and marketers
-        - Inspired by real user search patterns
-        {autocomplete_context}
+        - Based on real user search patterns and market demand
         
         Consider these angles:
         - Product reviews and comparisons
@@ -738,184 +778,14 @@ class AffiliateResearchResponse(BaseModel):
     message: str
     programs: List[AffiliateProgram]
 
-async def _get_enhanced_programs(search_term: str, topic: str) -> List[AffiliateProgram]:
-    """Get enhanced, topic-specific affiliate programs"""
-    search_lower = search_term.lower()
-    programs = []
-    
-    # Solar Panel specific programs
-    if any(word in search_lower for word in ["solar", "panel", "installation", "energy", "renewable"]):
-        programs.extend([
-            AffiliateProgram(
-                id="solar-1",
-                name="SunPower Solar Affiliate Program",
-                description="Premium solar panel installation and energy solutions",
-                commission_rate="3-5%",
-                network="CJ Affiliate",
-                epc="$45.20",
-                link="https://us.sunpower.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="solar-2",
-                name="Tesla Solar Affiliate Program",
-                description="Tesla solar panels and Powerwall energy storage systems",
-                commission_rate="2-4%",
-                network="Tesla Partners",
-                epc="$38.50",
-                link="https://www.tesla.com/energy/affiliate"
-            ),
-            AffiliateProgram(
-                id="solar-3",
-                name="Sunrun Solar Affiliate Program",
-                description="Solar lease and purchase programs for residential customers",
-                commission_rate="4-6%",
-                network="ShareASale",
-                epc="$52.30",
-                link="https://www.sunrun.com/affiliate"
-            )
-        ])
-    
-    # Smart Home specific programs
-    if any(word in search_lower for word in ["smart", "home", "technology", "automation", "iot"]):
-        programs.extend([
-            AffiliateProgram(
-                id="smart-1",
-                name="Amazon Smart Home Affiliate Program",
-                description="Alexa devices, smart home products, and automation systems",
-                commission_rate="1-4%",
-                network="Amazon Associates",
-                epc="$12.80",
-                link="https://affiliate-program.amazon.com"
-            ),
-            AffiliateProgram(
-                id="smart-2",
-                name="Google Nest Affiliate Program",
-                description="Google Nest smart home devices and security systems",
-                commission_rate="3-6%",
-                network="CJ Affiliate",
-                epc="$18.40",
-                link="https://store.google.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="smart-3",
-                name="Ring Security Affiliate Program",
-                description="Ring doorbells, security cameras, and home monitoring systems",
-                commission_rate="4-8%",
-                network="Ring Partners",
-                epc="$22.60",
-                link="https://ring.com/affiliate"
-            )
-        ])
-    
-    # Sustainable Building Materials
-    if any(word in search_lower for word in ["sustainable", "building", "materials", "construction", "green"]):
-        programs.extend([
-            AffiliateProgram(
-                id="sustainable-1",
-                name="Eco Building Materials Affiliate Program",
-                description="Sustainable construction materials and green building supplies",
-                commission_rate="5-8%",
-                network="ShareASale",
-                epc="$28.90",
-                link="https://ecobuildingmaterials.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="sustainable-2",
-                name="Bamboo Flooring Direct Affiliate Program",
-                description="Eco-friendly bamboo flooring and sustainable home materials",
-                commission_rate="6-10%",
-                network="CJ Affiliate",
-                epc="$35.20",
-                link="https://bambooflooringdirect.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="sustainable-3",
-                name="Reclaimed Wood Co. Affiliate Program",
-                description="Reclaimed wood flooring, beams, and sustainable lumber",
-                commission_rate="7-12%",
-                network="Direct",
-                epc="$42.80",
-                link="https://reclaimedwoodco.com/affiliate"
-            )
-        ])
-    
-    # Energy Efficient Features
-    if any(word in search_lower for word in ["energy", "efficient", "efficiency", "insulation", "windows"]):
-        programs.extend([
-            AffiliateProgram(
-                id="energy-1",
-                name="Energy Star Products Affiliate Program",
-                description="Energy-efficient appliances, windows, and home products",
-                commission_rate="2-5%",
-                network="CJ Affiliate",
-                epc="$15.60",
-                link="https://energystar.gov/affiliate"
-            ),
-            AffiliateProgram(
-                id="energy-2",
-                name="Andersen Windows Affiliate Program",
-                description="Energy-efficient windows and doors for eco-friendly homes",
-                commission_rate="3-6%",
-                network="ShareASale",
-                epc="$25.40",
-                link="https://andersenwindows.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="energy-3",
-                name="Owens Corning Insulation Affiliate Program",
-                description="Energy-efficient insulation and building materials",
-                commission_rate="4-7%",
-                network="CJ Affiliate",
-                epc="$18.90",
-                link="https://owenscorning.com/affiliate"
-            )
-        ])
-    
-    # Tiny Homes specific
-    if any(word in search_lower for word in ["tiny", "home", "small", "minimalist", "portable"]):
-        programs.extend([
-            AffiliateProgram(
-                id="tiny-1",
-                name="Tiny House Build Affiliate Program",
-                description="Tiny house plans, kits, and construction materials",
-                commission_rate="8-15%",
-                network="ClickBank",
-                epc="$45.80",
-                link="https://tinyhousebuild.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="tiny-2",
-                name="Tumbleweed Tiny Houses Affiliate Program",
-                description="Custom tiny house designs and mobile home solutions",
-                commission_rate="5-10%",
-                network="ShareASale",
-                epc="$38.20",
-                link="https://tumbleweedhouses.com/affiliate"
-            ),
-            AffiliateProgram(
-                id="tiny-3",
-                name="Tiny House Listings Affiliate Program",
-                description="Tiny house rentals, sales, and community listings",
-                commission_rate="6-12%",
-                network="CJ Affiliate",
-                epc="$28.50",
-                link="https://tinyhouselistings.com/affiliate"
-            )
-        ])
-    
-    return programs
+# REMOVED: Mock enhanced programs function - using only real API calls
 
-@app.post("/api/google-autocomplete")
-async def get_google_autocomplete(request: AutocompleteRequest):
-    """Get Google Autocomplete suggestions for a query"""
-    print("🔍 Google Autocomplete endpoint called!")
-    try:
-        logger.info(f"🔍 Getting Google Autocomplete suggestions for: {request.query}")
-        suggestions = await google_autocomplete.get_suggestions(request.query)
-        return {"suggestions": suggestions, "query": request.query, "count": len(suggestions)}
-    except Exception as e:
-        logger.error(f"Google Autocomplete error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Autocomplete error: {str(e)}")
+# REMOVED: Google Autocomplete API - was causing rate limiting and CORS issues
+
+@app.get("/api/test-affiliate")
+async def test_affiliate():
+    """Test endpoint to verify routing works"""
+    return {"message": "Affiliate research routing works!", "status": "success"}
 
 @app.post("/api/affiliate-research", response_model=AffiliateResearchResponse)
 async def affiliate_research(request: AffiliateResearchRequest):
@@ -969,9 +839,7 @@ async def affiliate_research(request: AffiliateResearchRequest):
                     link=program.get("link", "#")
                 ))
             
-            # Add enhanced specific programs based on search term
-            enhanced_programs = await _get_enhanced_programs(request.search_term, request.topic)
-            affiliate_programs.extend(enhanced_programs)
+            # Only use real programs from the search service
             
             # Remove duplicates based on name and network
             unique_programs = []
@@ -992,50 +860,12 @@ async def affiliate_research(request: AffiliateResearchRequest):
             
     except Exception as e:
         logger.error(f"Real affiliate search failed: {e}")
-        logger.info("Falling back to enhanced mock search")
-        
-        # Use enhanced programs as fallback
-        programs = await _get_enhanced_programs(request.search_term, request.topic)
-        
-        # FINAL FALLBACK: If no specific programs found, use general eco-friendly programs
-        # This is only used when the enhanced topic-specific matching fails
-        if not programs:
-            programs = [
-                AffiliateProgram(
-                    id="eco-general-1",
-                    name="EcoHome Solutions Affiliate Program",
-                    description="Comprehensive eco-friendly home products and sustainable living solutions",
-                    commission_rate="5-8%",
-                    network="EcoAffiliates",
-                    epc="$22.50",
-                    link="https://ecohomesolutions.com/affiliate"
-                ),
-                AffiliateProgram(
-                    id="eco-general-2",
-                    name="Green Energy Partners Affiliate Program",
-                    description="Solar panels, wind turbines, and renewable energy solutions",
-                    commission_rate="3-6%",
-                    network="GreenNet",
-                    epc="$34.20",
-                    link="https://greenenergypartners.com/affiliate"
-                ),
-                AffiliateProgram(
-                    id="eco-general-3",
-                    name="Sustainable Living Store Affiliate Program",
-                    description="Eco-conscious products and sustainable home solutions",
-                    commission_rate="4-7%",
-                    network="EcoCommerce",
-                    epc="$18.80",
-                    link="https://sustainablelivingstore.com/affiliate"
-                )
-            ]
-        
-        logger.info(f"✅ Returning {len(programs)} enhanced affiliate programs")
+        logger.info("No real affiliate programs found")
         
         return AffiliateResearchResponse(
-            success=True,
-            message=f"Found {len(programs)} affiliate programs for '{request.search_term}'",
-            programs=programs
+            programs=[],
+            success=False,
+            message=f"No affiliate programs found for '{request.search_term}'. Please try a different search term."
         )
 
 # AHREFS Integration Endpoints
@@ -1762,65 +1592,47 @@ class ContentIdeaGenerationRequest(BaseModel):
     topic_id: str
     topic_title: str
     subtopics: List[str]
-    keywords: List[str] = []  # Make optional with default empty list
+    keywords: List[Dict[str, Any]] = []  # Changed to accept rich keyword data
     user_id: str
     content_types: List[str] = ["blog", "software"]  # Default content types
 
 @app.post("/api/content-ideas/generate")
 async def generate_content_ideas(request: ContentIdeaGenerationRequest):
     """
-    Generate content ideas based on topic, subtopics, and keywords
+    Generate content ideas based on topic, subtopics, and keywords with rich metrics
     """
     try:
+        from src.services.content_idea_generator import ContentIdeaGenerator
+        
         logger.info(f"Generating content ideas for topic: {request.topic_title}")
         logger.info(f"Subtopics: {request.subtopics}")
-        logger.info(f"Keywords: {len(request.keywords)}")
+        logger.info(f"Keywords: {len(request.keywords)} keywords with rich metrics")
         
         # Handle empty subtopics by using topic title
         subtopics_to_use = request.subtopics if request.subtopics else [request.topic_title]
         logger.info(f"Using subtopics: {subtopics_to_use}")
         
-        all_ideas = []
-        blog_ideas = []
-        software_ideas = []
+        # Use the enhanced ContentIdeaGenerator
+        generator = ContentIdeaGenerator()
         
-        # Generate blog ideas for each subtopic
-        if "blog" in request.content_types:
-            for subtopic in subtopics_to_use:
-                subtopic_blog_ideas = await generate_blog_ideas_for_subtopic_with_keywords(
-                    subtopic, request.topic_id, request.topic_title, request.keywords, request.user_id
-                )
-                blog_ideas.extend(subtopic_blog_ideas)
-                all_ideas.extend(subtopic_blog_ideas)
+        result = await generator.generate_content_ideas(
+            topic_id=request.topic_id,
+            topic_title=request.topic_title,
+            subtopics=subtopics_to_use,
+            keywords=request.keywords,
+            user_id=request.user_id,
+            content_types=request.content_types
+        )
         
-        # Generate software ideas
-        if "software" in request.content_types:
-            software_ideas = generate_software_ideas_for_topic_with_keywords(
-                request.topic_id, request.topic_title, request.keywords, request.user_id
-            )
-            all_ideas.extend(software_ideas)
-        
-        logger.info(f"Generated {len(all_ideas)} total ideas: {len(blog_ideas)} blog, {len(software_ideas)} software")
-        
-        # Save ideas to database if we have any
-        if all_ideas:
-            logger.info(f"🔄 Attempting to save {len(all_ideas)} ideas to database...")
-            save_success = save_content_ideas(
-                ideas=all_ideas,
-                user_id=request.user_id,
-                topic_id=request.topic_id
-            )
-            logger.info(f"💾 Save result: {save_success}")
-        else:
-            save_success = False
+        logger.info(f"Generated {result['total_ideas']} total ideas: {result['blog_ideas']} blog, {result['software_ideas']} software")
         
         return {
-            "success": True,
-            "ideas": all_ideas,
-            "total_ideas": len(all_ideas),
-            "blog_ideas": len(blog_ideas),
-            "software_ideas": len(software_ideas),
-            "saved_to_database": save_success
+            "success": result["success"],
+            "message": f"Successfully generated {result['total_ideas']} content ideas",
+            "total_ideas": result["total_ideas"],
+            "blog_ideas": result["blog_ideas"],
+            "software_ideas": result["software_ideas"],
+            "ideas": result["ideas"]
         }
         
     except Exception as e:
@@ -2121,8 +1933,8 @@ def generate_software_ideas_for_topic_with_keywords(
 # Keywords Generation Endpoint
 class KeywordGenerationRequest(BaseModel):
     subtopics: List[str]
-    topic_title: str
-    user_id: str
+    topicId: str
+    topicTitle: str
 
 class KeywordGenerationResponse(BaseModel):
     keywords: List[str]
@@ -2132,62 +1944,158 @@ class KeywordGenerationResponse(BaseModel):
 @app.post("/api/keywords/generate", response_model=KeywordGenerationResponse)
 async def generate_keywords(request: KeywordGenerationRequest):
     """
-    Generate keywords using LLM for given subtopics
+    Generate simple seed keywords (max 3 words) using LLM for all subtopics
     """
     try:
-        logger.info(f"Generating keywords for topic: {request.topic_title}, subtopics: {len(request.subtopics)}")
+        logger.info(f"Generating seed keywords for topic: {request.topicTitle}, subtopics: {len(request.subtopics)}")
         
-        # Generate keywords using the existing Google Autocomplete service
-        autocomplete_service = GoogleAutocompleteService()
+        # Create LLM prompt for seed keyword generation
+        subtopics_list = ', '.join(request.subtopics)
+        prompt = f"""
+Generate seed keywords for the topic "{request.topicTitle}" and its subtopics: {subtopics_list}
+
+IMPORTANT REQUIREMENTS:
+- Generate 5-8 seed keywords for EACH subtopic
+- Each keyword must be 1, 2, or 3 words (vary the length - don't make them all the same length)
+- Keywords should be related to their specific subtopic
+- Focus on basic, foundational terms perfect for seed keyword research
+- Keywords should be commercial and affiliate-friendly
+- Avoid long-tail keywords - these are seed keywords for further research
+- Return ALL keywords in a single flat list (not grouped by subtopic)
+- Mix single words, two-word phrases, and three-word phrases for variety
+
+Format the response as a JSON array of strings with all keywords in one list.
+
+Example format:
+[
+  "subtopic1",
+  "subtopic1 guide", 
+  "subtopic1 tips",
+  "subtopic1 tools",
+  "subtopic2",
+  "subtopic2 basics",
+  "subtopic2 equipment",
+  "subtopic3",
+  "subtopic3 course",
+  "subtopic3 software"
+]
+
+Generate seed keywords for ALL subtopics: {subtopics_list}
+Return all keywords in a single flat JSON array.
+"""
+        
+        # Try to get LLM response
+        llm_result = await generate_content_with_llm(prompt)
+        
+        if llm_result.get('content') and 'error' not in llm_result:
+            logger.info("Using LLM-generated seed keywords")
+            
+            # Parse LLM response
+            import json
+            import re
+            
+            content = llm_result['content']
+            if isinstance(content, list) and len(content) > 0:
+                content = content[0].get('text', '')
+            
+            # Extract JSON from response
+            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            if json_match:
+                try:
+                    keywords = json.loads(json_match.group())
+                    if isinstance(keywords, list):
+                        # Filter to ensure all keywords are 3 words or less
+                        filtered_keywords = [kw for kw in keywords if len(kw.split()) <= 3]
+                        
+                        # Remove duplicates while preserving order
+                        unique_keywords = list(dict.fromkeys(filtered_keywords))
+                        
+                        logger.info(f"Generated {len(unique_keywords)} seed keywords using LLM")
+                        
+                        return KeywordGenerationResponse(
+                            keywords=unique_keywords,
+                            success=True,
+                            message=f"Generated {len(unique_keywords)} simple seed keywords for all {len(request.subtopics)} subtopics"
+                        )
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse JSON from LLM response: {str(e)}")
+            else:
+                logger.warning("No JSON array found in LLM response")
+        else:
+            logger.warning("LLM service unavailable, using fallback seed keywords")
+        
+        # Fallback: Generate simple rule-based seed keywords for all subtopics
         all_keywords = []
         
         for subtopic in request.subtopics:
-            try:
-                # Get autocomplete suggestions for each subtopic
-                suggestions = await autocomplete_service.get_suggestions(subtopic)
-                all_keywords.extend(suggestions[:5])  # Limit to 5 per subtopic
-                
-                # Add some rule-based keywords
-                rule_based = [
-                    f"{subtopic} guide",
-                    f"{subtopic} tips", 
-                    f"best {subtopic}",
-                    f"{subtopic} tutorial",
-                    f"how to {subtopic}",
-                    f"{subtopic} for beginners",
-                    f"{subtopic} strategies",
-                    f"{subtopic} tools"
-                ]
-                all_keywords.extend(rule_based)
-                
-            except Exception as e:
-                logger.warning(f"Failed to get suggestions for {subtopic}: {str(e)}")
-                # Add fallback keywords
-                fallback = [
-                    f"{subtopic} guide",
-                    f"{subtopic} tips",
-                    f"best {subtopic}",
-                    f"{subtopic} tutorial"
-                ]
-                all_keywords.extend(fallback)
+            # Generate simple seed keywords (max 3 words) for each subtopic
+            seed_keywords = [
+                subtopic,
+                f"{subtopic} guide",
+                f"{subtopic} tips",
+                f"{subtopic} tools",
+                f"{subtopic} basics",
+                f"best {subtopic}",
+                f"learn {subtopic}",
+                f"{subtopic} tutorial",
+                f"{subtopic} course",
+                f"{subtopic} software",
+                f"{subtopic} equipment",
+                f"{subtopic} techniques",
+                f"{subtopic} strategies",
+                f"{subtopic} resources",
+                f"{subtopic} reviews"
+            ]
+            
+            # Add topic-specific simple seed keywords
+            topic_lower = request.topic_title.lower()
+            if any(word in topic_lower for word in ["eco", "green", "sustainable", "environment"]):
+                seed_keywords.extend([
+                    f"{subtopic} eco",
+                    f"{subtopic} green",
+                    f"{subtopic} sustainable",
+                    f"eco {subtopic}",
+                    f"green {subtopic}",
+                    f"sustainable {subtopic}"
+                ])
+            elif any(word in topic_lower for word in ["photography", "photo"]):
+                seed_keywords.extend([
+                    f"{subtopic} camera",
+                    f"{subtopic} lighting",
+                    f"{subtopic} editing",
+                    f"photo {subtopic}",
+                    f"{subtopic} photography"
+                ])
+            elif any(word in topic_lower for word in ["travel", "trip"]):
+                seed_keywords.extend([
+                    f"{subtopic} destinations",
+                    f"{subtopic} planning",
+                    f"travel {subtopic}",
+                    f"{subtopic} vacation"
+                ])
+            
+            # Filter to only include keywords with 3 words or less
+            filtered_subtopic_keywords = [kw for kw in seed_keywords if len(kw.split()) <= 3]
+            all_keywords.extend(filtered_subtopic_keywords)
         
         # Remove duplicates while preserving order
         unique_keywords = list(dict.fromkeys(all_keywords))
         
-        # Limit to 20 keywords total
-        final_keywords = unique_keywords[:20]
-        
-        logger.info(f"Generated {len(final_keywords)} keywords")
+        logger.info(f"Generated {len(unique_keywords)} fallback seed keywords for all {len(request.subtopics)} subtopics")
         
         return KeywordGenerationResponse(
-            keywords=final_keywords,
+            keywords=unique_keywords,
             success=True,
-            message=f"Generated {len(final_keywords)} keywords"
+            message=f"Generated {len(unique_keywords)} simple seed keywords for all {len(request.subtopics)} subtopics"
         )
         
     except Exception as e:
-        logger.error(f"Error generating keywords: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate keywords: {str(e)}")
+        logger.error(f"Error generating seed keywords: {str(e)}")
+        return KeywordGenerationResponse(
+            keywords=[],
+            success=False,
+            message=f"Error generating seed keywords: {str(e)}"
+        )
 
 # Content Ideas Management Endpoints
 class ContentIdeasListRequest(BaseModel):

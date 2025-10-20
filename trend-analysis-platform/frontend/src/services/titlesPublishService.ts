@@ -264,27 +264,9 @@ class TitlesPublishService {
       return 'expert';
     };
 
-    // Calculate estimated word count based on content type
-    const getEstimatedWordCount = (contentType: string): number => {
-      const wordCountMap: Record<string, number> = {
-        'article': 2500,
-        'comparison': 2000,
-        'guide': 3000,
-        'tutorial': 2000,
-        'review': 1500,
-        'list': 1000,
-        'case_study': 2000,
-        'whitepaper': 5000,
-        'infographic': 500,
-        'video_script': 1500,
-        'podcast_script': 2000
-      };
-      return wordCountMap[contentType] || 2500;
-    };
-
-    // Calculate estimated reading time (average 200 words per minute)
-    const estimatedWordCount = getEstimatedWordCount(idea.content_type);
-    const estimatedReadingTime = Math.ceil(estimatedWordCount / 200);
+    // Use estimated word count from idea if available, otherwise calculate
+    const estimatedWordCount = idea.estimated_word_count || (idea.estimated_read_time ? idea.estimated_read_time * 200 : 2500);
+    const estimatedReadingTime = idea.estimated_read_time || Math.ceil(estimatedWordCount / 200);
 
     return {
       id: crypto.randomUUID(),
@@ -311,10 +293,10 @@ class TitlesPublishService {
       difficulty_level: getDifficultyLevel(idea.average_difficulty || 50),
       estimated_word_count: estimatedWordCount,
       estimated_reading_time: estimatedReadingTime,
-      target_audience: '',
+      target_audience: idea.target_audience || '',
       
       // Quality scores (map from idea scores and Ahrefs data)
-      overall_quality_score: Math.round((idea.seo_optimization_score + idea.traffic_potential_score) / 2) || 0,
+      overall_quality_score: idea.overall_quality_score || Math.round((idea.seo_optimization_score + idea.traffic_potential_score) / 2) || 0,
       viral_potential_score: idea.traffic_potential_score || 0,
       seo_optimization_score: idea.seo_optimization_score || 0,
       audience_alignment_score: 0,

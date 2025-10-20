@@ -22,17 +22,18 @@ class ContentService:
     """Service for content generation and management"""
     
     def __init__(self):
-        self.openai_api_key = settings.openai_api_key
-        self.anthropic_api_key = settings.anthropic_api_key
-        self.google_ai_api_key = settings.google_ai_api_key
+        # API keys are now retrieved from database as needed
+        self.openai_api_key = None
+        self.anthropic_api_key = None
+        self.google_ai_api_key = None
         
         # Content optimization APIs
-        self.surfer_seo_api_key = settings.surfer_seo_api_key
-        self.frase_api_key = settings.frase_api_key
-        self.coschedule_api_key = settings.coschedule_api_key
+        self.surfer_seo_api_key = None
+        self.frase_api_key = None
+        self.coschedule_api_key = None
         
-        # Model configuration
-        self.llm_model = "gpt-4" if self.openai_api_key else "claude-3-sonnet"
+        # Model configuration - will be determined dynamically
+        self.llm_model = "gpt-4"  # Default, will be updated based on available API keys
         self.max_ideas = 20
         self.content_types = [ContentType.ARTICLE, ContentType.GUIDE, ContentType.REVIEW, ContentType.TUTORIAL, ContentType.LISTICLE]
         self.content_angles = [ContentAngle.HOW_TO, ContentAngle.VS, ContentAngle.LISTICLE, ContentAngle.PAIN_POINT, ContentAngle.STORY]

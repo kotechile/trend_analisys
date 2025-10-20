@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trend Analysis Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .loading { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover { background: #0056b3; }
+        input { 
+            padding: 8px; 
+            margin: 5px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            width: 200px;
+        }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 3px; 
+            overflow-x: auto; 
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .chart-container {
+            height: 200px;
+            width: 100%;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: flex;
+            align-items: end;
+            gap: 2px;
+            padding: 10px;
+        }
+        .chart-bar {
+            flex: 1;
+            background: #007bff;
+            border-radius: 2px;
+            min-height: 2px;
+            transition: opacity 0.3s;
+        }
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Trend Analysis Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Backend Health Check</h2>
+            <button onclick="testBackendHealth()">Test Backend Connection</button>
+            <div id="backend-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. Trend Analysis Test</h2>
+            <input type="text" id="trend-input" placeholder="Enter topics (e.g., phone, technology)" value="phone,technology">
+            <button onclick="testTrendAnalysis()">Analyze Trends</button>
+            <div id="trend-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. Keyword Research Test</h2>
+            <input type="text" id="keyword-input" placeholder="Enter seed keywords" value="phone">
+            <button onclick="testKeywordResearch()">Research Keywords</button>
+            <div id="keyword-result"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = '<div class="loading">Testing backend health...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/trend-analysis/dataforseo?subtopics=phone&location=United%20States&time_range=12m');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Backend is working!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Backend Error</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>Make sure the backend server is running on port 8000</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testTrendAnalysis() {
+            const resultDiv = document.getElementById('trend-result');
+            const input = document.getElementById('trend-input').value;
+            resultDiv.innerHTML = '<div class="loading">Testing trend analysis...</div>';
+            
+            try {
+                const topics = input.split(',').map(t => t.trim()).filter(t => t);
+                const params = new URLSearchParams({
+                    subtopics: topics.join(','),
+                    location: 'United States',
+                    time_range: '12m'
+                });
+                
+                const response = await fetch(`http://localhost:8000/api/v1/trend-analysis/dataforseo?${params}`);
+                const data = await response.json();
+                
+                let chartHtml = '';
+                if (data.length > 0) {
+                    chartHtml = '<h4>📊 Trend Charts:</h4>';
+                    data.forEach((trend, index) => {
+                        if (trend.timeline_data && trend.timeline_data.length > 0) {
+                            const maxValue = Math.max(...trend.timeline_data.map(p => p.value));
+                            chartHtml += `
+                                <div style="margin: 10px 0;">
+                                    <strong>${trend.subtopic}</strong> (Avg: ${trend.average_interest}, Peak: ${trend.peak_interest})
+                                    <div class="chart-container">
+                                        ${trend.timeline_data.slice(0, 20).map(point => {
+                                            const height = (point.value / maxValue) * 100;
+                                            return `<div class="chart-bar" style="height: ${Math.max(height, 2)}%;" title="${point.date}: ${point.value}"></div>`;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Trend Analysis Working!</h3>
+                        <p><strong>Found ${data.length} trends</strong></p>
+                        ${chartHtml}
+                        <p><strong>Full Response:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Trend Analysis Error</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testKeywordResearch() {
+            const resultDiv = document.getElementById('keyword-result');
+            const input = document.getElementById('keyword-input').value;
+            resultDiv.innerHTML = '<div class="loading">Testing keyword research...</div>';
+            
+            try {
+                const keywords = input.split(',').map(k => k.trim()).filter(k => k);
+                const response = await fetch('http://localhost:8000/api/v1/keyword-research/dataforseo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        seed_keywords: keywords,
+                        max_difficulty: 50,
+                        max_keywords: 10,
+                        location: 'United States'
+                    })
+                });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Keyword Research Working!</h3>
+                        <p><strong>Found ${data.length} keywords</strong></p>
+                        <p><strong>Response:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Keyword Research Error</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Auto-run backend test on page load
+        window.onload = function() {
+            testBackendHealth();
+        };
+    </script>
+</body>
+</html>

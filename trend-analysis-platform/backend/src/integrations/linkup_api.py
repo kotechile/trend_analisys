@@ -9,6 +9,7 @@ import structlog
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from ..core.config import settings
+from ..core.supabase_database import get_supabase_db
 
 logger = structlog.get_logger()
 
@@ -16,12 +17,51 @@ class LinkUpAPI:
     """LinkUp.so API client for affiliate offers search using direct HTTP calls"""
     
     def __init__(self):
-        self.api_key = settings.linkup_api_key
-        self.base_url = "https://api.linkup.so/v1"
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+        self.api_key = None
+        self.base_url = None
+        self.headers = {}
+        self._load_credentials()
+    
+    def _load_credentials(self):
+        """Load LinkUp credentials from Supabase"""
+        try:
+            db = get_supabase_db()
+            result = db.client.table("api_keys").select("key_value, base_url").eq("provider", "linkup").eq("is_active", True).execute()
+            
+            if result.data and len(result.data) > 0:
+                credentials = result.data[0]
+                self.api_key = credentials.get("key_value")
+                base_url = credentials.get("base_url") or "https://api.linkup.so/v1"
+                # Ensure base_url doesn't end with /search to avoid double /search
+                if base_url.endswith("/search"):
+                    self.base_url = base_url
+                else:
+                    self.base_url = base_url.rstrip("/") + "/search"
+                
+                if self.api_key:
+                    self.headers = {
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    logger.info("LinkUp credentials loaded from Supabase", 
+                               base_url=self.base_url, 
+                               api_key_length=len(self.api_key))
+                else:
+                    logger.warning("LinkUp API key not found in Supabase")
+            else:
+                logger.warning("No active LinkUp credentials found in Supabase")
+                
+        except Exception as e:
+            logger.error("Failed to load LinkUp credentials from Supabase", error=str(e))
+            # Fallback to environment variable
+            self.api_key = os.getenv("LINKUP_API_KEY")
+            self.base_url = "https://api.linkup.so/v1"
+            if self.api_key:
+                self.headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                logger.info("Using LinkUp credentials from environment variables")
     
     async def search_offers(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -37,11 +77,12 @@ class LinkUpAPI:
         """
         logger.info("LinkUp.so search_offers called", query=query, category=category, limit=limit)
         
-        if not self.api_key:
-            logger.warning("LinkUp API key not found, skipping real-time search")
+        # Check if credentials are loaded
+        if not self.api_key or not self.base_url:
+            logger.warning("LinkUp credentials not loaded, skipping search")
             return []
         
-        logger.info("LinkUp API key found", api_key_length=len(self.api_key) if self.api_key else 0)
+        logger.info("LinkUp API key found", api_key_length=len(self.api_key) if self.api_key else 0, base_url=self.base_url)
         
         try:
             # Prepare search payload according to LinkUp.so API documentation
@@ -61,28 +102,57 @@ class LinkUpAPI:
                 if category_domains:
                     payload["includeDomains"] = category_domains
             
-            # Make API request using httpx
-            logger.info("Making LinkUp.so API request", url=f"{self.base_url}/search", payload=payload)
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/search",
-                    headers=self.headers,
-                    json=payload
-                )
-                logger.info("LinkUp.so API response received", status_code=response.status_code, response_length=len(response.text))
+            # Make API request using httpx with shorter timeout and retry logic
+            logger.info("Making LinkUp.so API request", url=self.base_url, payload=payload)
+            
+            # Use reasonable timeout and retry logic
+            max_retries = 2
+            timeout_duration = 20.0  # 20 seconds for LinkUp API
+            
+            for attempt in range(max_retries):
+                try:
+                    async with httpx.AsyncClient(timeout=timeout_duration) as client:
+                        response = await client.post(
+                            self.base_url,
+                            headers=self.headers,
+                            json=payload
+                        )
+                        logger.info("LinkUp.so API response received", 
+                                  status_code=response.status_code, 
+                                  response_length=len(response.text),
+                                  attempt=attempt + 1)
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            # Extract affiliate programs from the response
+                            offers = self._extract_affiliate_programs(data, query)
+                            logger.info("LinkUp API search successful", 
+                                      query=query, 
+                                      results_count=len(offers),
+                                      attempt=attempt + 1)
+                            return self._format_offers(offers)
+                        else:
+                            logger.warning("LinkUp API error", 
+                                         status=response.status_code, 
+                                         error=response.text,
+                                         attempt=attempt + 1)
+                            if attempt < max_retries - 1:
+                                await asyncio.sleep(1)  # Wait 1 second before retry
+                                continue
+                            return []
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    # Extract affiliate programs from the response
-                    offers = self._extract_affiliate_programs(data, query)
-                    logger.info("LinkUp API search successful", 
-                              query=query, 
-                              results_count=len(offers))
-                    return self._format_offers(offers)
-                else:
-                    logger.error("LinkUp API error", 
-                               status=response.status_code, 
-                               error=response.text)
+                except asyncio.TimeoutError:
+                    logger.warning("LinkUp API timeout", attempt=attempt + 1, timeout=timeout_duration)
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)  # Wait 1 second before retry
+                        continue
+                    return []
+                
+                except httpx.ConnectError:
+                    logger.warning("LinkUp API connection error", attempt=attempt + 1)
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)  # Wait 1 second before retry
+                        continue
                     return []
         
         except Exception as e:

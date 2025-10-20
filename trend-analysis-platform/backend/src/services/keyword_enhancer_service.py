@@ -74,10 +74,17 @@ class KeywordEnhancerService:
     ) -> List[Dict[str, Any]]:
         """Generate keywords using LLM"""
         try:
-            llm_config = self.llm_manager.get_config()
-            if not llm_config:
-                logger.warning("No LLM config available, using fallback keywords")
-                return self._generate_fallback_keywords(search_term, selected_trends)
+            # Use OpenAI API directly
+            import openai
+            import os
+            
+            # Get OpenAI API key from environment
+            openai_api_key = os.getenv('OPENAI_API_KEY')
+            if not openai_api_key:
+                raise ValueError("OPENAI_API_KEY environment variable not set")
+            
+            # Initialize OpenAI client
+            client = openai.OpenAI(api_key=openai_api_key)
             
             # Prepare context for LLM
             trends_text = "\n".join([f"- {trend}" for trend in selected_trends])
@@ -92,15 +99,22 @@ class KeywordEnhancerService:
             Content Ideas:
             {content_text}
             
+            Requirements:
+            - Maximum 3 words per keyword
+            - Focus on search intent and commercial value
+            - Include both short-tail and long-tail keywords
+            - Avoid generic or overly broad terms
+            - Prioritize keywords that would be useful for content creation
+            
             For each keyword, provide:
-            1. Primary keyword
+            1. Primary keyword (max 3 words)
             2. Search intent (informational, commercial, navigational, transactional)
             3. Difficulty level (1-100)
             4. Estimated search volume
-            5. Related keywords (3-5)
+            5. Related keywords (3-5, max 3 words each)
             6. Content angle suggestions
             
-            Generate 50-100 keywords across different categories:
+            Generate 30-50 keywords across different categories:
             - Primary keywords (exact match)
             - Long-tail keywords
             - Question-based keywords
@@ -108,101 +122,79 @@ class KeywordEnhancerService:
             - Local keywords
             - Seasonal keywords
             
-            Return as JSON array.
-            """
-            
-            # For now, generate structured keywords without LLM call
-            keywords = []
-            
-            # Primary keywords
-            primary_keywords = [
-                search_term,
-                f"{search_term} guide",
-                f"best {search_term}",
-                f"{search_term} tips",
-                f"{search_term} 2024"
-            ]
-            
-            for keyword in primary_keywords:
-                keywords.append({
-                    "keyword": keyword,
+            Return as JSON array with this structure:
+            [
+                {{
+                    "keyword": "example keyword",
                     "intent": "informational",
                     "difficulty": 45,
                     "search_volume": 5000,
-                    "related_keywords": [f"{keyword} for beginners", f"{keyword} cost", f"{keyword} benefits"],
-                    "content_angles": [f"Complete {keyword} guide", f"{keyword} comparison", f"{keyword} tips"],
+                    "related_keywords": ["related 1", "related 2"],
+                    "content_angles": ["angle 1", "angle 2"],
                     "category": "primary"
-                })
-            
-            # Long-tail keywords
-            for trend in selected_trends[:3]:
-                long_tail = f"{search_term} {trend.lower()}"
-                keywords.append({
-                    "keyword": long_tail,
-                    "intent": "commercial",
-                    "difficulty": 35,
-                    "search_volume": 2000,
-                    "related_keywords": [f"{long_tail} benefits", f"{long_tail} cost", f"{long_tail} reviews"],
-                    "content_angles": [f"{long_tail} complete guide", f"Best {long_tail} options"],
-                    "category": "long_tail"
-                })
-            
-            # Question-based keywords
-            question_keywords = [
-                f"what is {search_term}",
-                f"how to choose {search_term}",
-                f"why {search_term} is important",
-                f"when to use {search_term}",
-                f"where to find {search_term}"
+                }}
             ]
+            """
             
-            for keyword in question_keywords:
-                keywords.append({
-                    "keyword": keyword,
-                    "intent": "informational",
-                    "difficulty": 25,
-                    "search_volume": 1500,
-                    "related_keywords": [f"{keyword} guide", f"{keyword} tips", f"{keyword} benefits"],
-                    "content_angles": [f"Answering {keyword}", f"{keyword} explained"],
-                    "category": "question"
-                })
+            # Call OpenAI API
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a professional SEO keyword researcher. Generate high-quality, targeted keywords for content marketing. Always return valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=3000,
+                temperature=0.7
+            )
             
-            return keywords
+            # Parse response
+            keywords_text = response.choices[0].message.content.strip()
+            
+            # Try to parse as JSON
+            try:
+                keywords = json.loads(keywords_text)
+            except json.JSONDecodeError:
+                # If JSON parsing fails, extract keywords from text
+                lines = [line.strip() for line in keywords_text.split('\n') if line.strip()]
+                keywords = []
+                for line in lines:
+                    if '"keyword"' in line:
+                        try:
+                            # Extract keyword from JSON-like line
+                            keyword_match = line.split('"keyword": "')[1].split('"')[0]
+                            if len(keyword_match.split()) <= 3:
+                                keywords.append({
+                                    "keyword": keyword_match,
+                                    "intent": "informational",
+                                    "difficulty": 50,
+                                    "search_volume": 1000,
+                                    "related_keywords": [],
+                                    "content_angles": [],
+                                    "category": "generated"
+                                })
+                        except:
+                            continue
+            
+            # Filter to ensure max 3 words and remove duplicates
+            filtered_keywords = []
+            seen = set()
+            for keyword_data in keywords:
+                if isinstance(keyword_data, dict) and 'keyword' in keyword_data:
+                    keyword = keyword_data['keyword']
+                    if len(keyword.split()) <= 3 and keyword.lower() not in seen:
+                        filtered_keywords.append(keyword_data)
+                        seen.add(keyword.lower())
+            
+            logger.info("Keywords generated successfully with LLM", 
+                       search_term=search_term,
+                       keywords_count=len(filtered_keywords))
+            
+            return filtered_keywords
             
         except Exception as e:
             logger.error("Failed to generate keywords with LLM", error=str(e))
-            return self._generate_fallback_keywords(search_term, selected_trends)
+            raise ValueError(f"Failed to generate keywords: {str(e)}")
 
-    def _generate_fallback_keywords(
-        self,
-        search_term: str,
-        selected_trends: List[str]
-    ) -> List[Dict[str, Any]]:
-        """Generate fallback keywords without LLM"""
-        keywords = []
-        
-        # Basic keyword variations
-        variations = [
-            f"{search_term} guide",
-            f"best {search_term}",
-            f"{search_term} tips",
-            f"{search_term} 2024",
-            f"how to {search_term}",
-            f"{search_term} for beginners"
-        ]
-        
-        for keyword in variations:
-            keywords.append({
-                "keyword": keyword,
-                "intent": "informational",
-                "difficulty": 40,
-                "search_volume": 3000,
-                "related_keywords": [f"{keyword} benefits", f"{keyword} cost"],
-                "content_angles": [f"Complete {keyword} guide"],
-                "category": "primary"
-            })
-        
-        return keywords
 
     def _categorize_keywords(self, keywords: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Categorize keywords by type and intent"""

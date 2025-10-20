@@ -76,9 +76,36 @@ export interface ContentIdeaGenerationRequest {
   topic_id: string;
   topic_title: string;
   subtopics: string[];
-  keywords: string[];
+  keywords: KeywordData[];  // Changed to accept rich keyword data
   user_id: string;
   content_types?: ('blog' | 'software')[];
+}
+
+export interface OptimizedContentIdeaGenerationRequest {
+  topic_id: string;
+  topic_title: string;
+  subtopics?: string[];
+  user_id: string;
+  content_types?: ('blog' | 'software')[];
+  max_keywords?: number;
+}
+
+export interface KeywordData {
+  id: string;
+  keyword: string;
+  search_volume: number;
+  keyword_difficulty: number;
+  cpc: number;
+  competition_value: number;
+  intent_type: string;
+  priority_score: number;
+  related_keywords: string[];
+  search_volume_trend: any[];
+  topic_id: string;
+  user_id: string;
+  source: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ContentIdeaGenerationResponse {
@@ -92,51 +119,172 @@ export interface ContentIdeaGenerationResponse {
 
 class ContentIdeasService {
   /**
+   * Check if the backend is ready
+   */
+  private async checkBackendHealth(): Promise<boolean> {
+    try {
+      const response = await fetch('http://localhost:8000/docs', { method: 'GET' });
+      return response.ok;
+    } catch (error) {
+      console.log('Backend health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
    * Generate content ideas based on subtopics and keywords
    */
   async generateContentIdeas(request: ContentIdeaGenerationRequest): Promise<ContentIdeaGenerationResponse> {
-    try {
-      // Use the working endpoint from minimal_main.py
-      const requestBody = {
-        topic_id: request.topic_id,
-        topic_title: request.topic_title,
-        subtopics: request.subtopics,
-        keywords: request.keywords || [], // Include keywords field
-        user_id: request.user_id,
-        content_types: request.content_types || ['blog', 'software']
-      };
-      
-      console.log('🔍 Frontend sending request:', JSON.stringify(requestBody, null, 2));
-      
-      const response = await fetch('http://localhost:8000/api/content-ideas/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Backend error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      
-      // Transform the response to match the expected interface
-      return {
-        success: result.success || true,
-        message: `Generated ${result.total_ideas} content ideas`,
-        total_ideas: result.total_ideas || 0,
-        blog_ideas: result.blog_ideas || 0,
-        software_ideas: result.software_ideas || 0,
-        ideas: result.ideas || []
-      };
-    } catch (error) {
-      console.error('Failed to generate content ideas:', error);
-      throw error;
+    // Check if backend is ready first
+    const isBackendReady = await this.checkBackendHealth();
+    if (!isBackendReady) {
+      console.log('⚠️ Backend not ready, waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
+
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Use the working endpoint from minimal_main.py
+        const requestBody = {
+          topic_id: request.topic_id,
+          topic_title: request.topic_title,
+          subtopics: request.subtopics,
+          keywords: request.keywords || [], // Include keywords field
+          user_id: request.user_id,
+          content_types: request.content_types || ['blog', 'software']
+        };
+        
+        console.log(`🔍 Frontend sending request (attempt ${attempt}/${maxRetries}):`, JSON.stringify(requestBody, null, 2));
+        
+        const response = await fetch('http://localhost:8000/api/content-ideas/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Backend error response (attempt ${attempt}):`, errorText);
+          
+          // If it's a 404 and we have retries left, wait and try again
+          if (response.status === 404 && attempt < maxRetries) {
+            console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            lastError = new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            continue;
+          }
+          
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        // Transform the response to match the expected interface
+        return {
+          success: result.success || true,
+          message: `Generated ${result.total_ideas} content ideas`,
+          total_ideas: result.total_ideas || 0,
+          blog_ideas: result.blog_ideas || 0,
+          software_ideas: result.software_ideas || 0,
+          ideas: result.ideas || []
+        };
+      } catch (error) {
+        console.error(`Failed to generate content ideas (attempt ${attempt}):`, error);
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        // If this is not the last attempt, wait and try again
+        if (attempt < maxRetries) {
+          console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // If we get here, all retries failed
+    throw lastError || new Error('Failed to generate content ideas after all retries');
+  }
+
+  /**
+   * Generate content ideas using optimized backend endpoint
+   * This method doesn't send keyword data from frontend - backend queries database directly
+   */
+  async generateContentIdeasOptimized(request: OptimizedContentIdeaGenerationRequest): Promise<ContentIdeaGenerationResponse> {
+    // Check if backend is ready first
+    const isBackendReady = await this.checkBackendHealth();
+    if (!isBackendReady) {
+      console.log('⚠️ Backend not ready, waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const requestBody = {
+          topic_id: request.topic_id,
+          topic_title: request.topic_title,
+          subtopics: request.subtopics || [],
+          user_id: request.user_id,
+          content_types: request.content_types || ['blog', 'software'],
+          max_keywords: request.max_keywords || 50
+        };
+        
+        console.log(`🔍 Frontend sending optimized request (attempt ${attempt}/${maxRetries}):`, JSON.stringify(requestBody, null, 2));
+        
+        const response = await fetch('http://localhost:8000/api/content-ideas/generate-optimized', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Backend error response (attempt ${attempt}):`, errorText);
+          
+          // If it's a 404 and we have retries left, wait and try again
+          if (response.status === 404 && attempt < maxRetries) {
+            console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            lastError = new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            continue;
+          }
+          
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        // Transform the response to match the expected interface
+        return {
+          success: result.success || true,
+          message: `Generated ${result.total_ideas} content ideas using ${result.keywords_used} keywords`,
+          total_ideas: result.total_ideas || 0,
+          blog_ideas: result.blog_ideas || 0,
+          software_ideas: result.software_ideas || 0,
+          ideas: result.ideas || []
+        };
+      } catch (error) {
+        console.error(`Failed to generate content ideas (optimized attempt ${attempt}):`, error);
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        // If this is not the last attempt, wait and try again
+        if (attempt < maxRetries) {
+          console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+
+    // If we get here, all retries failed
+    throw lastError || new Error('Failed to generate content ideas after all retries');
   }
 
   /**
@@ -171,7 +319,7 @@ class ContentIdeasService {
       }
 
       const data = await response.json();
-      console.log('Content ideas from backend API:', data.ideas?.map(idea => ({
+      console.log('Content ideas from backend API:', data.ideas?.map((idea: any) => ({
         id: idea.id,
         title: idea.title,
         published: idea.published,
@@ -213,7 +361,7 @@ class ContentIdeasService {
         return [];
       }
 
-      console.log('Content ideas from Supabase fallback:', data?.map(idea => ({
+      console.log('Content ideas from Supabase fallback:', data?.map((idea: any) => ({
         id: idea.id,
         title: idea.title,
         published: idea.published,

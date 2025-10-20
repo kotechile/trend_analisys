@@ -26,7 +26,7 @@ export const LazyAffiliateResearch = lazy(() => import('../pages/AffiliateResear
 export const LazyEnhancedWorkflow = lazy(() => import('./workflow/EnhancedWorkflow'));
 export const LazyTrendValidation = lazy(() => import('../pages/TrendValidation'));
 export const LazyIdeaBurst = lazy(() => import('../pages/EnhancedIdeaBurst'));
-export const LazyKeywordArmoury = lazy(() => import('../pages/KeywordArmoury'));
+export const LazyKeywordsArmoury = lazy(() => import('../pages/keywords_armoury'));
 export const LazyCalendar = lazy(() => import('../pages/Calendar'));
 export const LazySettings = lazy(() => import('../pages/Settings'));
 
@@ -61,9 +61,9 @@ export const IdeaBurst = (props: any) => (
   </Suspense>
 );
 
-export const KeywordArmoury = (props: any) => (
+export const KeywordsArmoury = (props: any) => (
   <Suspense fallback={<LoadingFallback />}>
-    <LazyKeywordArmoury {...props} />
+    <LazyKeywordsArmoury {...props} />
   </Suspense>
 );
 

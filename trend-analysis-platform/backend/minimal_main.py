@@ -203,19 +203,37 @@ def save_content_ideas(ideas: List[Dict[str, Any]], user_id: str, topic_id: str)
                 "title": idea.get("title", ""),
                 "description": idea.get("description", ""),
                 "content_type": idea.get("content_type", "blog"),
-                "category": "seo_optimized",  # Default category
+                "category": idea.get("category", "seo_optimized"),
                 "subtopic": idea.get("subtopic", ""),
                 "topic_id": str(topic_uuid),
-                "keywords": idea.get("primary_keywords", []) + idea.get("secondary_keywords", []),  # Combine keywords
+                "keywords": idea.get("keywords", idea.get("primary_keywords", []) + idea.get("secondary_keywords", [])),
+                "primary_keywords": idea.get("primary_keywords", []),
+                "secondary_keywords": idea.get("secondary_keywords", []),
                 "seo_score": idea.get("seo_optimization_score", 0),
-                "difficulty_level": idea.get("difficulty", "intermediate"),
-                "estimated_read_time": 45,  # Default to 45 minutes
-                "target_audience": "general",
-                "content_angle": idea.get("description", ""),
-                "monetization_potential": "medium",
-                "technical_complexity": "medium" if idea.get("content_type") == "software" else "low",
-                "development_effort": "medium" if idea.get("content_type") == "software" else "low",
-                "market_demand": "medium"
+                "seo_optimization_score": idea.get("seo_optimization_score", 0),
+                "traffic_potential_score": idea.get("traffic_potential_score", 0),
+                "overall_quality_score": idea.get("overall_quality_score", 0),
+                "difficulty_level": idea.get("difficulty_level", idea.get("difficulty", "intermediate")),
+                "average_difficulty": idea.get("average_difficulty", 50),
+                "estimated_read_time": idea.get("estimated_read_time", 45),
+                "estimated_word_count": idea.get("estimated_word_count", 0),
+                "target_audience": idea.get("target_audience", "general"),
+                "content_angle": idea.get("content_angle", ""),
+                "monetization_potential": idea.get("monetization_potential", "medium"),
+                "average_cpc": idea.get("average_cpc", 0),
+                "total_search_volume": idea.get("total_search_volume", 0),
+                "technical_complexity": idea.get("technical_complexity", "medium" if idea.get("content_type") == "software" else "low"),
+                "development_effort": idea.get("development_effort", "medium" if idea.get("content_type") == "software" else "low"),
+                "market_demand": idea.get("market_demand", "medium"),
+                "status": idea.get("status", "draft"),
+                "priority": idea.get("priority", "medium"),
+                "created_at": idea.get("created_at", datetime.now().isoformat()),
+                "updated_at": idea.get("updated_at", datetime.now().isoformat()),
+                "content_outline": idea.get("content_outline", []),
+                "optimization_tips": idea.get("optimization_tips", []),
+                "generation_method": idea.get("generation_method", "llm"),
+                "published": idea.get("published", False),
+                "published_to_titles": idea.get("published_to_titles", False)
             }
             content_ideas_data.append(content_idea)
         
@@ -245,6 +263,106 @@ def save_content_ideas(ideas: List[Dict[str, Any]], user_id: str, topic_id: str)
         logger.error(f"❌ Supabase error: {e}")
         logger.error(f"Supabase URL: {SUPABASE_URL}")
         logger.error(f"Supabase Key present: {bool(SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)}")
+        return False
+
+def delete_research_topic_cascade(topic_id: str, user_id: str) -> bool:
+    """
+    Delete a research topic and all related records from all tables
+    This ensures complete cleanup when deleting a research topic
+    """
+    logger.info(f"🗑️ Starting cascade delete for topic {topic_id} and user {user_id}")
+    
+    if not supabase:
+        logger.error("❌ Supabase client not available - cannot delete research topic")
+        return False
+    
+    try:
+        # Ensure topic_id and user_id are valid UUIDs
+        try:
+            topic_uuid = uuid.UUID(topic_id) if topic_id else None
+        except ValueError:
+            logger.error(f"❌ Invalid topic_id format: {topic_id}")
+            return False
+        
+        try:
+            user_uuid = uuid.UUID(user_id) if user_id else None
+        except ValueError:
+            logger.error(f"❌ Invalid user_id format: {user_id}")
+            return False
+        
+        # Track deletion results
+        deletion_results = {}
+        
+        # 1. Delete from content_ideas table
+        logger.info("🗑️ Deleting content ideas...")
+        try:
+            content_ideas_result = supabase.table("content_ideas").delete().eq("topic_id", str(topic_uuid)).eq("user_id", str(user_uuid)).execute()
+            deletion_results["content_ideas"] = len(content_ideas_result.data) if content_ideas_result.data else 0
+            logger.info(f"✅ Deleted {deletion_results['content_ideas']} content ideas")
+        except Exception as e:
+            logger.error(f"❌ Error deleting content ideas: {e}")
+            deletion_results["content_ideas"] = 0
+        
+        # 2. Delete from keyword_research_data table
+        logger.info("🗑️ Deleting keyword research data...")
+        try:
+            keyword_result = supabase.table("keyword_research_data").delete().eq("topic_id", str(topic_uuid)).eq("user_id", str(user_uuid)).execute()
+            deletion_results["keyword_research_data"] = len(keyword_result.data) if keyword_result.data else 0
+            logger.info(f"✅ Deleted {deletion_results['keyword_research_data']} keyword research records")
+        except Exception as e:
+            logger.error(f"❌ Error deleting keyword research data: {e}")
+            deletion_results["keyword_research_data"] = 0
+        
+        # 3. Delete from topic_decompositions table
+        logger.info("🗑️ Deleting topic decompositions...")
+        try:
+            decompositions_result = supabase.table("topic_decompositions").delete().eq("research_topic_id", str(topic_uuid)).eq("user_id", str(user_uuid)).execute()
+            deletion_results["topic_decompositions"] = len(decompositions_result.data) if decompositions_result.data else 0
+            logger.info(f"✅ Deleted {deletion_results['topic_decompositions']} topic decompositions")
+        except Exception as e:
+            logger.error(f"❌ Error deleting topic decompositions: {e}")
+            deletion_results["topic_decompositions"] = 0
+        
+        # 4. Delete from affiliate_research table (if it has topic references)
+        logger.info("🗑️ Deleting affiliate research data...")
+        try:
+            affiliate_result = supabase.table("affiliate_research").delete().eq("research_topic_id", str(topic_uuid)).eq("user_id", str(user_uuid)).execute()
+            deletion_results["affiliate_research"] = len(affiliate_result.data) if affiliate_result.data else 0
+            logger.info(f"✅ Deleted {deletion_results['affiliate_research']} affiliate research records")
+        except Exception as e:
+            logger.error(f"❌ Error deleting affiliate research data: {e}")
+            deletion_results["affiliate_research"] = 0
+        
+        # 5. Delete from trend_analysis table (if it has topic references)
+        logger.info("🗑️ Deleting trend analysis data...")
+        try:
+            trend_result = supabase.table("trend_analysis").delete().eq("research_topic_id", str(topic_uuid)).eq("user_id", str(user_uuid)).execute()
+            deletion_results["trend_analysis"] = len(trend_result.data) if trend_result.data else 0
+            logger.info(f"✅ Deleted {deletion_results['trend_analysis']} trend analysis records")
+        except Exception as e:
+            logger.error(f"❌ Error deleting trend analysis data: {e}")
+            deletion_results["trend_analysis"] = 0
+        
+        # 6. Finally, delete the research topic itself
+        logger.info("🗑️ Deleting research topic...")
+        try:
+            topic_result = supabase.table("research_topics").delete().eq("id", str(topic_uuid)).eq("user_id", str(user_uuid)).execute()
+            deletion_results["research_topics"] = len(topic_result.data) if topic_result.data else 0
+            logger.info(f"✅ Deleted {deletion_results['research_topics']} research topic")
+        except Exception as e:
+            logger.error(f"❌ Error deleting research topic: {e}")
+            deletion_results["research_topics"] = 0
+        
+        # Log summary
+        total_deleted = sum(deletion_results.values())
+        logger.info(f"🎉 Cascade delete completed! Total records deleted: {total_deleted}")
+        logger.info(f"📊 Deletion summary: {deletion_results}")
+        
+        # Return True if the main research topic was deleted
+        return deletion_results["research_topics"] > 0
+        
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during cascade delete: {e}")
         return False
 
 def get_content_ideas(user_id: str, topic_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -1755,9 +1873,17 @@ class ContentIdeaGenerationRequest(BaseModel):
     topic_id: str
     topic_title: str
     subtopics: List[str]
-    keywords: List[str] = []  # Make optional with default empty list
+    keywords: List[Dict[str, Any]] = []  # Changed to accept rich keyword data
     user_id: str
     content_types: List[str] = ["blog", "software"]  # Default content types
+
+class OptimizedContentIdeaGenerationRequest(BaseModel):
+    topic_id: str
+    topic_title: str
+    subtopics: List[str] = []
+    user_id: str
+    content_types: List[str] = ["blog", "software"]
+    max_keywords: int = 50  # Limit keywords for performance
 
 @app.post("/api/content-ideas/generate")
 async def generate_content_ideas(request: ContentIdeaGenerationRequest):
@@ -1818,6 +1944,101 @@ async def generate_content_ideas(request: ContentIdeaGenerationRequest):
         
     except Exception as e:
         logger.error(f"Error generating content ideas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate content ideas: {str(e)}")
+
+async def get_keywords_for_idea_generation(topic_id: str, user_id: str, max_keywords: int = 50) -> List[str]:
+    """
+    Query keywords from database for idea generation with RLS
+    Returns only the keyword strings, not full objects for performance
+    """
+    try:
+        # Query keywords from database using Supabase client
+        response = supabase.table('keyword_research_data').select('keyword, priority_score, search_volume').eq('topic_id', topic_id).eq('user_id', user_id).order('priority_score', desc=True).limit(max_keywords)
+        
+        result = response.execute()
+        
+        if result.data:
+            # Extract just the keyword strings, sorted by priority
+            keywords = [item['keyword'] for item in result.data if item.get('keyword')]
+            logger.info(f"Retrieved {len(keywords)} keywords from database for topic {topic_id}")
+            return keywords
+        else:
+            logger.warning(f"No keywords found for topic {topic_id} and user {user_id}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"Error querying keywords from database: {str(e)}")
+        return []
+
+@app.post("/api/content-ideas/generate-optimized")
+async def generate_content_ideas_optimized(request: OptimizedContentIdeaGenerationRequest):
+    """
+    Generate content ideas with optimized keyword loading from database
+    This endpoint queries keywords from the database instead of receiving them from frontend
+    """
+    try:
+        logger.info(f"Generating content ideas (optimized) for topic: {request.topic_title}")
+        logger.info(f"Topic ID: {request.topic_id}, User ID: {request.user_id}")
+        
+        # Query keywords from database with RLS
+        keywords_data = await get_keywords_for_idea_generation(
+            topic_id=request.topic_id,
+            user_id=request.user_id,
+            max_keywords=request.max_keywords
+        )
+        
+        logger.info(f"Retrieved {len(keywords_data)} keywords from database")
+        
+        # Handle empty subtopics by using topic title
+        subtopics_to_use = request.subtopics if request.subtopics else [request.topic_title]
+        logger.info(f"Using subtopics: {subtopics_to_use}")
+        
+        all_ideas = []
+        blog_ideas = []
+        software_ideas = []
+        
+        # Generate blog ideas for each subtopic
+        if "blog" in request.content_types:
+            for subtopic in subtopics_to_use:
+                subtopic_blog_ideas = await generate_blog_ideas_for_subtopic_with_keywords(
+                    subtopic, request.topic_id, request.topic_title, keywords_data, request.user_id
+                )
+                blog_ideas.extend(subtopic_blog_ideas)
+                all_ideas.extend(subtopic_blog_ideas)
+        
+        # Generate software ideas
+        if "software" in request.content_types:
+            software_ideas = generate_software_ideas_for_topic_with_keywords(
+                request.topic_id, request.topic_title, keywords_data, request.user_id
+            )
+            all_ideas.extend(software_ideas)
+        
+        logger.info(f"Generated {len(all_ideas)} total ideas: {len(blog_ideas)} blog, {len(software_ideas)} software")
+        
+        # Save ideas to database if we have any
+        if all_ideas:
+            logger.info(f"🔄 Attempting to save {len(all_ideas)} ideas to database...")
+            save_success = save_content_ideas(
+                ideas=all_ideas,
+                user_id=request.user_id,
+                topic_id=request.topic_id
+            )
+            logger.info(f"💾 Save result: {save_success}")
+        else:
+            save_success = False
+        
+        return {
+            "success": True,
+            "ideas": all_ideas,
+            "total_ideas": len(all_ideas),
+            "blog_ideas": len(blog_ideas),
+            "software_ideas": len(software_ideas),
+            "saved_to_database": save_success,
+            "keywords_used": len(keywords_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating content ideas (optimized): {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate content ideas: {str(e)}")
 
 async def generate_blog_ideas_for_subtopic_with_keywords(
@@ -1938,6 +2159,22 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         else:
                             title = f"{title} - {main_keyword.title()} Guide"
                     
+                    # Calculate metrics for decision making
+                    estimated_read_time = idea_data.get('estimated_read_time', 8)
+                    seo_score = 85
+                    traffic_score = 75
+                    difficulty_score = 50
+                    cpc_score = 2.50
+                    
+                    # Calculate overall quality score
+                    overall_quality = (seo_score + traffic_score + (100 - difficulty_score)) / 3
+                    
+                    # Calculate monetization potential
+                    monetization_potential = "high" if cpc_score > 3 else "medium" if cpc_score > 1.5 else "low"
+                    
+                    # Calculate difficulty level
+                    difficulty_level = "easy" if difficulty_score < 30 else "medium" if difficulty_score < 70 else "hard"
+                    
                     idea = {
                         "id": str(uuid.uuid4()),
                         "title": title,
@@ -1945,15 +2182,27 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         "description": idea_data.get('description', f"Comprehensive guide for {subtopic}"),
                         "primary_keywords": primary_keywords,
                         "secondary_keywords": idea_data.get('secondary_keywords', [f"{subtopic} tips", f"{keyword} guide"]),
-                        "difficulty": "intermediate",
-                        "estimated_time": f"{idea_data.get('estimated_read_time', 8)} minutes",
-                        "seo_optimization_score": 85,
-                        "traffic_potential_score": 75,
+                        "keywords": primary_keywords + idea_data.get('secondary_keywords', []),  # Combined keywords array
+                        "difficulty": difficulty_level,
+                        "difficulty_level": difficulty_level,
+                        "estimated_time": f"{estimated_read_time} minutes",
+                        "estimated_read_time": estimated_read_time,
+                        "estimated_word_count": estimated_read_time * 200,  # ~200 words per minute
+                        "seo_optimization_score": seo_score,
+                        "traffic_potential_score": traffic_score,
+                        "overall_quality_score": round(overall_quality, 1),
                         "total_search_volume": 1000,
-                        "average_difficulty": 50,
-                        "average_cpc": 2.50,
+                        "average_difficulty": difficulty_score,
+                        "average_cpc": cpc_score,
+                        "monetization_potential": monetization_potential,
                         "content_angle": idea_data.get('content_angle', 'tutorial'),
                         "target_audience": idea_data.get('target_audience', 'general'),
+                        "category": subtopic,
+                        "subtopic": subtopic,
+                        "status": "draft",
+                        "priority": "medium",
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat(),
                         "optimization_tips": [
                             f"Target primary keyword: {idea_data.get('primary_keywords', [keyword])[0]}",
                             f"Focus on {subtopic} specific content",
@@ -1970,9 +2219,10 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         ],
                         "user_id": user_id,
                         "topic_id": topic_id,
-                        "subtopic": subtopic,
                         "enhanced_with_ahrefs": False,
-                        "generation_method": "llm"
+                        "generation_method": "llm",
+                        "published": False,
+                        "published_to_titles": False
                     }
                     ideas.append(idea)
                 
@@ -2077,6 +2327,27 @@ def generate_software_ideas_for_topic_with_keywords(
     for i, software_type in enumerate(software_types):
         keyword = top_keywords[i % len(top_keywords)]
         
+        # Calculate metrics for software ideas
+        seo_score = 80
+        traffic_score = 70
+        difficulty_score = 60  # Software is generally harder
+        cpc_score = 4.50
+        
+        # Calculate overall quality score
+        overall_quality = (seo_score + traffic_score + (100 - difficulty_score)) / 3
+        
+        # Calculate monetization potential (software has higher potential)
+        monetization_potential = "high" if cpc_score > 3 else "medium" if cpc_score > 1.5 else "low"
+        
+        # Calculate difficulty level
+        difficulty_level = "hard"  # Software projects are typically advanced
+        
+        # Calculate development effort
+        development_effort = "high" if "SaaS" in software_type or "Platform" in software_type else "medium"
+        
+        # Calculate market demand
+        market_demand = "high" if "App" in software_type or "Tool" in software_type else "medium"
+        
         idea = {
             "id": str(uuid.uuid4()),
             "title": f"{topic_title} {software_type}",
@@ -2084,13 +2355,30 @@ def generate_software_ideas_for_topic_with_keywords(
             "description": f"Build a {software_type.lower()} for {keyword} management and analysis",
             "primary_keywords": [f"{topic_title} {software_type.lower()}", keyword],
             "secondary_keywords": [f"{software_type.lower()} tool", f"{topic_title} app"],
-            "difficulty": "advanced",
+            "keywords": [f"{topic_title} {software_type.lower()}", keyword, f"{software_type.lower()} tool", f"{topic_title} app"],
+            "difficulty": difficulty_level,
+            "difficulty_level": difficulty_level,
             "estimated_time": "2-4 weeks",
-            "seo_optimization_score": 80,
-            "traffic_potential_score": 70,
+            "estimated_read_time": 0,  # Not applicable for software
+            "estimated_word_count": 0,  # Not applicable for software
+            "seo_optimization_score": seo_score,
+            "traffic_potential_score": traffic_score,
+            "overall_quality_score": round(overall_quality, 1),
             "total_search_volume": 1000,
-            "average_difficulty": 50,
-            "average_cpc": 4.50,
+            "average_difficulty": difficulty_score,
+            "average_cpc": cpc_score,
+            "monetization_potential": monetization_potential,
+            "technical_complexity": difficulty_level,
+            "development_effort": development_effort,
+            "market_demand": market_demand,
+            "content_angle": "project",
+            "target_audience": "developers",
+            "category": software_type,
+            "subtopic": software_type,
+            "status": "draft",
+            "priority": "medium",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
             "optimization_tips": [
                 f"Focus on {keyword} specific features",
                 "Include user-friendly interface design",
@@ -2105,7 +2393,10 @@ def generate_software_ideas_for_topic_with_keywords(
             ],
             "user_id": user_id,
             "topic_id": topic_id,
-            "enhanced_with_ahrefs": False
+            "enhanced_with_ahrefs": False,
+            "generation_method": "template",
+            "published": False,
+            "published_to_titles": False
         }
         ideas.append(idea)
     
@@ -2324,6 +2615,29 @@ class ContentIdeasStatsResponse(BaseModel):
     success: bool
     stats: Dict[str, Any]
     message: str
+
+@app.delete("/api/research-topics/{topic_id}")
+async def delete_research_topic_cascade_endpoint(topic_id: str, user_id: str = Query(..., description="User ID")):
+    """
+    Delete a research topic and all related records from all tables
+    This ensures complete cleanup when deleting a research topic
+    """
+    try:
+        logger.info(f"🗑️ API: Deleting research topic {topic_id} for user {user_id}")
+        
+        success = delete_research_topic_cascade(topic_id, user_id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Research topic {topic_id} and all related data deleted successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Research topic not found or could not be deleted")
+            
+    except Exception as e:
+        logger.error(f"Error deleting research topic: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete research topic: {str(e)}")
 
 @app.post("/api/content-ideas/stats", response_model=ContentIdeasStatsResponse)
 async def get_content_ideas_stats(request: ContentIdeasStatsRequest):

@@ -21,19 +21,20 @@ class TrendService:
     """Service for trend analysis and forecasting"""
     
     def __init__(self):
-        self.google_trends_api_key = settings.google_trends_api_key
-        self.openai_api_key = settings.openai_api_key
-        self.anthropic_api_key = settings.anthropic_api_key
-        self.google_ai_api_key = settings.google_ai_api_key
+        # API keys are now retrieved from database as needed
+        self.google_trends_api_key = None
+        self.openai_api_key = None
+        self.anthropic_api_key = None
+        self.google_ai_api_key = None
         
-        # Social media API keys
-        self.reddit_client_id = settings.reddit_client_id
-        self.reddit_client_secret = settings.reddit_client_secret
-        self.twitter_bearer_token = settings.twitter_bearer_token
-        self.tiktok_api_key = settings.tiktok_api_key
+        # Social media API keys - these will be retrieved from database
+        self.reddit_client_id = None
+        self.reddit_client_secret = None
+        self.twitter_bearer_token = None
+        self.tiktok_api_key = None
         
-        # Model configuration
-        self.llm_model = "gpt-4" if self.openai_api_key else "claude-3-sonnet"
+        # Model configuration - will be determined dynamically
+        self.llm_model = "gpt-4"  # Default, will be updated based on available API keys
         self.forecast_horizon = 12  # months
         self.confidence_interval = 0.8
     

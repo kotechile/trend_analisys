@@ -10,6 +10,7 @@ import json
 from typing import List, Dict, Any, Optional, BinaryIO
 from datetime import datetime
 import structlog
+from fastapi import HTTPException
 from ..core.database import get_db
 from ..core.redis import cache
 from ..core.config import get_settings
@@ -23,13 +24,13 @@ class KeywordService:
     
     def __init__(self, db_session=None):
         self.db_session = db_session
-        self.dataforseo_username = settings.dataforseo_username
-        self.dataforseo_password = settings.dataforseo_password
-        self.max_file_size = settings.max_file_size
-        self.allowed_file_types = settings.allowed_file_types
+        # Remove problematic settings access - these will be handled by the DataForSEO service
+        self.max_file_size = getattr(settings, 'max_file_size', 10 * 1024 * 1024)  # 10MB default
+        self.allowed_file_types = getattr(settings, 'allowed_file_types', ['.csv', '.txt'])
         
         # DataForSEO API configuration
-        self.dataforseo_base_url = "https://api.dataforseo.com/v3"
+        # DataForSEO base URL will be read from database
+        self.dataforseo_base_url = None
         self.dataforseo_cost_per_keyword = 0.0008  # $0.0008 per keyword
     
     async def upload_csv(self, user_id: int, file: BinaryIO, filename: str, 
@@ -469,42 +470,91 @@ class KeywordService:
                        topic_title=topic_title,
                        subtopics_count=len(subtopics))
             
-            # For now, return mock keywords since LLM service might not be available
-            # This will prevent the 500 error and allow the frontend to work
-            mock_keywords = []
-            for subtopic in subtopics[:5]:  # Limit to first 5 subtopics
-                mock_keywords.extend([
-                    f"{subtopic} guide",
-                    f"{subtopic} tips",
-                    f"best {subtopic}",
-                    f"{subtopic} tutorial",
-                    f"how to {subtopic}",
-                    f"{subtopic} for beginners"
-                ])
+            # Use OpenAI API to generate keywords
+            import openai
+            import os
             
-            # Remove duplicates while preserving order
-            unique_keywords = list(dict.fromkeys(mock_keywords))
+            # Get OpenAI API key from environment
+            openai_api_key = os.getenv('OPENAI_API_KEY')
+            if not openai_api_key:
+                raise ValueError("OPENAI_API_KEY environment variable not set")
             
-            logger.info("Keywords generated successfully (mock)", 
+            # Initialize OpenAI client
+            client = openai.OpenAI(api_key=openai_api_key)
+            
+            # Create prompt for keyword generation
+            subtopics_text = "\n".join([f"- {subtopic}" for subtopic in subtopics])
+            
+            prompt = f"""
+            Generate high-quality seed keywords for the following subtopics related to "{topic_title}".
+            
+            Requirements:
+            - Maximum 3 words per keyword
+            - Focus on search intent and commercial value
+            - Include both short-tail and long-tail keywords
+            - Avoid generic or overly broad terms
+            - Prioritize keywords that would be useful for content creation
+            
+            Subtopics:
+            {subtopics_text}
+            
+            Generate 10-15 keywords for each subtopic. Return ONLY a simple list of keywords, one per line, without any explanations, formatting, or subtopic headers.
+            
+            Example format:
+            solar panels
+            renewable energy
+            clean energy
+            solar installation
+            """
+            
+            # Call OpenAI API
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a professional SEO keyword researcher. Generate high-quality, targeted keywords for content marketing."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.7
+            )
+            
+            # Parse response
+            keywords_text = response.choices[0].message.content.strip()
+            
+            # Split by lines and clean up
+            keywords = []
+            for line in keywords_text.split('\n'):
+                line = line.strip()
+                # Skip empty lines and lines that look like headers (contain colons)
+                if line and ':' not in line and not line.startswith('-') and not line.startswith('*'):
+                    # Remove any numbering or bullet points
+                    clean_line = line.lstrip('0123456789.-* ').strip()
+                    if clean_line:
+                        keywords.append(clean_line)
+            
+            # Filter to ensure max 3 words and remove duplicates
+            filtered_keywords = []
+            seen = set()
+            for keyword in keywords:
+                if len(keyword.split()) <= 3 and keyword.lower() not in seen:
+                    filtered_keywords.append(keyword)
+                    seen.add(keyword.lower())
+            
+            logger.info("Keywords generated successfully with LLM", 
                        user_id=user_id, 
-                       keywords_count=len(unique_keywords))
+                       keywords_count=len(filtered_keywords),
+                       subtopics_processed=len(subtopics))
             
-            return unique_keywords[:20]  # Limit to 20 keywords
+            return filtered_keywords
             
         except Exception as e:
             logger.error("Failed to generate keywords with LLM", 
                         user_id=user_id, 
                         error=str(e))
-            # Return fallback keywords
-            fallback_keywords = []
-            for subtopic in subtopics[:5]:  # Limit to first 5 subtopics
-                fallback_keywords.extend([
-                    f"{subtopic} guide",
-                    f"{subtopic} tips",
-                    f"best {subtopic}",
-                    f"{subtopic} tutorial"
-                ])
-            return fallback_keywords[:20]
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate keywords: {str(e)}"
+            )
 
     async def check_user_limits(self, user_id: int, limit_type: str) -> bool:
         """Check if user has reached their limits for a specific resource type"""

@@ -19,11 +19,15 @@ class Settings(BaseSettings):
     # Database (Supabase cloud - no local database)
     # Note: All database operations go through Supabase SDK
     sql_echo: bool = Field(default=False, env="SQL_ECHO")
+    database_url: Optional[str] = Field(default=None, env="DATABASE_URL")
     
     # Redis
     redis_url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
     redis_password: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
     redis_db: int = Field(default=0, env="REDIS_DB")
+    
+    # Add REDIS_URL alias for compatibility
+    REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
     
     # Security
     secret_key: str = Field(
@@ -44,42 +48,14 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
     rate_limit_window: int = Field(default=60, env="RATE_LIMIT_WINDOW")
     
-    # External APIs
-    # Google Trends
-    google_trends_api_key: Optional[str] = Field(default=None, env="GOOGLE_TRENDS_API_KEY")
+    # External APIs - All API keys are now stored in Supabase api_keys table
+    # Only keeping non-API-key configuration here
     
-    # Affiliate Networks
-    shareasale_api_key: Optional[str] = Field(default=None, env="SHAREASALE_API_KEY")
-    impact_api_key: Optional[str] = Field(default=None, env="IMPACT_API_KEY")
+    # Amazon Associates (tag, not API key)
     amazon_associates_tag: Optional[str] = Field(default=None, env="AMAZON_ASSOCIATES_TAG")
-    cj_api_key: Optional[str] = Field(default=None, env="CJ_API_KEY")
-    partnerize_api_key: Optional[str] = Field(default=None, env="PARTNERIZE_API_KEY")
     
-    # DataForSEO
-    dataforseo_username: Optional[str] = Field(default=None, env="DATAFORSEO_USERNAME")
-    dataforseo_password: Optional[str] = Field(default=None, env="DATAFORSEO_PASSWORD")
-    
-    # LLM Providers
-    openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
-    anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
-    google_ai_api_key: Optional[str] = Field(default=None, env="GOOGLE_AI_API_KEY")
-    
-    # Social Media APIs
-    reddit_client_id: Optional[str] = Field(default=None, env="REDDIT_CLIENT_ID")
-    reddit_client_secret: Optional[str] = Field(default=None, env="REDDIT_CLIENT_SECRET")
-    twitter_bearer_token: Optional[str] = Field(default=None, env="TWITTER_BEARER_TOKEN")
-    tiktok_api_key: Optional[str] = Field(default=None, env="TIKTOK_API_KEY")
-    
-    # Content Optimization
-    surfer_seo_api_key: Optional[str] = Field(default=None, env="SURFER_SEO_API_KEY")
-    frase_api_key: Optional[str] = Field(default=None, env="FRASE_API_KEY")
-    coschedule_api_key: Optional[str] = Field(default=None, env="COSCHEDULE_API_KEY")
-    
-    # Export Platforms
-    google_docs_api_key: Optional[str] = Field(default=None, env="GOOGLE_DOCS_API_KEY")
-    notion_api_key: Optional[str] = Field(default=None, env="NOTION_API_KEY")
+    # WordPress (URL, not API key)
     wordpress_api_url: Optional[str] = Field(default=None, env="WORDPRESS_API_URL")
-    wordpress_api_key: Optional[str] = Field(default=None, env="WORDPRESS_API_KEY")
     
     # File uploads
     max_file_size: int = Field(default=10 * 1024 * 1024, env="MAX_FILE_SIZE")  # 10MB
@@ -96,24 +72,9 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     log_format: str = Field(default="json", env="LOG_FORMAT")
     
-    # Supabase
+    # Supabase (only Supabase credentials remain in environment variables)
     supabase_url: Optional[str] = Field(default=None, env="SUPABASE_URL")
     supabase_service_role_key: Optional[str] = Field(default=None, env="SUPABASE_SERVICE_ROLE_KEY")
-    
-    # API Keys
-    openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
-    anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
-    google_ai_api_key: Optional[str] = Field(default=None, env="GOOGLE_AI_API_KEY")
-    linkup_api_key: Optional[str] = Field(default=None, env="LINKUP_API_KEY")
-    deepseek_api_key: Optional[str] = Field(default=None, env="DEEPSEEK_API_KEY")
-    google_trends_api_key: Optional[str] = Field(default=None, env="GOOGLE_TRENDS_API_KEY")
-    shareasale_api_key: Optional[str] = Field(default=None, env="SHAREASALE_API_KEY")
-    cj_api_key: Optional[str] = Field(default=None, env="CJ_API_KEY")
-    impact_api_key: Optional[str] = Field(default=None, env="IMPACT_API_KEY")
-    awin_api_key: Optional[str] = Field(default=None, env="AWIN_API_KEY")
-    rakuten_api_key: Optional[str] = Field(default=None, env="RAKUTEN_API_KEY")
-    clickbank_api_key: Optional[str] = Field(default=None, env="CLICKBANK_API_KEY")
-    amazon_associates_api_key: Optional[str] = Field(default=None, env="AMAZON_ASSOCIATES_API_KEY")
     
     # TheWriter Database
     thewriter_db_connection2: Optional[str] = Field(default=None, env="THEWRITER_DB_CONNECTION2")

@@ -409,7 +409,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   };
 
 
-  // Generate keywords using rule-based approach
+  // Generate simple seed keywords using rule-based approach
   const generateRuleBasedKeywords = () => {
     if (displayedSubtopics.length === 0) {
       setSnackbarMessage('Please select subtopics first');
@@ -423,70 +423,110 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     displayedSubtopics.forEach(subtopic => {
       const subtopicLower = subtopic.toLowerCase();
       
-      // Generate various keyword variations
-      const keywordVariations = [
+      // Generate simple seed keywords (max 3 words) for each subtopic
+      const seedKeywordVariations = [
+        // Basic seed keywords (1-2 words)
+        subtopic,
+        subtopicLower,
+        
+        // Simple 2-word combinations
         `${subtopic} guide`,
         `${subtopic} tips`,
+        `${subtopic} tools`,
+        `${subtopic} basics`,
+        `${subtopic} ideas`,
         `best ${subtopic}`,
+        `learn ${subtopic}`,
         `${subtopic} tutorial`,
-        `how to ${subtopic}`,
-        `${subtopic} for beginners`,
+        `${subtopic} course`,
+        `${subtopic} software`,
+        `${subtopic} equipment`,
         `${subtopic} techniques`,
         `${subtopic} strategies`,
-        `${subtopic} tools`,
-        `${subtopic} equipment`,
-        `${subtopic} software`,
-        `${subtopic} courses`,
-        `learn ${subtopic}`,
-        `${subtopic} basics`,
-        `advanced ${subtopic}`,
-        `${subtopic} ideas`,
-        `${subtopic} examples`,
         `${subtopic} resources`,
         `${subtopic} reviews`,
-        `${subtopic} comparison`
+        
+        // Simple 3-word combinations (max length)
+        `how to ${subtopic}`,
+        `${subtopic} for beginners`,
+        `advanced ${subtopic}`,
+        `${subtopic} best practices`,
+        `${subtopic} step by step`,
+        `${subtopic} complete guide`,
+        `${subtopic} expert tips`,
+        `${subtopic} professional guide`,
+        `${subtopic} comprehensive guide`,
+        `${subtopic} detailed tutorial`
       ];
       
-      // Add topic-specific variations
+      // Add topic-specific simple seed keywords
       if (topicLower.includes('photography') || subtopicLower.includes('photo')) {
-        keywordVariations.push(
-          `${subtopic} camera settings`,
+        seedKeywordVariations.push(
+          `${subtopic} camera`,
           `${subtopic} lighting`,
           `${subtopic} composition`,
           `${subtopic} editing`,
-          `${subtopic} gear`
+          `${subtopic} gear`,
+          `photo ${subtopic}`,
+          `${subtopic} photography`,
+          `${subtopic} camera settings`,
+          `${subtopic} photo tips`
         );
       } else if (topicLower.includes('travel') || subtopicLower.includes('travel')) {
-        keywordVariations.push(
+        seedKeywordVariations.push(
           `${subtopic} destinations`,
           `${subtopic} planning`,
           `${subtopic} budget`,
           `${subtopic} itinerary`,
-          `${subtopic} tips`
+          `travel ${subtopic}`,
+          `${subtopic} travel`,
+          `${subtopic} vacation`,
+          `${subtopic} trip planning`
         );
       } else if (topicLower.includes('business') || subtopicLower.includes('marketing')) {
-        keywordVariations.push(
+        seedKeywordVariations.push(
           `${subtopic} strategy`,
           `${subtopic} tools`,
           `${subtopic} software`,
           `${subtopic} automation`,
-          `${subtopic} analytics`
+          `${subtopic} analytics`,
+          `business ${subtopic}`,
+          `${subtopic} marketing`,
+          `${subtopic} business`,
+          `${subtopic} management`
+        );
+      } else if (topicLower.includes('eco') || topicLower.includes('green') || topicLower.includes('sustainable')) {
+        seedKeywordVariations.push(
+          `${subtopic} eco`,
+          `${subtopic} green`,
+          `${subtopic} sustainable`,
+          `${subtopic} renewable`,
+          `${subtopic} energy`,
+          `${subtopic} environment`,
+          `eco ${subtopic}`,
+          `green ${subtopic}`,
+          `sustainable ${subtopic}`
         );
       }
       
-      keywords.push(...keywordVariations);
+      // Filter to only include keywords with 3 words or less
+      const filteredKeywords = seedKeywordVariations.filter(keyword => 
+        keyword.split(' ').length <= 3
+      );
+      
+      keywords.push(...filteredKeywords);
     });
     
     // Remove duplicates while preserving order
     const uniqueKeywords = Array.from(new Set(keywords));
     
-    // Add rule-based keywords to the text area
-    const newKeywords = uniqueKeywords.slice(0, 20).join('\n'); // Limit to 20 keywords
+    // Add rule-based seed keywords to the text area
+    const newKeywords = uniqueKeywords.slice(0, 50).join('\n'); // Increased limit for seed keywords
     const currentKeywords = keywordTextArea.trim();
     const combinedKeywords = currentKeywords ? `${currentKeywords}\n${newKeywords}` : newKeywords;
     setKeywordTextArea(combinedKeywords);
     
-    setSnackbarMessage(`Added ${Math.min(20, uniqueKeywords.length)} rule-based keywords to your list`);
+    setSnackbarMessage(`Added ${Math.min(50, uniqueKeywords.length)} simple seed keywords for all ${displayedSubtopics.length} subtopics`);
     setShowSnackbar(true);
   };
 
@@ -496,10 +536,15 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       setIsGeneratingKeywords(true);
       setError(null);
       
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       const response = await keywordService.generateKeywordsWithLLM({
         subtopics: Array.from(selectedSubtopics),
         topicId: selectedTopic?.id || '',
-        topicTitle: selectedTopic?.title || ''
+        topicTitle: selectedTopic?.title || '',
+        userId: user.id
       });
 
       if (response.success && response.keywords.length > 0) {
@@ -909,10 +954,10 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   }, [navigationState]);
 
   useEffect(() => {
-    // Initialize session with empty data
+    // Initialize session with empty data - no mock data
     setSession({
-      id: 'mock-session-id',
-      user_id: 'mock-user-id',
+      id: '',
+      user_id: user?.id || '',
       ideas: [],
       selected_ideas: [],
       filters: {
@@ -924,7 +969,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
-  }, []);
+  }, [user?.id]);
 
   const handleGenerateIdeas = async (type: 'seed' | 'ahrefs') => {
     setLoading(true);
