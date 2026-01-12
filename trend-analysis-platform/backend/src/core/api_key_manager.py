@@ -21,9 +21,9 @@ class APIKeyManager:
     def _initialize_supabase_client(self):
         """Initialize Supabase client using the same pattern as the rest of the application"""
         try:
-            # Import the global Supabase client from the database service
-            from .supabase_database_service import supabase
-            self.supabase_client = supabase
+            # Import the global Supabase client from the singleton
+            from .supabase_singleton import get_supabase_client
+            self.supabase_client = get_supabase_client()
             logger.info("API Key Manager initialized with Supabase")
         except Exception as e:
             logger.warning("Failed to initialize Supabase client, falling back to environment variables", error=str(e))
@@ -97,7 +97,10 @@ class APIKeyManager:
     
     def get_linkup_key(self) -> Optional[str]:
         """Get LinkUp.so API key"""
-        return self.get_key('linkup_api_key', 'LINKUP_API_KEY')
+        key = self.get_key('linkup_api_key', 'LINKUP_API_KEY')
+        if not key:
+            key = self.get_key('linkup_key')
+        return key
     
     def get_anthropic_key(self) -> Optional[str]:
         """Get Anthropic API key"""

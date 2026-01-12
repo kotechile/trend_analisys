@@ -57,10 +57,15 @@ const ExternalToolIntegrationStep: React.FC<WorkflowStepProps> = React.memo(({
     setUploadProgress(0);
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
-        if (prev >= 90) {
+        if (prev >= 99) {
           clearInterval(progressInterval);
-          return 90;
+          return 99;
         }
+        if (prev >= 90) {
+          // From 90% to 99%, increment by 1%
+          return prev + 1;
+        }
+        // From 0% to 90%, increment by 10%
         return prev + 10;
       });
     }, 200);

@@ -507,5 +507,9 @@ async def generate_keywords(
         logger.error("Invalid request for keyword generation", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("Failed to generate keywords", error=str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error("Failed to generate keywords", 
+                    user_id=user_id if 'user_id' in locals() else 'unknown', 
+                    error=str(e))
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to generate keywords: {str(e)}")

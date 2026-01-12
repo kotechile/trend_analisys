@@ -100,27 +100,28 @@ class KeywordEnhancerService:
             {content_text}
             
             Requirements:
+            - Generate a BALANCED mix of keywords with 1, 2, and 3 words
+            - Aim for approximately: 33% single-word keywords, 33% two-word keywords, 33% three-word keywords
             - Maximum 3 words per keyword
             - Focus on search intent and commercial value
-            - Include both short-tail and long-tail keywords
             - Avoid generic or overly broad terms
             - Prioritize keywords that would be useful for content creation
             
             For each keyword, provide:
-            1. Primary keyword (max 3 words)
+            1. Primary keyword (1-3 words, balanced distribution)
             2. Search intent (informational, commercial, navigational, transactional)
             3. Difficulty level (1-100)
             4. Estimated search volume
             5. Related keywords (3-5, max 3 words each)
             6. Content angle suggestions
             
-            Generate 30-50 keywords across different categories:
-            - Primary keywords (exact match)
-            - Long-tail keywords
-            - Question-based keywords
-            - Comparison keywords
-            - Local keywords
-            - Seasonal keywords
+            Generate 30-50 keywords across different categories with balanced word counts:
+            - Primary keywords (exact match) - mix of 1-3 words
+            - Long-tail keywords - primarily 3 words
+            - Question-based keywords - mix of 2-3 words
+            - Comparison keywords - mix of 2-3 words
+            - Local keywords - mix of 2-3 words
+            - Seasonal keywords - mix of 1-3 words
             
             Return as JSON array with this structure:
             [

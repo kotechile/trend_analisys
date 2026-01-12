@@ -214,20 +214,9 @@ class DataForSEOService:
             if not self.client:
                 await self.initialize()
             
-            # Filter keywords to 1-2 words only for better related keyword results
-            filtered_keywords = []
-            for keyword in keywords:
-                word_count = len(keyword.split())
-                if word_count < 3:  # Less than 3 words (1 or 2 words)
-                    filtered_keywords.append(keyword)
-                    logger.info(f"✅ Using keyword '{keyword}' ({word_count} words)")
-                else:
-                    logger.info(f"⚠️ Skipping keyword '{keyword}' ({word_count} words) - too long for related keywords")
-            
-            if not filtered_keywords:
-                logger.warning("No keywords with 1-2 words found, returning empty results")
-                return []
-            
+            # Process all keywords regardless of length
+            # DataForSEO API can handle multi-word keywords
+            filtered_keywords = keywords
             logger.info(f"Processing {len(filtered_keywords)} keywords for related keywords")
             
             # Process each keyword individually (not in batch)

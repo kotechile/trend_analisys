@@ -901,24 +901,53 @@ async def generate_keywords(request: KeywordGenerationRequest):
                 logger.info("Using LLM provider", provider_type=provider_type, model=model_name, has_api_key=bool(api_key))
                 
                 if api_key:
-                    # Create a comprehensive prompt for keyword generation
+                    # Create a comprehensive prompt for keyword generation that intelligently generates
+                    # a balanced mix of 1, 2, and 3 word seed keywords based on ALL subtopics
+                    subtopics_list = '\n'.join([f"- {st}" for st in request.subtopics])
+                    
                     prompt = f"""
-Generate 20 high-quality, SEO-friendly keywords for the topic "{request.topicTitle}" based on these subtopics: {', '.join(request.subtopics[:5])}
+You are an expert SEO keyword researcher. Generate high-quality seed keywords for the topic "{request.topicTitle}" based on the following subtopics:
 
-Requirements:
-1. Focus on search intent and commercial value
-2. Include long-tail keywords (3+ words)
-3. Mix of informational, commercial, and transactional keywords
-4. Consider different user intents (beginner, advanced, comparison, etc.)
-5. Include location-based variations if relevant
-6. Ensure keywords are specific to the subtopics provided
-7. Avoid overly generic terms
-8. Include question-based keywords (how to, what is, etc.)
+Subtopics:
+{subtopics_list}
 
-Format: Return only the keywords, one per line, no numbering or bullets.
+CRITICAL REQUIREMENTS:
+1. Generate approximately 8-12 seed keywords TOTAL (not per subtopic)
+2. Create a BALANCED MIX across all subtopics:
+   - ~33% single-word keywords (core terms)
+   - ~33% two-word keywords (phrases)
+   - ~33% three-word keywords (specific searches)
+3. MAXIMUM 3 words per keyword - NO EXCEPTIONS
+4. Generate keywords that capture the main idea of EACH subtopic, not random variations
+5. Focus on foundational seed keywords perfect for further research in DataForSEO
+6. Keywords should be commercial and affiliate-friendly
+7. Use your intelligence to choose the best 1-3 word representation of each subtopic's core concept
+8. Do NOT truncate subtopics mechanically - choose the most powerful keywords naturally
 
-Topic: {request.topicTitle}
-Subtopics: {', '.join(request.subtopics[:5])}
+DO NOT:
+- Generate the same keyword multiple times
+- Create variations just by adding "guide", "tips", "best" - be more strategic
+- Use subtopic names verbatim if they're too long
+- Apply arbitrary truncation rules
+
+DO:
+- Use your knowledge to select the most valuable seed keywords
+- Create a diverse mix of keyword lengths (1, 2, 3 words)
+- Ensure each keyword represents a core concept from the subtopics
+- Think about what searchers would actually type
+
+Format: Return ONLY keywords, one per line, no numbering, bullets, or explanations.
+
+Example of good output:
+technology
+digital transformation
+enterprise software
+cloud computing
+SaaS solutions
+ai integration
+business intelligence
+data analytics
+automation tools
 """
                     
                     # Call the LLM using the provider-specific approach
@@ -977,15 +1006,20 @@ Subtopics: {', '.join(request.subtopics[:5])}
                     
                     for line in content.split('\n'):
                         line = line.strip()
-                        if line and not line.startswith('#') and not line.startswith('-') and not line.startswith('*'):
+                        if line and not line.startswith('#') and not line.startswith('Example'):
                             # Clean up the keyword
                             keyword = line.replace('•', '').replace('-', '').replace('*', '').strip()
-                            if keyword and len(keyword) > 2:
-                                keywords.append(keyword)
+                            # Remove any line numbers, bullets, or other formatting
+                            keyword = keyword.lstrip('0123456789.)').strip()
+                            if keyword and len(keyword) > 1:
+                                # Filter out keywords longer than 3 words
+                                word_count = len(keyword.split())
+                                if word_count <= 3:
+                                    keywords.append(keyword)
                     
                     if keywords:
-                        # Remove duplicates and limit to 20
-                        unique_keywords = list(dict.fromkeys(keywords))[:20]
+                        # Remove duplicates while preserving order
+                        unique_keywords = list(dict.fromkeys([kw.lower() for kw in keywords]))[:15]
                         
                         logger.info("Successfully generated keywords with LLM", 
                                    provider=provider_type, 
@@ -994,10 +1028,10 @@ Subtopics: {', '.join(request.subtopics[:5])}
                         return KeywordGenerationResponse(
                             success=True,
                             keywords=unique_keywords,
-                            message=f"Generated {len(unique_keywords)} keywords using {provider_type} ({model_name})"
+                            message=f"Generated {len(unique_keywords)} intelligent seed keywords using {provider_type} ({model_name})"
                         )
                     
-                    logger.warning("LLM response parsing failed, falling back to rule-based generation")
+                    logger.warning("LLM response parsing failed, falling back to intelligent rule-based generation")
                 else:
                     logger.warning("No API key found for provider, falling back to rule-based generation", 
                                  provider_type=provider_type)
@@ -1007,74 +1041,45 @@ Subtopics: {', '.join(request.subtopics[:5])}
         except Exception as llm_error:
             logger.warning("LLM generation failed, falling back to rule-based generation", error=str(llm_error))
         
-        # Fallback to enhanced rule-based generation
-        logger.info("Using enhanced rule-based keyword generation")
+        # Fallback: Create simple keywords from subtopics without truncation rules
+        logger.info("Using simplified keyword generation from subtopics")
         
         keywords = []
-        topic_lower = request.topicTitle.lower()
         
-        for subtopic in request.subtopics[:5]:
-            subtopic_lower = subtopic.lower()
+        # For each subtopic, try to extract meaningful short keywords
+        # Instead of truncating, we'll use the subtopic directly if it's short enough
+        for subtopic in request.subtopics:
+            subtopic_words = subtopic.split()
+            word_count = len(subtopic_words)
             
-            # Generate various keyword variations
-            keyword_variations = [
-                f"{subtopic} guide",
-                f"{subtopic} tips",
-                f"best {subtopic}",
-                f"{subtopic} tutorial",
-                f"how to {subtopic}",
-                f"{subtopic} for beginners",
-                f"{subtopic} techniques",
-                f"{subtopic} strategies",
-                f"{subtopic} tools",
-                f"{subtopic} equipment",
-                f"{subtopic} software",
-                f"{subtopic} courses",
-                f"learn {subtopic}",
-                f"{subtopic} basics",
-                f"advanced {subtopic}",
-                f"{subtopic} ideas",
-                f"{subtopic} examples",
-                f"{subtopic} resources",
-                f"{subtopic} reviews",
-                f"{subtopic} comparison"
-            ]
-            
-            # Add topic-specific variations
-            if "photography" in topic_lower or "photo" in subtopic_lower:
-                keyword_variations.extend([
-                    f"{subtopic} camera settings",
-                    f"{subtopic} lighting",
-                    f"{subtopic} composition",
-                    f"{subtopic} editing",
-                    f"{subtopic} gear"
-                ])
-            elif "travel" in topic_lower or "travel" in subtopic_lower:
-                keyword_variations.extend([
-                    f"{subtopic} destinations",
-                    f"{subtopic} planning",
-                    f"{subtopic} budget",
-                    f"{subtopic} itinerary",
-                    f"{subtopic} tips"
-                ])
-            elif "business" in topic_lower or "marketing" in subtopic_lower:
-                keyword_variations.extend([
-                    f"{subtopic} strategy",
-                    f"{subtopic} tools",
-                    f"{subtopic} software",
-                    f"{subtopic} automation",
-                    f"{subtopic} analytics"
-                ])
-            
-            keywords.extend(keyword_variations)
+            # If subtopic is already 3 words or less, use it directly
+            if word_count <= 3:
+                keywords.append(subtopic.lower())
+            # If subtopic is longer, try the first 1, 2, or 3 words as keywords
+            elif word_count > 3:
+                # Use first word as a single-word keyword
+                if subtopic_words[0].lower() not in ['the', 'a', 'an', 'how', 'what', 'why', 'when', 'where']:
+                    keywords.append(subtopic_words[0].lower())
+                
+                # Use first 2 words as a two-word keyword
+                if len(subtopic_words) >= 2:
+                    two_words = f"{subtopic_words[0].lower()} {subtopic_words[1].lower()}"
+                    if two_words not in keywords:
+                        keywords.append(two_words)
+                
+                # Use first 3 words as a three-word keyword
+                if len(subtopic_words) >= 3:
+                    three_words = f"{subtopic_words[0].lower()} {subtopic_words[1].lower()} {subtopic_words[2].lower()}"
+                    if three_words not in keywords:
+                        keywords.append(three_words)
         
-        # Remove duplicates while preserving order
-        unique_keywords = list(dict.fromkeys(keywords))
+        # Remove duplicates while preserving order and limit to 15
+        unique_keywords = list(dict.fromkeys(keywords))[:15]
         
         return KeywordGenerationResponse(
             success=True,
-            keywords=unique_keywords[:20],
-            message=f"Generated {len(unique_keywords[:20])} keywords (rule-based fallback)"
+            keywords=unique_keywords,
+            message=f"Generated {len(unique_keywords)} keywords from subtopics (simplified fallback)"
         )
         
     except Exception as e:

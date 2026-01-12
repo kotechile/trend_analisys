@@ -132,13 +132,9 @@ async def make_dataforseo_request(endpoint: str, data: dict):
 async def save_to_database(table: str, data: dict):
     """Save data to Supabase database"""
     try:
-        from supabase import create_client
+        from src.core.supabase_singleton import get_supabase_client
         
-        if not SUPABASE_URL or not SUPABASE_KEY:
-            logger.warning("Supabase credentials not configured, skipping database save")
-            return
-        
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        supabase = get_supabase_client()
         result = supabase.table(table).insert(data).execute()
         logger.info(f"Saved data to {table}: {len(result.data)} records")
         return result.data

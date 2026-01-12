@@ -77,6 +77,11 @@ interface Idea {
   optimization_tips: string[];
   content_outline: string[];
   created_at: string;
+  // Viability Score Metrics
+  viability_score?: number;
+  trend_score?: number;
+  monetization_score?: number;
+  seo_ease_score?: number;
 }
 
 interface IdeaBurstSession {
@@ -104,10 +109,10 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
 }) => {
   const location = useLocation();
   const { user } = useAuth();
-  const navigationState = location.state as { 
-    selectedTopicId?: string; 
-    selectedTopicTitle?: string; 
-    selectedSubtopics?: string[] 
+  const navigationState = location.state as {
+    selectedTopicId?: string;
+    selectedTopicTitle?: string;
+    selectedSubtopics?: string[]
   } | null;
 
   // Get values from props, navigation state, or sessionStorage fallback
@@ -132,7 +137,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedIdeas, setSelectedIdeas] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Advanced filters using AHREFS data
   const [filters, setFilters] = useState({
     minVolume: 0,
@@ -145,9 +150,13 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     maxTrafficPotential: 1000000,
     minSeoScore: 0,
     maxSeoScore: 100,
+    intentTypes: [] as string[], // Add intent filter
     sortBy: 'score' as 'score' | 'volume' | 'difficulty' | 'cpc' | 'traffic_potential',
     sortOrder: 'desc' as 'asc' | 'desc'
   });
+
+  // State to store keyword intent mappings
+  const [keywordIntentMap, setKeywordIntentMap] = useState<Record<string, string>>({});
   const [researchTopics, setResearchTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(derivedSelectedTopicId);
@@ -165,21 +174,21 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
-  
+
   // Content ideas state
   const [contentIdeas, setContentIdeas] = useState<ContentIdea[]>([]);
   const [blogIdeas, setBlogIdeas] = useState<ContentIdea[]>([]);
   const [softwareIdeas, setSoftwareIdeas] = useState<ContentIdea[]>([]);
   const [isGeneratingIdeas, setIsGeneratingIdeas] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
-  
+
   // Publish to Titles state
   const [selectedIdeasForPublish, setSelectedIdeasForPublish] = useState<Set<string>>(new Set());
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishResult, setPublishResult] = useState<PublishIdeasResponse | null>(null);
   const [selectedIdeaType, setSelectedIdeaType] = useState<'all' | 'blog' | 'software'>('all');
-  
+
   // AHREFS state
   const [ahrefsFile, setAhrefsFile] = useState<File | null>(null);
   const [ahrefsKeywords, setAhrefsKeywords] = useState<AhrefsKeyword[]>([]);
@@ -209,7 +218,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       const response = await supabaseResearchTopicsService.listResearchTopics();
       const topics = Array.isArray(response) ? response : (response?.items || []);
       setResearchTopics(topics);
-      
+
       // Auto-select topic if provided
       if (selectedTopicId) {
         const topic = topics.find(t => t.id === selectedTopicId);
@@ -238,11 +247,11 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     try {
       console.log('IdeaBurst - Saving subtopics to database:', subtopics, 'for topic:', topicId);
       const { affiliateResearchService } = await import('../services/affiliateResearchService');
-      
+
       // Get the main topic title
       const topic = researchTopics.find(t => t.id === topicId);
       const mainTopic = topic?.title || 'Unknown Topic';
-      
+
       console.log('IdeaBurst - Main topic title:', mainTopic);
       console.log('IdeaBurst - Calling storeSubtopics with:', {
         subtopics,
@@ -250,7 +259,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         mainTopic,
         researchTopicId: topicId
       });
-      
+
       // Save subtopics to database
       await affiliateResearchService.storeSubtopics(subtopics, user.id, mainTopic, topicId);
       console.log('IdeaBurst - Successfully saved subtopics to database');
@@ -264,33 +273,33 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     const topic = researchTopics.find(t => t.id === topicId);
     console.log('IdeaBurst - Found topic:', topic);
     setSelectedTopic(topic);
-    
+
     // Update the selectedTopicId state for this component
     // This ensures that selectedTopicId is available for other functions
     setSelectedTopicId(topicId);
-    
+
     // Mark that topic was changed directly (not from navigation)
     setTopicChangedDirectly(true);
-    
+
     // Reset initialization flag so we can load subtopics from database
     setHasInitializedFromNavigation(false);
-    
+
     // Always clear existing content ideas and subtopics when switching topics
     setContentIdeas([]);
     setBlogIdeas([]);
     setSoftwareIdeas([]);
     setDisplayedSubtopics([]); // Clear displayed subtopics immediately
     setLoadedSubtopics([]);    // Clear loaded subtopics immediately
-    
+
     // Show loading state for content ideas
     setIsGeneratingIdeas(true);
-    
+
     // Load existing keywords, subtopics, and content ideas for the new topic
     console.log('IdeaBurst - Loading keywords, subtopics, and content ideas for topic:', topicId);
     await loadExistingKeywords(topicId);
     await loadSubtopicsForTopic(topicId);
     await loadExistingContentIdeas(topicId);
-    
+
     // Clear loading state
     setIsGeneratingIdeas(false);
     console.log('IdeaBurst - Topic change completed for:', topicId);
@@ -302,15 +311,15 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       console.log('IdeaBurst - Loading subtopics for topic:', topicId);
       console.log('IdeaBurst - User ID:', user?.id);
       console.log('IdeaBurst - Current displayedSubtopics before loading:', displayedSubtopics);
-      
+
       // Use the affiliate research service to get subtopics
       const { affiliateResearchService } = await import('../services/affiliateResearchService');
       const subtopics = await affiliateResearchService.getSubtopicsForTopic(topicId, user?.id || '');
-      
+
       console.log('IdeaBurst - Raw subtopics from database:', subtopics);
       console.log('IdeaBurst - Subtopics type:', typeof subtopics);
       console.log('IdeaBurst - Subtopics length:', subtopics?.length);
-      
+
       if (subtopics && subtopics.length > 0) {
         console.log('IdeaBurst - Setting subtopics from database for topic:', topicId);
         setLoadedSubtopics(subtopics);
@@ -336,30 +345,43 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     try {
       // Get user ID from auth context
       const userId = user?.id;
-      
+
       let databaseKeywords: string[] = [];
-      
+
       // Try to load from database if user is logged in
       if (userId) {
         try {
           console.log('IdeaBurst - Loading keywords from database for topic:', topicId, 'user:', userId);
-          const keywords = await keywordService.loadExistingKeywords(topicId, userId);
-          console.log('IdeaBurst - Database keywords response:', keywords);
-          databaseKeywords = keywords.map(k => k.keyword);
-          console.log('IdeaBurst - Mapped database keywords:', databaseKeywords);
+
+          // Load from keyword_research_data table (where Keyword Armoury saves)
+          const { supabase } = await import('../lib/supabase');
+          const { data, error } = await supabase
+            .from('keyword_research_data')
+            .select('keyword')
+            .eq('topic_id', topicId)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+          if (error) {
+            console.error('IdeaBurst - Error loading from keyword_research_data:', error);
+          } else {
+            console.log('IdeaBurst - Database keywords response:', data);
+            databaseKeywords = data?.map(k => k.keyword) || [];
+            console.log('IdeaBurst - Mapped database keywords:', databaseKeywords);
+          }
         } catch (dbError) {
           console.error('IdeaBurst - Failed to load keywords from database:', dbError);
         }
       } else {
         console.log('IdeaBurst - No user ID, skipping database load');
       }
-      
+
       // Get local keywords for this topic
       const localKeywords = keywordsByTopic[topicId] || [];
-      
+
       // Merge database and local keywords, remove duplicates
       const allKeywords = [...new Set([...localKeywords, ...databaseKeywords])];
-      
+
       // Update both the display and the topic-specific storage
       console.log('IdeaBurst - Setting existing keywords to:', allKeywords);
       setExistingKeywords(allKeywords);
@@ -419,16 +441,16 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
 
     const keywords: string[] = [];
     const topicLower = selectedTopic?.title?.toLowerCase() || '';
-    
+
     displayedSubtopics.forEach(subtopic => {
       const subtopicLower = subtopic.toLowerCase();
-      
+
       // Generate simple seed keywords (max 3 words) for each subtopic
       const seedKeywordVariations = [
         // Basic seed keywords (1-2 words)
         subtopic,
         subtopicLower,
-        
+
         // Simple 2-word combinations
         `${subtopic} guide`,
         `${subtopic} tips`,
@@ -445,7 +467,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         `${subtopic} strategies`,
         `${subtopic} resources`,
         `${subtopic} reviews`,
-        
+
         // Simple 3-word combinations (max length)
         `how to ${subtopic}`,
         `${subtopic} for beginners`,
@@ -458,7 +480,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         `${subtopic} comprehensive guide`,
         `${subtopic} detailed tutorial`
       ];
-      
+
       // Add topic-specific simple seed keywords
       if (topicLower.includes('photography') || subtopicLower.includes('photo')) {
         seedKeywordVariations.push(
@@ -508,24 +530,24 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
           `sustainable ${subtopic}`
         );
       }
-      
+
       // Filter to only include keywords with 3 words or less
-      const filteredKeywords = seedKeywordVariations.filter(keyword => 
+      const filteredKeywords = seedKeywordVariations.filter(keyword =>
         keyword.split(' ').length <= 3
       );
-      
+
       keywords.push(...filteredKeywords);
     });
-    
+
     // Remove duplicates while preserving order
     const uniqueKeywords = Array.from(new Set(keywords));
-    
+
     // Add rule-based seed keywords to the text area
     const newKeywords = uniqueKeywords.slice(0, 50).join('\n'); // Increased limit for seed keywords
     const currentKeywords = keywordTextArea.trim();
     const combinedKeywords = currentKeywords ? `${currentKeywords}\n${newKeywords}` : newKeywords;
     setKeywordTextArea(combinedKeywords);
-    
+
     setSnackbarMessage(`Added ${Math.min(50, uniqueKeywords.length)} simple seed keywords for all ${displayedSubtopics.length} subtopics`);
     setShowSnackbar(true);
   };
@@ -535,7 +557,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     try {
       setIsGeneratingKeywords(true);
       setError(null);
-      
+
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
@@ -553,7 +575,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         const currentKeywords = keywordTextArea.trim();
         const combinedKeywords = currentKeywords ? `${currentKeywords}\n${newKeywords}` : newKeywords;
         setKeywordTextArea(combinedKeywords);
-        
+
         setSnackbarMessage(`Added ${response.keywords.length} LLM-generated keywords to your list`);
         setShowSnackbar(true);
       } else {
@@ -572,13 +594,13 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   // Parse keywords from text area
   const parseKeywordsFromTextArea = (): string[] => {
     if (!keywordTextArea.trim()) return [];
-    
+
     const keywords = keywordTextArea
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
       .filter((keyword, index, array) => array.indexOf(keyword) === index); // Remove duplicates
-    
+
     console.log('Parsed keywords from text area:', keywords);
     return keywords;
   };
@@ -586,7 +608,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   // Save keywords from text area
   const saveKeywordsFromTextArea = async () => {
     const keywords = parseKeywordsFromTextArea();
-    
+
     if (keywords.length === 0) {
       setSnackbarMessage('No keywords to save');
       setShowSnackbar(true);
@@ -596,7 +618,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     try {
       setLoading(true);
       const userId = user?.id;
-      
+
       // If no user ID, show error message
       if (!userId) {
         console.log('No user ID found, using anonymous mode');
@@ -606,17 +628,17 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       } else {
         console.log('User ID found:', userId);
       }
-      
+
       // Update local state first (regardless of database save)
       console.log('Saving keywords:', keywords);
       const topicId = selectedTopic?.id;
-      
+
       setExistingKeywords(prev => {
         const newKeywords = [...prev, ...keywords];
         console.log('Updated existing keywords:', newKeywords);
         return newKeywords;
       });
-      
+
       // Also save to topic-specific storage
       if (topicId) {
         setKeywordsByTopic(prev => ({
@@ -625,7 +647,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         }));
         console.log('Saved keywords to topic-specific storage for topic:', topicId);
       }
-      
+
       // Try to save keywords to database (only if we have a user ID)
       if (userId) {
         try {
@@ -643,9 +665,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       } else {
         setSnackbarMessage(`Added ${keywords.length} keywords locally (no user ID for database save)`);
       }
-      
+
       setShowSnackbar(true);
-      
+
       // Clear the text area after saving
       setKeywordTextArea('');
     } catch (error) {
@@ -661,7 +683,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   // Remove a keyword from the saved list
   const removeKeyword = (keywordToRemove: string) => {
     setExistingKeywords(prev => prev.filter(keyword => keyword !== keywordToRemove));
-    
+
     // Also remove from topic-specific storage
     const topicId = selectedTopic?.id;
     if (topicId) {
@@ -670,7 +692,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         [topicId]: (prev[topicId] || []).filter(keyword => keyword !== keywordToRemove)
       }));
     }
-    
+
     setSnackbarMessage(`Removed "${keywordToRemove}" from saved keywords`);
     setShowSnackbar(true);
   };
@@ -707,7 +729,12 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         setContentIdeas(response.ideas);
         setBlogIdeas(response.ideas.filter(idea => idea.content_type === 'blog'));
         setSoftwareIdeas(response.ideas.filter(idea => idea.content_type === 'software'));
-        
+
+        // Load keyword intents for the newly generated ideas
+        if (selectedTopicId && user.id) {
+          await loadKeywordIntents(response.ideas, selectedTopicId, user.id);
+        }
+
         setSnackbarMessage(`Generated ${response.total_ideas} content ideas (${response.blog_ideas} blog, ${response.software_ideas} software)`);
         setShowSnackbar(true);
       } else {
@@ -734,27 +761,27 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       // Parse the file locally first
       const text = await file.text();
       const keywords = ahrefsService.parseAhrefsCSV(text);
-      
+
       // Upload to backend
       const uploadResult = await ahrefsService.uploadAhrefsFile(file, selectedTopicId || 'test-topic-123', user?.id || 'ed9fdb80-58db-44fc-8869-1d835408a65f');
-      
+
       if (uploadResult.success) {
         // Use keywords returned by backend if available, otherwise use locally parsed ones
         const backendKeywords = uploadResult.ahrefs_keywords || uploadResult.keywords || [];
         const finalKeywords = backendKeywords.length > 0 ? backendKeywords : keywords;
-        
+
         console.log('Keywords source:', {
           backendCount: backendKeywords.length,
           localCount: keywords.length,
           usingBackend: backendKeywords.length > 0
         });
-        
+
         setAhrefsKeywords(finalKeywords);
         setAhrefsAnalytics(ahrefsService.calculateAnalyticsSummary(finalKeywords));
-        
+
         setSnackbarMessage(`Successfully uploaded and parsed ${finalKeywords.length} keywords from AHREFS file. Generating content ideas...`);
         setShowSnackbar(true);
-        
+
         // Auto-generate content ideas after successful upload
         console.log('Auto-generation check:', {
           selectedTopicId,
@@ -763,10 +790,10 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
           displayedSubtopics: displayedSubtopics.length,
           canGenerate: !!(selectedTopicId && user?.id && (selectedSubtopics.length > 0 || displayedSubtopics.length > 0))
         });
-        
+
         // If no subtopics are available, try to load them from the database
         let finalSubtopics = selectedSubtopics.length > 0 ? selectedSubtopics : displayedSubtopics;
-        
+
         if (selectedTopicId && user?.id && finalSubtopics.length === 0) {
           console.log('No subtopics available, trying to load from database...');
           try {
@@ -780,13 +807,13 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             console.error('Failed to load subtopics:', error);
           }
         }
-        
+
         if (selectedTopicId && user?.id && finalSubtopics.length > 0) {
           try {
             console.log('Starting auto-generation with AHREFS data...');
             console.log('Using subtopics for generation:', finalSubtopics);
             setIsGeneratingIdeas(true);
-            
+
             // Create the request with the loaded subtopics
             const request: AhrefsContentIdeasRequest = {
               topic_id: selectedTopicId,
@@ -802,7 +829,12 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
               setContentIdeas(response.ideas);
               setBlogIdeas(response.ideas.filter(idea => idea.content_type === 'blog'));
               setSoftwareIdeas(response.ideas.filter(idea => idea.content_type === 'software'));
-              
+
+              // Load keyword intents for the newly generated ideas
+              if (selectedTopicId && user.id) {
+                await loadKeywordIntents(response.ideas, selectedTopicId, user.id);
+              }
+
               setSnackbarMessage(`Successfully generated content ideas using uploaded AHREFS keywords!`);
               setShowSnackbar(true);
               console.log('Auto-generation completed successfully');
@@ -834,7 +866,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
 
   const generateContentIdeasWithAhrefs = async () => {
     const subtopicsToUse = selectedSubtopics.length > 0 ? selectedSubtopics : displayedSubtopics;
-    
+
     if (!selectedTopicId || !user?.id || subtopicsToUse.length === 0 || ahrefsKeywords.length === 0) {
       setSnackbarMessage('Please select a topic, subtopics, and upload AHREFS data first');
       setShowSnackbar(true);
@@ -859,7 +891,12 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         setContentIdeas(response.ideas);
         setBlogIdeas(response.ideas.filter(idea => idea.content_type === 'blog'));
         setSoftwareIdeas(response.ideas.filter(idea => idea.content_type === 'software'));
-        
+
+        // Load keyword intents for the newly generated ideas
+        if (selectedTopicId && user.id) {
+          await loadKeywordIntents(response.ideas, selectedTopicId, user.id);
+        }
+
         setSnackbarMessage(`Generated ${response.total_ideas} content ideas with AHREFS data (${response.blog_ideas} blog, ${response.software_ideas} software)`);
         setShowSnackbar(true);
       } else {
@@ -879,11 +916,162 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
 
     try {
       const ideas = await contentIdeasService.getContentIdeas(currentTopicId, user.id);
-      setContentIdeas(ideas);
-      setBlogIdeas(ideas.filter(idea => idea.content_type === 'blog'));
-      setSoftwareIdeas(ideas.filter(idea => idea.content_type === 'software'));
+
+      // Debug: Log what we got from Supabase
+      console.log('📊 Raw ideas from Supabase:', ideas.map(idea => ({
+        id: idea.id,
+        title: idea.title,
+        total_search_volume: idea.total_search_volume,
+        average_difficulty: idea.average_difficulty,
+        average_cpc: idea.average_cpc,
+        seo_optimization_score: idea.seo_optimization_score,
+        traffic_potential_score: idea.traffic_potential_score
+      })));
+
+      // Enrich ideas with metrics if missing
+      const enrichedIdeas = await enrichIdeasWithMetrics(ideas, currentTopicId, user.id);
+
+      // Debug: Log enriched ideas
+      console.log('📊 Enriched ideas:', enrichedIdeas.map(idea => ({
+        id: idea.id,
+        title: idea.title,
+        total_search_volume: idea.total_search_volume,
+        average_difficulty: idea.average_difficulty,
+        average_cpc: idea.average_cpc,
+        seo_optimization_score: idea.seo_optimization_score,
+        traffic_potential_score: idea.traffic_potential_score
+      })));
+
+      setContentIdeas(enrichedIdeas);
+      setBlogIdeas(enrichedIdeas.filter(idea => idea.content_type === 'blog'));
+      setSoftwareIdeas(enrichedIdeas.filter(idea => idea.content_type === 'software'));
+
+      // Load intent information for keywords from Supabase
+      await loadKeywordIntents(enrichedIdeas, currentTopicId, user.id);
     } catch (err) {
       console.error('Failed to load existing content ideas:', err);
+    }
+  };
+
+  const enrichIdeasWithMetrics = async (ideas: ContentIdea[], topicId: string, userId: string) => {
+    try {
+      const { supabase } = await import('../lib/supabase');
+
+      // For each idea, if it's missing metrics, try to get them from keywords
+      const enrichedIdeas = await Promise.all(ideas.map(async (idea) => {
+        // If metrics are already present, return as is
+        if (idea.seo_optimization_score && idea.seo_optimization_score > 0 &&
+          idea.traffic_potential_score && idea.traffic_potential_score > 0 &&
+          idea.total_search_volume && idea.total_search_volume > 0) {
+          return idea;
+        }
+
+        // Otherwise, try to calculate metrics from keywords
+        const keywords = [...(idea.primary_keywords || []), ...(idea.keywords || [])];
+        if (keywords.length === 0) {
+          return idea;
+        }
+
+        try {
+          // Get metrics from keyword_research_data
+          // Note: keyword_research_data doesn't have topic_id or user_id, just keyword
+          const { data: keywordData } = await supabase
+            .from('keyword_research_data')
+            .select('search_volume, keyword_difficulty, cpc')
+            .in('keyword', keywords);
+
+          if (keywordData && keywordData.length > 0) {
+            const totalVolume = keywordData.reduce((sum, k) => sum + (k.search_volume || 0), 0);
+            const avgDifficulty = keywordData.reduce((sum, k) => sum + (k.keyword_difficulty || 0), 0) / keywordData.length;
+            const avgCpc = keywordData.reduce((sum, k) => sum + (k.cpc || 0), 0) / keywordData.length;
+
+            console.log(`✅ Enriched idea "${idea.title}" with metrics: volume=${totalVolume}, difficulty=${avgDifficulty}, cpc=${avgCpc}`);
+
+            // Enrich the idea with calculated metrics
+            return {
+              ...idea,
+              total_search_volume: totalVolume,
+              average_difficulty: avgDifficulty,
+              average_cpc: avgCpc,
+              seo_optimization_score: idea.seo_optimization_score || 75,
+              traffic_potential_score: idea.traffic_potential_score || 70,
+              // Calculate Viability Score if missing
+              viability_score: idea.viability_score ||
+                // Proxy calculation: (Traffic/10 * 0.3) + (Monetization/10 * 0.4) + ((10-Diff/10) * 0.3) * 10 
+                Math.round(((idea.traffic_potential_score || 70) / 10 * 0.3 +
+                  (idea.monetization_score || 5) * 0.4 +
+                  (10 - avgDifficulty / 10) * 0.3) * 10 * 10) / 10
+            };
+          } else {
+            console.log(`⚠️ No keyword data found for idea "${idea.title}" with keywords:`, keywords);
+          }
+        } catch (error) {
+          console.error(`Failed to enrich idea ${idea.id} with metrics:`, error);
+        }
+
+        return idea;
+      }));
+
+      console.log(`✅ Enriched ${enrichedIdeas.length} ideas with metrics`);
+      return enrichedIdeas;
+
+    } catch (error) {
+      console.error('Failed to enrich ideas with metrics:', error);
+      return ideas;
+    }
+  };
+
+  const loadKeywordIntents = async (ideas: ContentIdea[], topicId: string, userId: string) => {
+    try {
+      // Get all unique keywords from all ideas
+      const allKeywords = new Set<string>();
+      ideas.forEach(idea => {
+        (idea.primary_keywords || []).forEach(kw => allKeywords.add(kw));
+        (idea.keywords || []).forEach(kw => allKeywords.add(kw));
+      });
+
+      console.log('🔍 Loading keyword intents for', allKeywords.size, 'unique keywords');
+
+      if (allKeywords.size === 0) {
+        console.log('⚠️ No keywords found in ideas');
+        return;
+      }
+
+      // Fetch intent information from keyword_research_data table
+      // Note: keyword_research_data doesn't have topic_id or user_id, just keyword as unique identifier
+      const { supabase } = await import('../lib/supabase');
+      const keywordsArray = Array.from(allKeywords);
+      console.log('🔍 Querying keywords:', keywordsArray.slice(0, 5), '...');
+
+      const { data: keywordData, error } = await supabase
+        .from('keyword_research_data')
+        .select('keyword, intent_type')
+        .in('keyword', keywordsArray);
+
+      if (error) {
+        console.error('❌ Error loading keyword intents:', error);
+        return;
+      }
+
+      console.log('✅ Retrieved keyword data:', keywordData?.length || 0, 'records');
+
+      // Create a map of keyword to intent_type
+      const intentMap: Record<string, string> = {};
+      (keywordData || []).forEach((item: any) => {
+        if (item.intent_type) {
+          intentMap[item.keyword] = item.intent_type;
+        }
+      });
+
+      console.log('✅ Loaded keyword intent mappings:', Object.keys(intentMap).length, 'keywords with intent data');
+      if (Object.keys(intentMap).length > 0) {
+        console.log('Sample mappings:', Object.entries(intentMap).slice(0, 3));
+      } else {
+        console.warn('⚠️ No intent data found for keywords - intent filter will not work');
+      }
+      setKeywordIntentMap(intentMap);
+    } catch (error) {
+      console.error('❌ Failed to load keyword intents:', error);
     }
   };
 
@@ -909,6 +1097,18 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     loadResearchTopics();
   }, []);
 
+  // Debug: log intent filter changes
+  useEffect(() => {
+    if (filters.intentTypes.length > 0) {
+      console.log('🔍 Intent filter changed:', filters.intentTypes);
+      console.log('🔍 Keyword intent map has', Object.keys(keywordIntentMap).length, 'entries');
+
+      if (Object.keys(keywordIntentMap).length === 0) {
+        console.warn('⚠️ No keyword intent data loaded - intent filter will not work. Make sure keywords have been researched first.');
+      }
+    }
+  }, [filters.intentTypes, keywordIntentMap]);
+
 
   // Load keywords when selectedTopicId changes
   useEffect(() => {
@@ -932,14 +1132,14 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     if (selectedSubtopics && selectedSubtopics.length > 0 && user?.id && !hasInitializedFromNavigation) {
       // Use the original topic ID from navigation state, not the current selectedTopicId
       const originalTopicId = navigationState?.selectedTopicId || propSelectedTopicId;
-      
+
       if (originalTopicId) {
         console.log('IdeaBurst - Initializing from navigation state:', selectedSubtopics);
         console.log('IdeaBurst - Using original topic ID from navigation:', originalTopicId);
         setLoadedSubtopics(selectedSubtopics);
         setDisplayedSubtopics(selectedSubtopics);
         setHasInitializedFromNavigation(true);
-        
+
         // Save subtopics to database with the original topic ID
         saveSubtopicsToDatabase(selectedSubtopics, originalTopicId);
       }
@@ -974,7 +1174,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   const handleGenerateIdeas = async (type: 'seed' | 'ahrefs') => {
     setLoading(true);
     setError(null);
-    
+
     try {
       if (type === 'seed') {
         await generateContentIdeas();
@@ -988,7 +1188,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     }
   };
 
-  const handleIdeaSelect = (idea: Idea) => {
+  const handleIdeaSelect = (idea: ContentIdea) => {
     const newSelected = new Set(selectedIdeas);
     if (newSelected.has(idea.id)) {
       newSelected.delete(idea.id);
@@ -996,7 +1196,8 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       newSelected.add(idea.id);
     }
     setSelectedIdeas(newSelected);
-    onIdeaSelect?.(idea);
+    // Cast to any to avoid strict type checking for now since onIdeaSelect might expect a different Idea type
+    onIdeaSelect?.(idea as any);
   };
 
   // Publish to Titles functions
@@ -1011,7 +1212,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   };
 
   const handleSelectAllIdeas = () => {
-    const currentIdeas = selectedIdeaType === 'all' ? contentIdeas : 
+    const currentIdeas = selectedIdeaType === 'all' ? contentIdeas :
       selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas;
     // Only select publishable (non-software, non-published) ideas
     const publishableIdeas = currentIdeas.filter(idea => idea.content_type !== 'software' && !idea.published);
@@ -1040,12 +1241,12 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
     setPublishDialogOpen(true);
 
     try {
-      const currentIdeas = selectedIdeaType === 'all' ? contentIdeas : 
+      const currentIdeas = selectedIdeaType === 'all' ? contentIdeas :
         selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas;
       // Only publish non-software ideas
       const publishableIdeas = currentIdeas.filter(idea => idea.content_type !== 'software');
       const ideasToPublish = publishableIdeas.filter(idea => selectedIdeasForPublish.has(idea.id));
-      
+
       const publishRequest: PublishIdeasRequest = {
         ideas: ideasToPublish,
         trend_analysis_id: selectedTopicId,
@@ -1061,14 +1262,14 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         setShowSnackbar(true);
         // Clear selected ideas after successful publish
         setSelectedIdeasForPublish(new Set());
-        
+
         // Refresh the content ideas to show updated published status
         try {
           const currentTopicId = derivedSelectedTopicId;
           if (currentTopicId && user?.id) {
             // Add a small delay to ensure database updates are committed
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             const refreshedIdeas = await contentIdeasService.getContentIdeas(currentTopicId, user.id);
             console.log('Refreshed ideas after publishing:', refreshedIdeas.length);
             console.log('Published ideas after refresh:', refreshedIdeas.filter(idea => idea.published).length);
@@ -1076,7 +1277,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             setContentIdeas([]);
             setBlogIdeas([]);
             setSoftwareIdeas([]);
-            
+
             // Then set the new data
             setTimeout(() => {
               setContentIdeas(refreshedIdeas);
@@ -1136,14 +1337,14 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         const newSelected = new Set(selectedIdeasForPublish);
         newSelected.delete(idea.id);
         setSelectedIdeasForPublish(newSelected);
-        
+
         // Refresh the content ideas to show updated published status
         try {
           const currentTopicId = derivedSelectedTopicId;
           if (currentTopicId && user?.id) {
             // Add a small delay to ensure database updates are committed
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             const refreshedIdeas = await contentIdeasService.getContentIdeas(currentTopicId, user.id);
             console.log('Refreshed ideas after single publish:', refreshedIdeas.length);
             console.log('Published ideas after single refresh:', refreshedIdeas.filter(idea => idea.published).length);
@@ -1151,7 +1352,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             setContentIdeas([]);
             setBlogIdeas([]);
             setSoftwareIdeas([]);
-            
+
             // Then set the new data
             setTimeout(() => {
               setContentIdeas(refreshedIdeas);
@@ -1210,27 +1411,59 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   };
 
   // Get all ideas based on selected type
-  const allIdeas = selectedIdeaType === 'all' ? contentIdeas : 
-                   selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas;
+  const allIdeas = selectedIdeaType === 'all' ? contentIdeas :
+    selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas;
 
   const filteredIdeas = allIdeas.filter(idea => {
     // Basic content type filter
     const sessionFilters = session?.filters || { content_type: 'all', min_score: 0, max_difficulty: 100 };
     const contentTypeMatch = sessionFilters.content_type === 'all' || idea.content_type === sessionFilters.content_type;
-    
+
     // AHREFS-based filters
-    const volumeMatch = idea.total_search_volume >= filters.minVolume && idea.total_search_volume <= filters.maxVolume;
-    const difficultyMatch = idea.average_difficulty >= filters.minDifficulty && idea.average_difficulty <= filters.maxDifficulty;
+    const volumeMatch = (idea.total_search_volume || 0) >= filters.minVolume && (idea.total_search_volume || 0) <= filters.maxVolume;
+    const difficultyMatch = (idea.average_difficulty || 0) >= filters.minDifficulty && (idea.average_difficulty || 0) <= filters.maxDifficulty;
     const cpcMatch = (idea.average_cpc || 0) >= filters.minCpc && (idea.average_cpc || 0) <= filters.maxCpc;
     const trafficMatch = (idea.traffic_potential_score || 0) >= filters.minTrafficPotential && (idea.traffic_potential_score || 0) <= filters.maxTrafficPotential;
     const seoScoreMatch = (idea.seo_optimization_score || 0) >= filters.minSeoScore && (idea.seo_optimization_score || 0) <= filters.maxSeoScore;
-    
-    return contentTypeMatch && volumeMatch && difficultyMatch && cpcMatch && trafficMatch && seoScoreMatch;
+
+    // Intent filter - check if any of the idea's keywords match the selected intents
+    let intentMatch = true;
+    if (filters.intentTypes.length > 0) {
+      const ideaKeywords = [...(idea.primary_keywords || []), ...(idea.keywords || [])];
+      const ideaIntents = new Set<string>();
+
+      ideaKeywords.forEach(keyword => {
+        const intent = keywordIntentMap[keyword];
+        if (intent) {
+          ideaIntents.add(intent.toUpperCase());
+        }
+      });
+
+      // Check if any of the selected intents match the idea's intents
+      intentMatch = ideaIntents.size === 0 || filters.intentTypes.some(selectedIntent =>
+        ideaIntents.has(selectedIntent.toUpperCase())
+      );
+
+      // Debug logging for first 3 ideas when filtering
+      const ideaIndex = allIdeas.indexOf(idea);
+      if (ideaIndex < 3) {
+        console.log(`🔍 Intent filter [${ideaIndex}]:`, {
+          ideaTitle: idea.title,
+          ideaKeywords,
+          ideaIntents: Array.from(ideaIntents),
+          selectedIntents: filters.intentTypes,
+          intentMatch,
+          keywordIntentMapSize: Object.keys(keywordIntentMap).length
+        });
+      }
+    }
+
+    return contentTypeMatch && volumeMatch && difficultyMatch && cpcMatch && trafficMatch && seoScoreMatch && intentMatch;
   }) || [];
 
   const sortedIdeas = filteredIdeas.sort((a, b) => {
     let comparison = 0;
-    
+
     switch (filters.sortBy) {
       case 'score':
         const scoreA = (a.seo_optimization_score || 0) + (a.traffic_potential_score || 0);
@@ -1252,7 +1485,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
       default:
         comparison = 0;
     }
-    
+
     return filters.sortOrder === 'asc' ? -comparison : comparison;
   });
 
@@ -1287,8 +1520,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
   } else {
     console.log('IdeaBurst - User authenticated:', {
       id: user.id,
-      email: user.email,
-      name: user.name
+      email: user.email
     });
   }
 
@@ -1305,7 +1537,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
 
   return (
     <Box sx={{ p: 3 }}>
-      
+
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
@@ -1359,7 +1591,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             ))}
           </Select>
         </FormControl>
-        
+
         {selectedTopic && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -1400,7 +1632,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
               </Button>
             </Box>
           </Box>
-          
+
           {displayedSubtopics.length > 0 ? (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {displayedSubtopics.map((subtopic, index) => (
@@ -1419,7 +1651,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
               No subtopics available. Please select a topic first.
             </Typography>
           )}
-          
+
           {selectedSubtopics.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" color="primary">
@@ -1435,138 +1667,138 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         <Typography variant="h6" gutterBottom>
           Keyword Management
         </Typography>
-          
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-            <Button
-              variant="outlined"
-              startIcon={<CopyIcon />}
-              onClick={copySubtopicsToClipboard}
-              disabled={displayedSubtopics.length === 0}
-            >
-              Copy Subtopics to Clipboard
-            </Button>
-            
-            <Button
-              variant="outlined"
-              startIcon={<PsychologyIcon />}
-              onClick={generateRuleBasedKeywords}
-              disabled={displayedSubtopics.length === 0}
-            >
-              Generate Rule-Based Keywords
-            </Button>
-            
+
+        {/* Action Buttons */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+          <Button
+            variant="outlined"
+            startIcon={<CopyIcon />}
+            onClick={copySubtopicsToClipboard}
+            disabled={displayedSubtopics.length === 0}
+          >
+            Copy Subtopics to Clipboard
+          </Button>
+
+          <Button
+            variant="outlined"
+            startIcon={<PsychologyIcon />}
+            onClick={generateRuleBasedKeywords}
+            disabled={displayedSubtopics.length === 0}
+          >
+            Generate Rule-Based Keywords
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={<PsychologyIcon />}
+            onClick={generateKeywordsWithLLM}
+            disabled={displayedSubtopics.length === 0 || isGeneratingKeywords}
+          >
+            {isGeneratingKeywords ? 'Generating...' : 'Generate Keywords with LLM'}
+          </Button>
+        </Box>
+
+        {/* Main Keyword Text Area */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Build Your Keyword List
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Use the buttons above to add keywords, or type/paste them manually (one per line).
+            You can paste keywords from any source (Ahrefs, Google Keyword Planner, etc.) directly into this text area.
+            When you're happy with your list, click "Save Keywords" to store them.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={8}
+            value={keywordTextArea}
+            onChange={(e) => setKeywordTextArea(e.target.value)}
+            placeholder="Enter or paste keywords here, one per line...&#10;You can paste from Ahrefs, Google Keyword Planner, or any other source.&#10;Use the buttons above to generate keywords automatically."
+            variant="outlined"
+            sx={{ mb: 2 }}
+          />
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Button
               variant="contained"
-              startIcon={<PsychologyIcon />}
-              onClick={generateKeywordsWithLLM}
-              disabled={displayedSubtopics.length === 0 || isGeneratingKeywords}
+              color="primary"
+              onClick={saveKeywordsFromTextArea}
+              disabled={!keywordTextArea.trim() || loading}
             >
-              {isGeneratingKeywords ? 'Generating...' : 'Generate Keywords with LLM'}
+              Save Keywords ({parseKeywordsFromTextArea().length})
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setKeywordTextArea('')}
+              disabled={!keywordTextArea.trim()}
+            >
+              Clear List
             </Button>
           </Box>
+        </Box>
 
-          {/* Main Keyword Text Area */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Build Your Keyword List
+
+        {/* Saved Keywords Display */}
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Saved Keywords {existingKeywords.length > 0 && `(${existingKeywords.length})`}
+          </Typography>
+
+          {/* DEBUG: Show keywords count and first few keywords */}
+          <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              DEBUG: Keywords count: {existingKeywords.length}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Use the buttons above to add keywords, or type/paste them manually (one per line). 
-              You can paste keywords from any source (Ahrefs, Google Keyword Planner, etc.) directly into this text area.
-              When you're happy with your list, click "Save Keywords" to store them.
+            <Typography variant="body2" color="text.secondary">
+              DEBUG: First 3 keywords: {existingKeywords.slice(0, 3).join(', ')}
             </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={8}
-              value={keywordTextArea}
-              onChange={(e) => setKeywordTextArea(e.target.value)}
-              placeholder="Enter or paste keywords here, one per line...&#10;You can paste from Ahrefs, Google Keyword Planner, or any other source.&#10;Use the buttons above to generate keywords automatically."
-              variant="outlined"
-              sx={{ mb: 2 }}
-            />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={saveKeywordsFromTextArea}
-                disabled={!keywordTextArea.trim() || loading}
-              >
-                Save Keywords ({parseKeywordsFromTextArea().length})
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setKeywordTextArea('')}
-                disabled={!keywordTextArea.trim()}
-              >
-                Clear List
-              </Button>
-            </Box>
           </Box>
 
 
-          {/* Saved Keywords Display */}
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Saved Keywords {existingKeywords.length > 0 && `(${existingKeywords.length})`}
-            </Typography>
-            
-            {/* DEBUG: Show keywords count and first few keywords */}
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                DEBUG: Keywords count: {existingKeywords.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                DEBUG: First 3 keywords: {existingKeywords.slice(0, 3).join(', ')}
-              </Typography>
-            </Box>
-            
-            {console.log('IdeaBurst - Rendering keywords section, existingKeywords.length:', existingKeywords.length)}
-            {existingKeywords.length > 0 ? (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {existingKeywords.map((keyword, index) => (
-                  <Chip
-                    key={`saved-keyword-${index}-${keyword}`}
-                    label={keyword}
-                    color="error"
-                    variant="filled"
-                    size="small"
-                    onDelete={() => removeKeyword(keyword)}
-                    deleteIcon={<CloseIcon />}
-                    sx={{
-                      backgroundColor: '#d32f2f',
+          {existingKeywords.length > 0 ? (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {existingKeywords.map((keyword, index) => (
+                <Chip
+                  key={`saved-keyword-${index}-${keyword}`}
+                  label={keyword}
+                  color="error"
+                  variant="filled"
+                  size="small"
+                  onDelete={() => removeKeyword(keyword)}
+                  deleteIcon={<CloseIcon />}
+                  sx={{
+                    backgroundColor: '#d32f2f',
+                    color: 'white',
+                    '& .MuiChip-deleteIcon': {
                       color: 'white',
-                      '& .MuiChip-deleteIcon': {
-                        color: 'white',
-                        '&:hover': {
-                          color: '#ffcdd2'
-                        }
+                      '&:hover': {
+                        color: '#ffcdd2'
                       }
-                    }}
-                  />
-                ))}
-              </Box>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                No saved keywords yet. Add keywords above and click "Save Keywords" to store them.
-              </Typography>
-            )}
-            
-            {/* Generate with Seed Keywords Button */}
-            <Box sx={{ mt: 2 }}>
-              <Button
-                variant="contained"
-                startIcon={<RefreshIcon />}
-                onClick={generateContentIdeas}
-                disabled={isGeneratingIdeas || !selectedTopicId || !user?.id || selectedSubtopics.length === 0 || existingKeywords.length === 0}
-                size="large"
-              >
-                {isGeneratingIdeas ? 'Generating Ideas...' : 'Generate with Seed Keywords'}
-              </Button>
+                    }
+                  }}
+                />
+              ))}
             </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No saved keywords yet. Add keywords above and click "Save Keywords" to store them.
+            </Typography>
+          )}
+
+          {/* Generate with Seed Keywords Button */}
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<RefreshIcon />}
+              onClick={generateContentIdeas}
+              disabled={isGeneratingIdeas || !selectedTopicId || !user?.id || selectedSubtopics.length === 0 || existingKeywords.length === 0}
+              size="large"
+            >
+              {isGeneratingIdeas ? 'Generating Ideas...' : 'Generate with Seed Keywords'}
+            </Button>
           </Box>
-        </Paper>
+        </Box>
+      </Paper>
 
       {/* AHREFS Data Upload Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -1576,7 +1808,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Upload AHREFS CSV data to automatically generate content ideas with real keyword analytics
         </Typography>
-        
+
         <Box sx={{ mb: 2 }}>
           <input
             accept=".csv,.tsv"
@@ -1596,7 +1828,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
               {isUploadingAhrefs ? 'Uploading & Generating Ideas...' : 'Upload AHREFS CSV & Generate Ideas'}
             </Button>
           </label>
-          
+
           {ahrefsFile && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Selected: {ahrefsFile.name}
@@ -1627,7 +1859,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                 />
               )}
             </Box>
-            
+
             {ahrefsAnalytics && (
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 2, mb: 2 }}>
                 <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
@@ -1670,7 +1902,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             )}
           </Box>
         )}
-        
+
         {/* AHREFS Upload Status */}
         {ahrefsKeywords.length > 0 && (
           <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
@@ -1703,6 +1935,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   maxTrafficPotential: 1000000,
                   minSeoScore: 70,
                   maxSeoScore: 100,
+                  intentTypes: [],
                   sortBy: 'score',
                   sortOrder: 'desc'
                 })}
@@ -1723,6 +1956,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   maxTrafficPotential: 1000000,
                   minSeoScore: 0,
                   maxSeoScore: 100,
+                  intentTypes: [],
                   sortBy: 'volume',
                   sortOrder: 'desc'
                 })}
@@ -1743,6 +1977,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   maxTrafficPotential: 1000000,
                   minSeoScore: 0,
                   maxSeoScore: 100,
+                  intentTypes: [],
                   sortBy: 'cpc',
                   sortOrder: 'desc'
                 })}
@@ -1763,6 +1998,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   maxTrafficPotential: 1000000,
                   minSeoScore: 0,
                   maxSeoScore: 100,
+                  intentTypes: [],
                   sortBy: 'score',
                   sortOrder: 'desc'
                 })}
@@ -1771,7 +2007,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
               </Button>
             </Box>
           </Box>
-          
+
           <Grid container spacing={3}>
             {/* Search Volume Filter */}
             <Grid item xs={12} sm={6} md={3}>
@@ -1787,9 +2023,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.minVolume}
                   onChange={(e) => {
                     const newMin = parseInt(e.target.value);
-                    setFilters({...filters, minVolume: newMin, maxVolume: Math.max(newMin, filters.maxVolume)});
+                    setFilters({ ...filters, minVolume: newMin, maxVolume: Math.max(newMin, filters.maxVolume) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${(filters.minVolume / 1000000) * 100}%, #1976d2 ${(filters.minVolume / 1000000) * 100}%, #1976d2 100%)`,
                     WebkitAppearance: 'none',
@@ -1807,9 +2043,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.maxVolume}
                   onChange={(e) => {
                     const newMax = parseInt(e.target.value);
-                    setFilters({...filters, maxVolume: newMax, minVolume: Math.min(newMax, filters.minVolume)});
+                    setFilters({ ...filters, maxVolume: newMax, minVolume: Math.min(newMax, filters.minVolume) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #1976d2 0%, #1976d2 ${(filters.maxVolume / 1000000) * 100}%, #e0e0e0 ${(filters.maxVolume / 1000000) * 100}%, #e0e0e0 100%)`,
                     WebkitAppearance: 'none',
@@ -1835,9 +2071,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.minDifficulty}
                   onChange={(e) => {
                     const newMin = parseInt(e.target.value);
-                    setFilters({...filters, minDifficulty: newMin, maxDifficulty: Math.max(newMin, filters.maxDifficulty)});
+                    setFilters({ ...filters, minDifficulty: newMin, maxDifficulty: Math.max(newMin, filters.maxDifficulty) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${(filters.minDifficulty / 100) * 100}%, #1976d2 ${(filters.minDifficulty / 100) * 100}%, #1976d2 100%)`,
                     WebkitAppearance: 'none',
@@ -1854,9 +2090,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.maxDifficulty}
                   onChange={(e) => {
                     const newMax = parseInt(e.target.value);
-                    setFilters({...filters, maxDifficulty: newMax, minDifficulty: Math.min(newMax, filters.minDifficulty)});
+                    setFilters({ ...filters, maxDifficulty: newMax, minDifficulty: Math.min(newMax, filters.minDifficulty) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #1976d2 0%, #1976d2 ${(filters.maxDifficulty / 100) * 100}%, #e0e0e0 ${(filters.maxDifficulty / 100) * 100}%, #e0e0e0 100%)`,
                     WebkitAppearance: 'none',
@@ -1883,9 +2119,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.minCpc}
                   onChange={(e) => {
                     const newMin = parseFloat(e.target.value);
-                    setFilters({...filters, minCpc: newMin, maxCpc: Math.max(newMin, filters.maxCpc)});
+                    setFilters({ ...filters, minCpc: newMin, maxCpc: Math.max(newMin, filters.maxCpc) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${(filters.minCpc / 100) * 100}%, #1976d2 ${(filters.minCpc / 100) * 100}%, #1976d2 100%)`,
                     WebkitAppearance: 'none',
@@ -1903,9 +2139,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.maxCpc}
                   onChange={(e) => {
                     const newMax = parseFloat(e.target.value);
-                    setFilters({...filters, maxCpc: newMax, minCpc: Math.min(newMax, filters.minCpc)});
+                    setFilters({ ...filters, maxCpc: newMax, minCpc: Math.min(newMax, filters.minCpc) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #1976d2 0%, #1976d2 ${(filters.maxCpc / 100) * 100}%, #e0e0e0 ${(filters.maxCpc / 100) * 100}%, #e0e0e0 100%)`,
                     WebkitAppearance: 'none',
@@ -1932,9 +2168,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.minTrafficPotential}
                   onChange={(e) => {
                     const newMin = parseInt(e.target.value);
-                    setFilters({...filters, minTrafficPotential: newMin, maxTrafficPotential: Math.max(newMin, filters.maxTrafficPotential)});
+                    setFilters({ ...filters, minTrafficPotential: newMin, maxTrafficPotential: Math.max(newMin, filters.maxTrafficPotential) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${(filters.minTrafficPotential / 1000000) * 100}%, #1976d2 ${(filters.minTrafficPotential / 1000000) * 100}%, #1976d2 100%)`,
                     WebkitAppearance: 'none',
@@ -1952,9 +2188,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.maxTrafficPotential}
                   onChange={(e) => {
                     const newMax = parseInt(e.target.value);
-                    setFilters({...filters, maxTrafficPotential: newMax, minTrafficPotential: Math.min(newMax, filters.minTrafficPotential)});
+                    setFilters({ ...filters, maxTrafficPotential: newMax, minTrafficPotential: Math.min(newMax, filters.minTrafficPotential) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #1976d2 0%, #1976d2 ${(filters.maxTrafficPotential / 1000000) * 100}%, #e0e0e0 ${(filters.maxTrafficPotential / 1000000) * 100}%, #e0e0e0 100%)`,
                     WebkitAppearance: 'none',
@@ -1965,6 +2201,40 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   }}
                 />
               </Box>
+            </Grid>
+
+            {/* Intent Type Filter */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Typography variant="subtitle2" gutterBottom>
+                Intent Types
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {['INFORMATIONAL', 'COMMERCIAL', 'NAVIGATIONAL', 'TRANSACTIONAL'].map((intent) => (
+                  <Chip
+                    key={intent}
+                    label={intent.charAt(0) + intent.slice(1).toLowerCase()}
+                    onClick={() => {
+                      const newIntents = filters.intentTypes.includes(intent)
+                        ? filters.intentTypes.filter(t => t !== intent)
+                        : [...filters.intentTypes, intent];
+                      setFilters({ ...filters, intentTypes: newIntents });
+                    }}
+                    color={filters.intentTypes.includes(intent) ? 'primary' : 'default'}
+                    variant={filters.intentTypes.includes(intent) ? 'filled' : 'outlined'}
+                    size="small"
+                  />
+                ))}
+              </Box>
+              {filters.intentTypes.length > 0 && (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setFilters({ ...filters, intentTypes: [] })}
+                  sx={{ mt: 1 }}
+                >
+                  Clear intent filter
+                </Button>
+              )}
             </Grid>
 
             {/* SEO Score Filter */}
@@ -1980,9 +2250,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.minSeoScore}
                   onChange={(e) => {
                     const newMin = parseInt(e.target.value);
-                    setFilters({...filters, minSeoScore: newMin, maxSeoScore: Math.max(newMin, filters.maxSeoScore)});
+                    setFilters({ ...filters, minSeoScore: newMin, maxSeoScore: Math.max(newMin, filters.maxSeoScore) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${(filters.minSeoScore / 100) * 100}%, #1976d2 ${(filters.minSeoScore / 100) * 100}%, #1976d2 100%)`,
                     WebkitAppearance: 'none',
@@ -1999,9 +2269,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   value={filters.maxSeoScore}
                   onChange={(e) => {
                     const newMax = parseInt(e.target.value);
-                    setFilters({...filters, maxSeoScore: newMax, minSeoScore: Math.min(newMax, filters.minSeoScore)});
+                    setFilters({ ...filters, maxSeoScore: newMax, minSeoScore: Math.min(newMax, filters.minSeoScore) });
                   }}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: `linear-gradient(to right, #1976d2 0%, #1976d2 ${(filters.maxSeoScore / 100) * 100}%, #e0e0e0 ${(filters.maxSeoScore / 100) * 100}%, #e0e0e0 100%)`,
                     WebkitAppearance: 'none',
@@ -2031,7 +2301,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                     key={option.value}
                     label={option.label}
                     color={filters.sortBy === option.value ? 'primary' : 'default'}
-                    onClick={() => setFilters({...filters, sortBy: option.value as any})}
+                    onClick={() => setFilters({ ...filters, sortBy: option.value as any })}
                     clickable
                     size="small"
                   />
@@ -2048,14 +2318,14 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                 <Chip
                   label="High to Low"
                   color={filters.sortOrder === 'desc' ? 'primary' : 'default'}
-                  onClick={() => setFilters({...filters, sortOrder: 'desc'})}
+                  onClick={() => setFilters({ ...filters, sortOrder: 'desc' })}
                   clickable
                   size="small"
                 />
                 <Chip
                   label="Low to High"
                   color={filters.sortOrder === 'asc' ? 'primary' : 'default'}
-                  onClick={() => setFilters({...filters, sortOrder: 'asc'})}
+                  onClick={() => setFilters({ ...filters, sortOrder: 'asc' })}
                   clickable
                   size="small"
                 />
@@ -2094,6 +2364,9 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
         <Typography variant="body2" color="text.secondary">
           Showing {sortedIdeas.length} of {allIdeas.length} ideas
           {sortedIdeas.length !== allIdeas.length && ' (filtered)'}
+          {filters.intentTypes.length > 0 && (
+            <span> • Intent: {filters.intentTypes.map(i => i.charAt(0) + i.slice(1).toLowerCase()).join(', ')}</span>
+          )}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
@@ -2152,13 +2425,13 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             <Grid container spacing={2} key={refreshCounter}>
               {/* Select All Toggle for Publishable Ideas */}
               {(() => {
-                const currentIdeas = selectedIdeaType === 'all' ? contentIdeas : 
+                const currentIdeas = selectedIdeaType === 'all' ? contentIdeas :
                   selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas;
                 const publishableIdeas = currentIdeas.filter(idea => idea.content_type !== 'software');
                 const selectedPublishableIdeas = publishableIdeas.filter(idea => selectedIdeasForPublish.has(idea.id));
-                
+
                 if (publishableIdeas.length === 0) return null;
-                
+
                 return (
                   <Grid item xs={12}>
                     <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
@@ -2204,182 +2477,182 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   </Grid>
                 );
               })()}
-              
-        {(selectedIdeaType === 'all' ? contentIdeas : 
-          selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas).map((idea) => {
-          const isSelectedForPublish = selectedIdeasForPublish.has(idea.id);
-          const isPublishable = idea.content_type !== 'software' && !idea.published;
-          const isPublished = Boolean(idea.published) || false;
-          
-          return (
-                <Grid item xs={12} md={6} key={idea.id}>
-                  <Card 
-                    sx={{ 
-                      height: '100%', 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      border: isSelectedForPublish ? '2px solid' : '1px solid',
-                      borderColor: isSelectedForPublish ? 'primary.main' : 'divider',
-                      bgcolor: isSelectedForPublish ? 'primary.50' : 'background.paper',
-                      position: 'relative'
-                    }}
-                  >
-                    {/* Selected indicator */}
-                    {isSelectedForPublish && (
-                      <Box
+
+              {(selectedIdeaType === 'all' ? contentIdeas :
+                selectedIdeaType === 'blog' ? blogIdeas : softwareIdeas).map((idea) => {
+                  const isSelectedForPublish = selectedIdeasForPublish.has(idea.id);
+                  const isPublishable = idea.content_type !== 'software' && !idea.published;
+                  const isPublished = Boolean(idea.published) || false;
+
+                  return (
+                    <Grid item xs={12} md={6} key={idea.id}>
+                      <Card
                         sx={{
-                          position: 'absolute',
-                          bottom: 8,
-                          right: 8,
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          borderRadius: '50%',
-                          width: 24,
-                          height: 24,
+                          height: '100%',
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          zIndex: 1
+                          flexDirection: 'column',
+                          border: isSelectedForPublish ? '2px solid' : '1px solid',
+                          borderColor: isSelectedForPublish ? 'primary.main' : 'divider',
+                          bgcolor: isSelectedForPublish ? 'primary.50' : 'background.paper',
+                          position: 'relative'
                         }}
                       >
-                        ✓
-                      </Box>
-                    )}
-                    
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                        <Box sx={{ flexGrow: 1, mr: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                            {isPublishable ? (
-                              <FormControlLabel
-                                control={
-                                  <Checkbox
-                                    checked={isSelectedForPublish}
-                                    onChange={(e) => handleIdeaCheckboxChange(idea.id, e.target.checked)}
-                                    size="small"
-                                  />
-                                }
-                                label={
-                                  <Typography variant="h6" component="h3" sx={{ ml: 1 }}>
-                                    {idea.title}
-                                  </Typography>
-                                }
-                                sx={{ margin: 0, alignItems: 'flex-start' }}
-                              />
-                            ) : (
+                        {/* Selected indicator */}
+                        {isSelectedForPublish && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              bottom: 8,
+                              right: 8,
+                              bgcolor: 'primary.main',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: 24,
+                              height: 24,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              zIndex: 1
+                            }}
+                          >
+                            ✓
+                          </Box>
+                        )}
+
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                            <Box sx={{ flexGrow: 1, mr: 1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="h6" component="h3" sx={{ mr: 1 }}>
-                                  {idea.title}
-                                </Typography>
+                                {isPublishable ? (
+                                  <FormControlLabel
+                                    control={
+                                      <Checkbox
+                                        checked={isSelectedForPublish}
+                                        onChange={(e) => handleIdeaCheckboxChange(idea.id, e.target.checked)}
+                                        size="small"
+                                      />
+                                    }
+                                    label={
+                                      <Typography variant="h6" component="h3" sx={{ ml: 1 }}>
+                                        {idea.title}
+                                      </Typography>
+                                    }
+                                    sx={{ margin: 0, alignItems: 'flex-start' }}
+                                  />
+                                ) : (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                    <Typography variant="h6" component="h3" sx={{ mr: 1 }}>
+                                      {idea.title}
+                                    </Typography>
+                                  </Box>
+                                )}
                               </Box>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              <Chip
+                                label={idea.content_type}
+                                color={idea.content_type === 'blog' ? 'primary' : 'secondary'}
+                                size="small"
+                              />
+                              {idea.generation_method && (
+                                <Chip
+                                  label={idea.generation_method === 'llm' ? 'AI' : 'Template'}
+                                  color={idea.generation_method === 'llm' ? 'success' : 'default'}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              )}
+                              {isPublished && (
+                                <Chip
+                                  label="Published"
+                                  color="success"
+                                  size="small"
+                                  variant="filled"
+                                />
+                              )}
+                            </Box>
+                          </Box>
+
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {idea.description}
+                          </Typography>
+
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {(idea.keywords || []).slice(0, 3).map((keyword, index) => (
+                              <Chip
+                                key={`${idea.id}-keyword-${index}`}
+                                label={keyword}
+                                size="small"
+                                variant="outlined"
+                              />
+                            ))}
+                            {(idea.keywords || []).length > 3 && (
+                              <Chip
+                                label={`+${(idea.keywords || []).length - 3} more`}
+                                size="small"
+                                variant="outlined"
+                                color="default"
+                              />
                             )}
                           </Box>
-                        </Box>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Chip
-                      label={idea.content_type}
-                      color={idea.content_type === 'blog' ? 'primary' : 'secondary'}
-                      size="small"
-                    />
-                    {idea.generation_method && (
-                      <Chip
-                        label={idea.generation_method === 'llm' ? 'AI' : 'Template'}
-                        color={idea.generation_method === 'llm' ? 'success' : 'default'}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
-                    {isPublished && (
-                      <Chip
-                        label="Published"
-                        color="success"
-                        size="small"
-                        variant="filled"
-                      />
-                    )}
-                  </Box>
-                      </Box>
-                      
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        {idea.description}
-                      </Typography>
 
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        {(idea.keywords || []).slice(0, 3).map((keyword, index) => (
-                          <Chip
-                            key={`${idea.id}-keyword-${index}`}
-                            label={keyword}
-                            size="small"
-                            variant="outlined"
-                          />
-                        ))}
-                        {(idea.keywords || []).length > 3 && (
-                          <Chip
-                            label={`+${(idea.keywords || []).length - 3} more`}
-                            size="small"
-                            variant="outlined"
-                            color="default"
-                          />
-                        )}
-                      </Box>
-
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        {idea.content_type === 'blog' ? (
-                          <>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {idea.content_type === 'blog' ? (
+                              <>
+                                <Chip
+                                  label={`SEO: ${idea.seo_score || 0}`}
+                                  size="small"
+                                  color={idea.seo_score && idea.seo_score > 80 ? 'success' : 'default'}
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <Chip
+                                  label={idea.category}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              </>
+                            )}
                             <Chip
-                              label={`SEO: ${idea.seo_score || 0}`}
+                              label={idea.monetization_potential}
                               size="small"
-                              color={idea.seo_score && idea.seo_score > 80 ? 'success' : 'default'}
+                              color={idea.monetization_potential === 'high' ? 'success' : idea.monetization_potential === 'low' ? 'error' : 'default'}
                             />
-                          </>
-                        ) : (
-                          <>
-                            <Chip
-                              label={idea.category}
-                              size="small"
-                              variant="outlined"
-                            />
-                          </>
-                        )}
-                        <Chip
-                          label={idea.monetization_potential}
-                          size="small"
-                          color={idea.monetization_potential === 'high' ? 'success' : idea.monetization_potential === 'low' ? 'error' : 'default'}
-                        />
-                      </Box>
+                          </Box>
 
-                      <Typography variant="caption" color="text.secondary">
-                        Target: {idea.target_audience} • Subtopic: {idea.subtopic}
-                      </Typography>
-                    </CardContent>
-                    
-                    <CardActions sx={{ justifyContent: 'space-between' }}>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={() => deleteContentIdea(idea.id)}
-                      >
-                        Delete
-                      </Button>
-                {isPublishable ? (
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<PublishIcon />}
-                    onClick={() => handlePublishSingleIdea(idea)}
-                    disabled={isPublishing}
-                    color="primary"
-                  >
-                    Publish
-                  </Button>
-                ) : null}
-                    </CardActions>
-                  </Card>
-                </Grid>
-                );
-              })}
+                          <Typography variant="caption" color="text.secondary">
+                            Target: {idea.target_audience} • Subtopic: {idea.subtopic}
+                          </Typography>
+                        </CardContent>
+
+                        <CardActions sx={{ justifyContent: 'space-between' }}>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() => deleteContentIdea(idea.id)}
+                          >
+                            Delete
+                          </Button>
+                          {isPublishable ? (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<PublishIcon />}
+                              onClick={() => handlePublishSingleIdea(idea)}
+                              disabled={isPublishing}
+                              color="primary"
+                            >
+                              Publish
+                            </Button>
+                          ) : null}
+                        </CardActions>
+                      </Card>
+                    </Grid>
+                  );
+                })}
             </Grid>
           )}
         </Paper>
@@ -2392,21 +2665,21 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
           {sortedIdeas.map((idea) => {
             const isSelected = selectedIdeas.has(idea.id);
             const isSelectedForPublish = selectedIdeasForPublish.has(idea.id);
-            const combinedScore = (idea.seo_optimization_score + idea.traffic_potential_score) / 2;
+            const combinedScore = ((idea.seo_optimization_score || 0) + (idea.traffic_potential_score || 0)) / 2;
 
             return (
               <Grid item xs={12} md={6} lg={4} key={idea.id}>
-              <Card 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  border: isSelectedForPublish ? '2px solid' : '1px solid',
-                  borderColor: isSelectedForPublish ? 'primary.main' : 'divider',
-                  bgcolor: isSelectedForPublish ? 'primary.50' : 'background.paper',
-                  position: 'relative'
-                }}
-              >
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    border: isSelectedForPublish ? '2px solid' : '1px solid',
+                    borderColor: isSelectedForPublish ? 'primary.main' : 'divider',
+                    bgcolor: isSelectedForPublish ? 'primary.50' : 'background.paper',
+                    position: 'relative'
+                  }}
+                >
                   {/* Selected indicator */}
                   {isSelectedForPublish && (
                     <Box
@@ -2430,7 +2703,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                       ✓
                     </Box>
                   )}
-                  
+
                   <CardContent sx={{ flexGrow: 1 }}>
                     {/* Header */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -2452,12 +2725,35 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                             sx={{ margin: 0, alignItems: 'flex-start' }}
                           />
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                          <Chip
-                            label={`Score: ${combinedScore.toFixed(1)}`}
-                            color={getScoreColor(combinedScore)}
-                            size="small"
-                          />
+                        <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+                          <Tooltip title="Viability Score: Balance of Trend, Profit, and SEO Ease">
+                            <Chip
+                              label={`VS: ${(idea.viability_score || combinedScore).toFixed(1)}`}
+                              sx={{
+                                bgcolor: (idea.viability_score || combinedScore) >= 80 ? '#4caf50' : // Green
+                                  (idea.viability_score || combinedScore) >= 50 ? '#ff9800' : // Yellow
+                                    '#f44336', // Red
+                                color: 'white',
+                                fontWeight: 'bold'
+                              }}
+                              size="small"
+                            />
+                          </Tooltip>
+                          {idea.trend_score !== undefined && (
+                            <Tooltip title="Trend Score (30%)">
+                              <Chip label={`T: ${idea.trend_score}`} size="small" variant="outlined" sx={{ borderColor: '#2196f3', color: '#2196f3', width: 'auto', minWidth: '45px' }} />
+                            </Tooltip>
+                          )}
+                          {idea.monetization_score !== undefined && (
+                            <Tooltip title="Monetization Score (40%)">
+                              <Chip label={`$: ${idea.monetization_score}`} size="small" variant="outlined" sx={{ borderColor: '#4caf50', color: '#4caf50', width: 'auto', minWidth: '45px' }} />
+                            </Tooltip>
+                          )}
+                          {idea.seo_ease_score !== undefined && (
+                            <Tooltip title="SEO Ease Score (30%)">
+                              <Chip label={`SEO: ${idea.seo_ease_score}`} size="small" variant="outlined" sx={{ borderColor: '#ff9800', color: '#ff9800', width: 'auto', minWidth: '55px' }} />
+                            </Tooltip>
+                          )}
                         </Box>
                       </Box>
                       <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -2479,7 +2775,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                       <Grid item xs={4}>
                         <Box sx={{ textAlign: 'center' }}>
                           <Typography variant="h6" color="success.main">
-                            {formatNumber(idea.total_search_volume)}
+                            {formatNumber(idea.total_search_volume || 0)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Volume
@@ -2489,7 +2785,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                       <Grid item xs={4}>
                         <Box sx={{ textAlign: 'center' }}>
                           <Typography variant="h6" color="warning.main">
-                            {idea.average_difficulty.toFixed(1)}
+                            {(idea.average_difficulty || 0).toFixed(1)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Difficulty
@@ -2499,7 +2795,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                       <Grid item xs={4}>
                         <Box sx={{ textAlign: 'center' }}>
                           <Typography variant="h6" color="info.main">
-                            ${idea.average_cpc.toFixed(2)}
+                            ${(idea.average_cpc || 0).toFixed(2)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             CPC
@@ -2513,13 +2809,13 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">SEO Score</Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {idea.seo_optimization_score.toFixed(1)} ({getScoreLabel(idea.seo_optimization_score)})
+                          {(idea.seo_optimization_score || 0).toFixed(1)} ({getScoreLabel(idea.seo_optimization_score || 0)})
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Traffic Score</Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {idea.traffic_potential_score.toFixed(1)} ({getScoreLabel(idea.traffic_potential_score)})
+                          {(idea.traffic_potential_score || 0).toFixed(1)} ({getScoreLabel(idea.traffic_potential_score || 0)})
                         </Typography>
                       </Box>
                     </Box>
@@ -2530,7 +2826,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                         Primary Keywords:
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {idea.keywords.slice(0, 2).map((keyword) => (
+                        {(idea.keywords || []).slice(0, 2).map((keyword) => (
                           <Chip
                             key={keyword}
                             label={keyword}
@@ -2548,7 +2844,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                         Key Tips:
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {idea.optimization_tips.slice(0, 2).join(' • ')}
+                        {(idea.optimization_tips || []).slice(0, 2).map((tip: any) => typeof tip === 'string' ? tip : tip.tip || JSON.stringify(tip)).join(' • ') || 'No specific tips available.'}
                       </Typography>
                     </Box>
                   </CardContent>
@@ -2566,7 +2862,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                       <Button
                         variant="contained"
                         size="small"
-                        onClick={() => setShowIdeaDetails(idea.id)}
+                        onClick={() => console.log('Show details for', idea.id)}
                         sx={{ mr: 1 }}
                       >
                         Details
@@ -2618,16 +2914,16 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
             </Box>
           ) : publishResult ? (
             <Box>
-              <Alert 
-                severity={publishResult.success ? 'success' : 'error'} 
+              <Alert
+                severity={publishResult.success ? 'success' : 'error'}
                 sx={{ mb: 2 }}
               >
-                {publishResult.success 
+                {publishResult.success
                   ? `Successfully published ${publishResult.published_count} ideas to Titles table`
                   : `Failed to publish ideas. ${publishResult.errors.length} errors occurred.`
                 }
               </Alert>
-              
+
               {publishResult.published_count > 0 && (
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="h6" gutterBottom>
@@ -2636,7 +2932,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   <List dense>
                     {publishResult.published_titles.map((title, index) => (
                       <ListItem key={title.id}>
-                        <ListItemText 
+                        <ListItemText
                           primary={`${index + 1}. ${title.Title}`}
                           secondary={`Keywords: ${title.Keywords}`}
                         />
@@ -2645,7 +2941,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
                   </List>
                 </Box>
               )}
-              
+
               {publishResult.errors.length > 0 && (
                 <Box>
                   <Typography variant="h6" gutterBottom color="error">
@@ -2664,7 +2960,7 @@ const IdeaBurstPage: React.FC<IdeaBurstPageProps> = ({
           ) : null}
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => setPublishDialogOpen(false)}
             disabled={isPublishing}
           >

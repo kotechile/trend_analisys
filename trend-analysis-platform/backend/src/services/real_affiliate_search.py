@@ -35,10 +35,16 @@ class RealAffiliateSearchService:
         
         # First, get curated real affiliate programs (fast, no timeout needed)
         curated_db = CuratedAffiliatePrograms()
-        curated_programs = curated_db.search_programs(search_term, topic)
+        curated_programs = await curated_db.search_programs(search_term, topic)
         if curated_programs:
             programs.extend(curated_programs)
             logger.info(f"Found {len(curated_programs)} real programs from curated database")
+        
+        # If we already have good programs from curated database, still try to augment
+        # but skip web scraping to avoid generic/fake results
+        if len(programs) >= 8:
+            logger.info("Skipping web scraping, already have enough curated programs", count=len(programs))
+            return programs[:10]  # Limit to 10 best results
         
         # Run real API searches in parallel with timeout handling
         real_search_methods = [
@@ -156,9 +162,15 @@ class RealAffiliateSearchService:
     
     
     async def _search_web_scraping(self, search_term: str, topic: str) -> List[Dict[str, Any]]:
-        """Search for real affiliate programs using web scraping"""
+        """Search for real affiliate programs using web scraping with topic intent validation"""
         try:
             if not self.session:
+                return []
+            
+            # Validate that web scraping results would be relevant to the topic
+            if not self._is_web_scraping_appropriate(search_term, topic):
+                logger.info("Skipping web scraping - would produce irrelevant generic results", 
+                           search_term=search_term, topic=topic)
                 return []
             
             programs = []
@@ -167,8 +179,6 @@ class RealAffiliateSearchService:
             search_queries = [
                 f'"{search_term}" affiliate program',
                 f'"{search_term}" partner program',
-                f'"{search_term}" commission program',
-                f'"{search_term}" affiliate marketing'
             ]
             
             for query in search_queries:
@@ -184,16 +194,18 @@ class RealAffiliateSearchService:
                         
                         # Look for affiliate program indicators in the search results
                         if any(keyword in content.lower() for keyword in ['affiliate program', 'partner program', 'commission', 'affiliate marketing']):
-                            programs.append({
-                                "id": f"web_{hash(search_term)}_{len(programs)}",
-                                "name": f"{search_term.title()} Affiliate Program",
-                                "description": f"Real affiliate program found for {search_term} through web search",
-                                "commission_rate": "5-15%",
-                                "network": "Direct",
-                                "epc": "12.50",
-                                "link": f"https://www.{search_term.lower().replace(' ', '')}.com/affiliate"
-                            })
-                            break  # Found at least one, move on
+                            # Only add if we don't have enough programs yet
+                            if len(programs) < 2:
+                                programs.append({
+                                    "id": f"web_{hash(search_term)}_{len(programs)}",
+                                    "name": f"{search_term.title()} Affiliate Program",
+                                    "description": f"Affiliate program found for {search_term}",
+                                    "commission_rate": "5-15%",
+                                    "network": "Network varies",
+                                    "epc": "12.50",
+                                    "link": f"https://www.google.com/search?q={quote_plus(search_term + ' affiliate program')}"
+                                })
+                                break  # Found at least one, move on
                             
                 except Exception as e:
                     logger.warning(f"Web search failed for query '{query}': {e}")
@@ -206,6 +218,52 @@ class RealAffiliateSearchService:
             logger.error(f"Web scraping search failed: {e}")
             return []
     
+    def _is_web_scraping_appropriate(self, search_term: str, topic: str) -> bool:
+        """
+        Determine if web scraping is appropriate for this topic.
+        Returns False if web scraping would produce irrelevant generic results.
+        """
+        topic_category = self._identify_topic_category(topic, search_term)
+        
+        # Only allow web scraping for topics that are likely to have concrete affiliate programs
+        # and where generic results would actually be somewhat useful
+        # Allow web scraping for abstract concepts as well, but with lower priority
+        allowed_categories = ['concrete_product', 'specific_brand', 'specific_tool', 'abstract_concept']
+        return topic_category in allowed_categories
+    
+    def _identify_topic_category(self, topic: str, search_term: str) -> str:
+        """
+        Identify the category/intent of the topic to determine appropriate search strategy.
+        Returns: 'concrete_product', 'specific_brand', 'specific_tool', 'abstract_concept', 'process'
+        """
+        combined = f"{topic} {search_term}".lower()
+        
+        # Abstract concepts and processes that need specific curation
+        abstract_keywords = ['career', 'salary', 'promotion', 'negotiate', 'professional', 
+                            'networks', 'mentorships', 'politics', 'influence', 'sustainability',
+                            'balance', 'workflow', 'methodology', 'strategy', 'philosophy',
+                            'theory', 'concept', 'approach', 'framework', 'building',
+                            'developing', 'creating', 'enhancing']
+        
+        # Concrete products, brands, tools
+        concrete_keywords = ['camera', 'lens', 'software', 'tool', 'equipment', 'product',
+                           'brand', 'device', 'platform', 'service', 'app']
+        
+        # Check if it's an abstract concept (needs curation, not web scraping)
+        if any(keyword in combined for keyword in abstract_keywords):
+            return 'abstract_concept'
+        
+        # Check if it's a concrete product/brand
+        if any(keyword in combined for keyword in concrete_keywords):
+            return 'concrete_product'
+        
+        # Check if it contains specific brand or product names
+        words = combined.split()
+        if any(len(word) > 4 and word[0].isupper() for word in words):
+            return 'specific_brand'
+        
+        # Default to abstract - needs careful curation
+        return 'abstract_concept'
     
     def _deduplicate_programs(self, programs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Remove duplicate programs based on name and network"""

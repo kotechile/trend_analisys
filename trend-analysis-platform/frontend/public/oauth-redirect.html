@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+    <script>
+        // Extract hash from URL
+        const hash = window.location.hash;
+        
+        // Try to get app URL from localStorage (set by the app before OAuth)
+        // Otherwise default to localhost for development
+        let appOrigin = localStorage.getItem('oauth_redirect_url') || 'http://localhost:5173';
+        
+        // If no port specified and we're on localhost, try common ports
+        if (appOrigin.includes('localhost') && !appOrigin.includes(':')) {
+            appOrigin = 'http://localhost:5173';
+        }
+        
+        const appCallbackUrl = `${appOrigin}/auth/callback${hash}`;
+        
+        console.log('OAuth Redirect: Hash:', hash);
+        console.log('OAuth Redirect: App origin:', appOrigin);
+        console.log('OAuth Redirect: Redirecting to:', appCallbackUrl);
+        
+        // Redirect to app's callback URL
+        window.location.replace(appCallbackUrl);
+    </script>
+</head>
+<body>
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+        <div style="text-align: center;">
+            <h2>Redirecting to application...</h2>
+            <p>If you are not redirected automatically, <a href="#" id="manualRedirect">click here</a>.</p>
+        </div>
+    </div>
+    <script>
+        // Fallback manual redirect
+        document.getElementById('manualRedirect').href = appCallbackUrl;
+    </script>
+</body>
+</html>
+

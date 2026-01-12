@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest, FormErrors } from '../../types/auth';
 import { GoogleAuth } from './GoogleAuth';
@@ -43,6 +44,7 @@ export function LoginForm({
   // =============================================================================
 
   const { login, isLoading, error, clearError } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: ''
@@ -141,8 +143,7 @@ export function LoginForm({
   };
 
   const handleRegisterClick = () => {
-    // This would typically navigate to registration page
-    console.log('Register clicked');
+    navigate('/register');
   };
 
   const handleGoogleSuccess = (user: any) => {

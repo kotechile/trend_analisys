@@ -15,7 +15,8 @@ It provides all necessary endpoints including:
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from pydantic import BaseModel
+from contextlib import asynccontextmanager
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 import uvicorn
 import json
@@ -30,7 +31,8 @@ import csv
 import io
 from datetime import datetime
 from pathlib import Path
-from supabase import create_client, Client
+from src.core.supabase_singleton import get_supabase_client
+from src.core.config import validate_supabase_config, get_settings
 import os
 from dotenv import load_dotenv
 
@@ -41,37 +43,29 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Supabase setup following the existing pattern
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-
-# Initialize Supabase client following the existing pattern
-supabase: Optional[Client] = None
-
-def initialize_supabase():
-    """Initialize Supabase client following the existing codebase pattern"""
-    global supabase
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Validate Supabase configuration on startup"""
     try:
-        # Try service role key first, then fall back to anon key (following existing pattern)
-        supabase_key = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
-        
-        if not SUPABASE_URL or not supabase_key:
-            logger.warning("⚠️ Supabase environment variables not configured - using local storage fallback")
-            return None
-        
-        supabase = create_client(SUPABASE_URL, supabase_key)
-        logger.info("✅ Supabase client initialized successfully")
-        return supabase
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize Supabase client: {e}")
-        return None
+        validate_supabase_config()
+        logger.info("✅ Supabase configuration validated")
+    except ValueError as e:
+        logger.error(f"❌ Supabase configuration validation failed: {e}")
+        raise
+    yield
 
-# Initialize Supabase
-initialize_supabase()
+app = FastAPI(title="Idea Burst API", version="1.0.0", lifespan=lifespan)
 
-app = FastAPI(title="Idea Burst API", version="1.0.0")
+@app.get("/")
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "message": "Idea Burst API",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health"
+    }
 
 # Configure CORS
 app.add_middleware(
@@ -104,6 +98,24 @@ except ImportError as e:
         logger.error(f"Could not import any DataForSEO router: {fallback_error}")
 except Exception as e:
     logger.error(f"Error including DataForSEO router: {e}")
+
+# Import and include Article Generation router with RAG support
+try:
+    from src.api.article_generation_routes import router as article_router, research_router
+    app.include_router(article_router)
+    app.include_router(research_router)
+    logger.info("Article Generation router with RAG support included successfully")
+    logger.info("Research router included successfully")
+except Exception as e:
+    logger.error(f"Error including Article Generation router: {e}")
+
+# Import and include Keyword Routes
+try:
+    from src.api import keyword_routes
+    app.include_router(keyword_routes.router)
+    logger.info("Keyword routes included successfully")
+except Exception as e:
+    logger.error(f"Error including Keyword routes: {e}")
 
 class TopicDecompositionRequest(BaseModel):
     search_query: str
@@ -199,12 +211,9 @@ def save_content_ideas(ideas: List[Dict[str, Any]], user_id: str, topic_id: str)
     """Save content ideas to Supabase - no fallback, show error if fails"""
     logger.info(f"🔄 Attempting to save {len(ideas)} content ideas for user {user_id}, topic {topic_id}")
     
-    if not supabase:
-        logger.error("❌ Supabase client not available - cannot save content ideas")
-        return False
-    
     try:
         logger.info("🔍 Attempting to save to Supabase...")
+        supabase = get_supabase_client()
         
         # Prepare data for Supabase (using only columns that exist in the basic table)
         content_ideas_data = []
@@ -230,12 +239,18 @@ def save_content_ideas(ideas: List[Dict[str, Any]], user_id: str, topic_id: str)
                 "subtopic": idea.get("subtopic", ""),
                 "topic_id": str(topic_uuid),
                 "keywords": idea.get("primary_keywords", []) + idea.get("secondary_keywords", []),  # Combine keywords
-                "seo_score": idea.get("seo_optimization_score", 0),
+                "seo_score": int(idea.get("seo_optimization_score", 0)),
+                "seo_optimization_score": int(idea.get("seo_optimization_score", 0)),
+                "traffic_potential_score": int(idea.get("traffic_potential_score", 0)),
+                "overall_quality_score": int(idea.get("overall_quality_score", 0)),
                 "difficulty_level": idea.get("difficulty", "intermediate"),
+                "average_difficulty": idea.get("average_difficulty", 50),
                 "estimated_read_time": 45,  # Default to 45 minutes
-                "target_audience": "general",
-                "content_angle": idea.get("description", ""),
-                "monetization_potential": "medium",
+                "target_audience": idea.get("target_audience", "general"),
+                "content_angle": idea.get("content_angle", idea.get("description", "")),
+                "monetization_potential": idea.get("monetization_potential", "medium"),
+                "average_cpc": idea.get("average_cpc", 0),
+                "total_search_volume": int(idea.get("total_search_volume", 0)),
                 "technical_complexity": "medium" if idea.get("content_type") == "software" else "low",
                 "development_effort": "medium" if idea.get("content_type") == "software" else "low",
                 "market_demand": "medium"
@@ -266,19 +281,17 @@ def save_content_ideas(ideas: List[Dict[str, Any]], user_id: str, topic_id: str)
             
     except Exception as e:
         logger.error(f"❌ Supabase error: {e}")
-        logger.error(f"Supabase URL: {SUPABASE_URL}")
-        logger.error(f"Supabase Key present: {bool(SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)}")
+        settings = get_settings()
+        logger.error(f"Supabase URL: {settings.supabase_url}")
+        logger.error(f"Supabase Key present: {bool(settings.supabase_service_role_key or settings.supabase_anon_key)}")
         return False
 
 def get_content_ideas(user_id: str, topic_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """Get content ideas from Supabase - no fallback, show error if fails"""
     logger.info(f"🔍 Retrieving content ideas for user {user_id}, topic {topic_id}")
     
-    if not supabase:
-        logger.error("❌ Supabase client not available - cannot retrieve content ideas")
-        return []
-    
     try:
+        supabase = get_supabase_client()
         logger.info("🔍 Attempting to retrieve from Supabase...")
         
         # Ensure user_id is a valid UUID
@@ -314,11 +327,8 @@ def get_content_ideas(user_id: str, topic_id: Optional[str] = None) -> List[Dict
 
 def delete_content_idea(idea_id: str, user_id: str) -> bool:
     """Delete a content idea from Supabase"""
-    if not supabase:
-        logger.warning("Supabase not available, cannot delete")
-        return False
-    
     try:
+        supabase = get_supabase_client()
         result = supabase.table("content_ideas").delete().eq("id", idea_id).eq("user_id", user_id).execute()
         
         if result.data:
@@ -334,11 +344,8 @@ def delete_content_idea(idea_id: str, user_id: str) -> bool:
 
 def delete_content_ideas_by_topic(topic_id: str, user_id: str) -> bool:
     """Delete all content ideas for a topic"""
-    if not supabase:
-        logger.warning("Supabase not available, cannot delete")
-        return False
-    
     try:
+        supabase = get_supabase_client()
         result = supabase.table("content_ideas").delete().eq("topic_id", topic_id).eq("user_id", user_id).execute()
         
         if result.data:
@@ -353,13 +360,12 @@ def delete_content_ideas_by_topic(topic_id: str, user_id: str) -> bool:
         return False
 
 # LLM Integration
-async def generate_content_with_llm(prompt: str, provider: str = "openai") -> Dict[str, Any]:
+async def generate_content_with_llm(prompt: str, provider: str = "openai", use_json_mode: bool = True) -> Dict[str, Any]:
     """Generate content using LLM with fallback to mock data"""
     try:
         # Get API key from Supabase
         import sys
-        sys.path.append('src')
-        from core.supabase_database_service import supabase
+        supabase = get_supabase_client()
         
         # Get the active provider and model from Supabase
         provider_response = supabase.table('llm_providers').select('*').eq('is_active', True).execute()
@@ -369,19 +375,32 @@ async def generate_content_with_llm(prompt: str, provider: str = "openai") -> Di
             return {"content": "", "error": "No active LLM provider"}
         
         active_provider = provider_response.data[0]
-        provider_type = active_provider['provider_type']
-        model_name = active_provider['model_name']
+        # Schema uses 'provider' instead of 'provider_type'
+        provider_type = active_provider.get('provider') or active_provider.get('provider_type')
+        model_name = active_provider.get('model_name')
+        api_key_id = active_provider.get('api_keys_id') or active_provider.get('api_key_id')
         
-        logger.info(f"🔍 Using active provider: {provider_type} with model: {model_name}")
+        logger.info(f"🔍 DEBUG: Active provider: {provider_type}")
+        logger.info(f"🔍 DEBUG: Model name from DB: {model_name}")
         
-        # Get API key for the active provider - always read from Supabase by provider
-        response = supabase.table('api_keys').select('key_value').eq('provider', provider_type).eq('is_active', True).execute()
+        api_key = None
+        if api_key_id:
+            # Look up API key by specific ID linked in provider
+            key_response = supabase.table('api_keys').select('key_value').eq('id', api_key_id).execute()
+            if key_response.data:
+                api_key = key_response.data[0]['key_value']
+                logger.info(f"✅ Found API key via linked ID: {api_key_id}")
         
-        if not response.data:
+        # Fallback to provider-based lookup if ID-based lookup failed
+        if not api_key:
+            logger.info(f"⚠️ Falling back to provider-based key lookup for: {provider_type}")
+            response = supabase.table('api_keys').select('key_value').eq('provider', provider_type).eq('is_active', True).execute()
+            if response.data:
+                api_key = response.data[0]['key_value']
+        
+        if not api_key:
             logger.warning(f"No API key found for provider: {provider_type}")
-            return {"content": "", "error": "API key not found"}
-        
-        api_key = response.data[0]['key_value']
+            return {"content": "", "error": f"API key not found for {provider_type}"}
         
         # Call the appropriate provider
         import httpx
@@ -456,6 +475,51 @@ async def generate_content_with_llm(prompt: str, provider: str = "openai") -> Di
                     logger.error(f"❌ DeepSeek response missing choices: {data}")
                     return {"content": "", "error": "Invalid response format"}
         
+        elif provider_type in ["google", "gemini"]:
+            # Google Gemini API
+            # Sanitize model name: remove 'models/' prefix if present to avoid duplication in URL
+            clean_model_name = model_name.replace("models/", "")
+            
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model_name}:generateContent?key={api_key}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 1000,
+                    **({"response_mime_type": "application/json"} if use_json_mode else {})
+                }
+            }
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    url,
+                    headers={"Content-Type": "application/json"},
+                    json=payload
+                )
+                logger.info(f"🔍 DEBUG: Google API Status: {response.status_code}")
+                if response.status_code != 200:
+                    logger.error(f"❌ DEBUG: Google API Error Body: {response.text}")
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                logger.info(f"✅ Google Gemini API successful with model: {model_name}")
+                
+                # Extract content from Gemini response structure
+                if "candidates" in data and data["candidates"] and "content" in data["candidates"][0] and "parts" in data["candidates"][0]["content"]:
+                    content = data["candidates"][0]["content"]["parts"][0]["text"]
+                    return {
+                        "content": content,
+                        "provider": "google",
+                        "model": model_name
+                    }
+                else:
+                    logger.error(f"❌ Gemini response missing content: {data}")
+                    return {"content": "", "error": "Invalid response format"}
+        
         elif provider_type == "neurorouters":
             # NeuroRouters API for GPT-5 Mini
             payload = {
@@ -500,8 +564,9 @@ async def generate_content_with_llm(prompt: str, provider: str = "openai") -> Di
             return {"content": "", "error": f"Provider {provider_type} not implemented"}
             
     except Exception as e:
-        logger.warning(f"LLM service error: {str(e)}")
-        return {"content": "", "error": "LLM service unavailable"}
+        error_msg = str(e)
+        logger.warning(f"LLM service error: {error_msg}")
+        return {"content": "", "error": f"LLM service unavailable: {error_msg}"}
 
 def parse_llm_subtopics(llm_response: str, search_query: str) -> List[str]:
     """Parse subtopics from LLM response"""
@@ -533,12 +598,19 @@ async def health_check():
 @app.get("/api/storage/status")
 async def storage_status():
     """Check Supabase storage status and configuration"""
+    from src.core.config import get_settings
+    settings = get_settings()
+    try:
+        supabase = get_supabase_client()
+        client_available = True
+    except Exception:
+        client_available = False
+    
     status = {
-        "supabase_configured": bool(supabase and SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)),
-        "supabase_url": SUPABASE_URL,
-        "supabase_service_role_key_present": bool(SUPABASE_SERVICE_ROLE_KEY),
-        "supabase_anon_key_present": bool(SUPABASE_ANON_KEY),
-        "supabase_client_available": bool(supabase)
+        "supabase_configured": bool(settings.supabase_url and settings.supabase_service_role_key),
+        "supabase_url": settings.supabase_url,
+        "supabase_service_role_key_present": bool(settings.supabase_service_role_key),
+        "supabase_client_available": client_available
     }
     
     return status
@@ -1260,13 +1332,24 @@ async def generate_enhanced_content_ideas_with_ahrefs(
         blog_ideas = []
         software_ideas = []
         
-        # Generate ~10 blog ideas per subtopic
+        # Generate ~10 blog ideas per subtopic concurrently
+        tasks = []
         for subtopic in subtopics:
-            subtopic_blog_ideas = await generate_blog_ideas_for_subtopic(
+            tasks.append(generate_blog_ideas_for_subtopic(
                 subtopic, topic_id, topic_title, ahrefs_keywords, user_id
-            )
-            blog_ideas.extend(subtopic_blog_ideas)
-            all_ideas.extend(subtopic_blog_ideas)
+            ))
+        
+        # Run all subtopic generation tasks concurrently
+        if tasks:
+            subtopics_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for i, result_ideas in enumerate(subtopics_results):
+                if isinstance(result_ideas, Exception):
+                    logger.error(f"Error generating ideas for subtopic {subtopics[i]}: {result_ideas}")
+                    continue
+                
+                blog_ideas.extend(result_ideas)
+                all_ideas.extend(result_ideas)
         
         # Generate software ideas (separate from subtopics)
         software_ideas = generate_software_ideas_for_topic(
@@ -1422,6 +1505,12 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         else:
                             title = f"{title} - {main_keyword.title()} Guide"
                     
+                    # Calculate scores based on keyword data
+                    seo_score = min(95, 60 + keyword.get('difficulty', 50))
+                    traffic_score = min(90, 50 + (keyword.get('volume', 1000) / 100))
+                    difficulty_score = keyword.get('difficulty', 50)
+                    overall_quality = round((seo_score + traffic_score + (100 - difficulty_score)) / 3, 2)
+                    
                     idea = {
                         "id": str(uuid.uuid4()),
                         "title": title,
@@ -1429,12 +1518,13 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         "description": idea_data.get('description', f"Comprehensive guide for {subtopic}"),
                         "primary_keywords": primary_keywords,
                         "secondary_keywords": idea_data.get('secondary_keywords', [f"{subtopic} tips", f"{keyword['keyword']} guide"]),
-                        "difficulty": "intermediate" if keyword.get('difficulty', 50) < 60 else "advanced",
+                        "difficulty": "intermediate" if difficulty_score < 60 else "advanced",
                         "estimated_time": f"{idea_data.get('estimated_read_time', 8)} minutes",
-                        "seo_optimization_score": min(95, 60 + keyword.get('difficulty', 50)),
-                        "traffic_potential_score": min(90, 50 + (keyword.get('volume', 1000) / 100)),
+                        "seo_optimization_score": seo_score,
+                        "traffic_potential_score": traffic_score,
+                        "overall_quality_score": overall_quality,
                         "total_search_volume": keyword.get('volume', 1000),
-                        "average_difficulty": keyword.get('difficulty', 50),
+                        "average_difficulty": difficulty_score,
                         "average_cpc": keyword.get('cpc', 2.50),
                         "content_angle": idea_data.get('content_angle', 'tutorial'),
                         "target_audience": idea_data.get('target_audience', 'general'),
@@ -1492,6 +1582,12 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
             f"Master {keyword['keyword']} techniques for {subtopic} success"
         ]
         
+        # Calculate scores based on keyword data
+        seo_score = min(95, 60 + keyword.get('difficulty', 50))
+        traffic_score = min(90, 50 + (keyword.get('volume', 1000) / 100))
+        difficulty_score = keyword.get('difficulty', 50)
+        overall_quality = round((seo_score + traffic_score + (100 - difficulty_score)) / 3, 2)
+        
         idea = {
             "id": str(uuid.uuid4()),
             "title": title_templates[i % len(title_templates)],
@@ -1499,12 +1595,13 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
             "description": description_templates[i % len(description_templates)],
             "primary_keywords": [keyword['keyword'], subtopic],
             "secondary_keywords": [f"{subtopic} tips", f"{keyword['keyword']} guide", f"{keyword['keyword']} {subtopic}"],
-            "difficulty": "intermediate" if keyword.get('difficulty', 50) < 60 else "advanced",
+            "difficulty": "intermediate" if difficulty_score < 60 else "advanced",
             "estimated_time": "45 minutes",
-            "seo_optimization_score": min(95, 60 + keyword.get('difficulty', 50)),
-            "traffic_potential_score": min(90, 50 + (keyword.get('volume', 1000) / 100)),
+            "seo_optimization_score": seo_score,
+            "traffic_potential_score": traffic_score,
+            "overall_quality_score": overall_quality,
             "total_search_volume": keyword.get('volume', 1000),
-            "average_difficulty": keyword.get('difficulty', 50),
+            "average_difficulty": difficulty_score,
             "average_cpc": keyword.get('cpc', 2.50),
             "optimization_tips": [
                 f"Target long-tail keyword: {keyword['keyword']}",
@@ -1551,6 +1648,12 @@ def generate_software_ideas_for_topic(
     for i, software_type in enumerate(software_types):
         keyword = top_keywords[i % len(top_keywords)] if top_keywords else {'keyword': topic_title, 'volume': 1000, 'kd': 50}
         
+        # Calculate scores based on keyword data
+        seo_score = min(85, 50 + keyword.get('difficulty', 50))
+        traffic_score = min(80, 40 + (keyword.get('volume', 1000) / 200))
+        difficulty_score = keyword.get('difficulty', 50)
+        overall_quality = round((seo_score + traffic_score + (100 - difficulty_score)) / 3, 2)
+        
         idea = {
             "id": str(uuid.uuid4()),
             "title": f"{topic_title} {software_type}",
@@ -1560,10 +1663,11 @@ def generate_software_ideas_for_topic(
             "secondary_keywords": [f"{software_type.lower()} tool", f"{topic_title} app"],
             "difficulty": "advanced",
             "estimated_time": "2-4 weeks",
-            "seo_optimization_score": min(85, 50 + keyword.get('difficulty', 50)),
-            "traffic_potential_score": min(80, 40 + (keyword.get('volume', 1000) / 200)),
+            "seo_optimization_score": seo_score,
+            "traffic_potential_score": traffic_score,
+            "overall_quality_score": overall_quality,
             "total_search_volume": keyword.get('volume', 1000),
-            "average_difficulty": keyword.get('difficulty', 50),
+            "average_difficulty": difficulty_score,
             "average_cpc": keyword.get('cpc', 4.50),
             "optimization_tips": [
                 f"Focus on {keyword['keyword']} specific features",
@@ -1595,6 +1699,14 @@ class ContentIdeaGenerationRequest(BaseModel):
     keywords: List[Dict[str, Any]] = []  # Changed to accept rich keyword data
     user_id: str
     content_types: List[str] = ["blog", "software"]  # Default content types
+
+class OptimizedContentIdeaGenerationRequest(BaseModel):
+    topic_id: str
+    topic_title: str
+    subtopics: List[str] = []
+    user_id: str
+    content_types: List[str] = ["blog", "software"]
+    max_keywords: int = 50  # Limit keywords for performance
 
 @app.post("/api/content-ideas/generate")
 async def generate_content_ideas(request: ContentIdeaGenerationRequest):
@@ -1639,6 +1751,100 @@ async def generate_content_ideas(request: ContentIdeaGenerationRequest):
         logger.error(f"Error generating content ideas: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate content ideas: {str(e)}")
 
+async def get_keywords_for_idea_generation(topic_id: str, user_id: str, max_keywords: int = 50) -> List[str]:
+    """
+    Query keywords from database for idea generation with RLS
+    Returns only the keyword strings, not full objects for performance
+    """
+    try:
+        supabase = get_supabase_client()
+        # Query keywords from database using Supabase client
+        response = supabase.table('keyword_research_data').select('keyword, priority_score, search_volume').eq('topic_id', topic_id).eq('user_id', user_id).order('priority_score', desc=True).limit(max_keywords).execute()
+        
+        if response.data:
+            # Extract just the keyword strings, sorted by priority
+            keywords = [item['keyword'] for item in response.data if item.get('keyword')]
+            logger.info(f"Retrieved {len(keywords)} keywords from database for topic {topic_id}")
+            return keywords
+        else:
+            logger.warning(f"No keywords found for topic {topic_id} and user {user_id}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"Error querying keywords from database: {str(e)}")
+        return []
+
+@app.post("/api/content-ideas/generate-optimized")
+async def generate_content_ideas_optimized(request: OptimizedContentIdeaGenerationRequest):
+    """
+    Generate content ideas with optimized keyword loading from database
+    This endpoint queries keywords from the database instead of receiving them from frontend
+    """
+    try:
+        logger.info(f"Generating content ideas (optimized) for topic: {request.topic_title}")
+        logger.info(f"Topic ID: {request.topic_id}, User ID: {request.user_id}")
+        
+        # Query keywords from database with RLS
+        keywords_data = await get_keywords_for_idea_generation(
+            topic_id=request.topic_id,
+            user_id=request.user_id,
+            max_keywords=request.max_keywords
+        )
+        
+        logger.info(f"Retrieved {len(keywords_data)} keywords from database")
+        
+        # Handle empty subtopics by using topic title
+        subtopics_to_use = request.subtopics if request.subtopics else [request.topic_title]
+        logger.info(f"Using subtopics: {subtopics_to_use}")
+        
+        all_ideas = []
+        blog_ideas = []
+        software_ideas = []
+        
+        # Generate blog ideas for each subtopic
+        if "blog" in request.content_types:
+            for subtopic in subtopics_to_use:
+                subtopic_blog_ideas = await generate_blog_ideas_for_subtopic_with_keywords(
+                    subtopic, request.topic_id, request.topic_title, keywords_data, request.user_id
+                )
+                blog_ideas.extend(subtopic_blog_ideas)
+                all_ideas.extend(subtopic_blog_ideas)
+        
+        # Generate software ideas
+        if "software" in request.content_types:
+            software_ideas = await generate_software_ideas_for_topic_with_keywords(
+                request.topic_id, request.topic_title, keywords_data, request.user_id
+            )
+            all_ideas.extend(software_ideas)
+        
+        logger.info(f"Generated {len(all_ideas)} total ideas: {len(blog_ideas)} blog, {len(software_ideas)} software")
+        
+        # Save ideas to database if we have any
+        if all_ideas:
+            logger.info(f"🔄 Attempting to save {len(all_ideas)} ideas to database...")
+            save_success = save_content_ideas(
+                ideas=all_ideas,
+                user_id=request.user_id,
+                topic_id=request.topic_id
+            )
+            logger.info(f"💾 Save result: {save_success}")
+        else:
+            save_success = False
+        
+        return {
+            "success": True,
+            "ideas": all_ideas,
+            "total_ideas": len(all_ideas),
+            "blog_ideas": len(blog_ideas),
+            "software_ideas": len(software_ideas),
+            "saved_to_database": save_success,
+            "keywords_used": len(keywords_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating content ideas (optimized): {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate content ideas: {str(e)}")
+
 async def generate_blog_ideas_for_subtopic_with_keywords(
     subtopic: str,
     topic_id: str,
@@ -1677,72 +1883,68 @@ async def generate_blog_ideas_for_subtopic_with_keywords(
     current_date = datetime.now().strftime("%B %d, %Y")
     current_year = datetime.now().year
     
-    prompt = f"""You are a content strategist. Generate exactly 10 blog post ideas for "{topic_title}" focusing on "{subtopic}".
-
+    prompt = f"""Generate exactly 10 blog post ideas for "{topic_title}" focusing on "{subtopic}".
 CURRENT DATE: {current_date} ({current_year})
-IMPORTANT: Focus on current trends, recent developments, and up-to-date information for {current_year}. Avoid outdated content or references to previous years unless specifically relevant.
-
-Keywords: {', '.join(top_keywords)}
 
 REQUIREMENTS:
-- Focus on current trends and recent developments in {current_year}
-- Include timely topics, latest technologies, and recent news
-- Make content feel fresh and relevant to today's audience
-- Avoid outdated references or content from previous years
+- Focus on current trends in {current_year}
 - CRITICAL: Each title MUST include at least one primary keyword naturally
-- Use keywords in titles in a way that sounds natural and compelling
-- Keywords should be prominent but not forced
+- CRITICAL: Each title MUST be under 60 characters
+- Format each idea EXACTLY like this:
 
-IMPORTANT: Return ONLY a valid JSON array with exactly 10 objects. No other text, no explanations, no markdown.
+[IDEA]
+TITLE: Topic - Keyword Guide [#{random.randint(1000, 9999)}]
+DESC: 2-3 sentence description here.
+PK: primary keyword 1, primary keyword 2
+SK: secondary keyword 1, secondary keyword 2
+ANGLE: guide
+AUDIENCE: beginners
+TIME: 10
+[/IDEA]
 
-Each object must have these exact fields:
-- title: SEO-optimized blog post title (MUST include at least one primary keyword naturally)
-- description: 2-3 sentence description emphasizing current relevance
-- primary_keywords: array of 2-3 main keywords (use these in the title)
-- secondary_keywords: array of 3-4 related keywords  
-- content_angle: string (tutorial, guide, review, comparison, etc.)
-- target_audience: string (beginners, professionals, businesses, etc.)
-- estimated_read_time: number (5-15)
+Wait 10 ideas now:"""
 
-Example format:
-[
-  {{
-    "title": "2025 Photography Trends: Complete Guide to Camera Settings",
-    "description": "Discover the latest photography techniques and camera settings that are trending in 2025. Learn modern approaches to improve your photography skills.",
-    "primary_keywords": ["camera", "photography"],
-    "secondary_keywords": ["2025 trends", "modern techniques", "current tips"],
-    "content_angle": "guide",
-    "target_audience": "beginners",
-    "estimated_read_time": 12
-  }}
-]
-
-Generate 10 current, up-to-date ideas for {current_year}:"""
-
+    error_detail = "LLM response insufficient or unavailable"
     try:
         # Call LLM to generate ideas
-        logger.info(f"🤖 Calling LLM to generate blog ideas for subtopic: {subtopic} (seed keywords)")
-        llm_result = await generate_content_with_llm(prompt)
+        logger.info(f"🤖 Calling LLM to generate blog ideas for subtopic: {subtopic} (DELIMITED FORMAT)")
+        llm_result = await generate_content_with_llm(prompt, use_json_mode=False)
         
         if llm_result.get('content') and 'error' not in llm_result:
-            # Parse LLM response
-            import json
-            import re
-            
             content = llm_result['content']
             if isinstance(content, list) and len(content) > 0:
                 content = content[0].get('text', '')
             
-            # Extract JSON from response
-            json_match = re.search(r'\[.*\]', content, re.DOTALL)
-            if json_match:
-                ideas_data = json.loads(json_match.group())
-                logger.info(f"✅ LLM generated {len(ideas_data)} blog ideas for {subtopic} (seed keywords)")
+            # Parse Delimited Format
+            ideas = []
+            blocks = re.findall(r'\[IDEA\](.*?)\[/IDEA\]', content, re.DOTALL | re.IGNORECASE)
+            
+            if not blocks:
+                # Fallback to splitting by common markers if tags are missing
+                blocks = content.split('---')
+            
+            for idx, block in enumerate(blocks):
+                if not block.strip(): continue
                 
-                # Convert to our format
-                ideas = []
-                for i, idea_data in enumerate(ideas_data[:10]):  # Limit to 10 ideas
-                    keyword = top_keywords[i % len(top_keywords)] if top_keywords else subtopic
+                try:
+                    idea_data = {}
+                    # Simple extraction
+                    lines = block.strip().split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line.upper().startswith('TITLE:'): idea_data['title'] = line[6:].strip()
+                        elif line.upper().startswith('DESC:'): idea_data['description'] = line[5:].strip()
+                        elif line.upper().startswith('PK:'): idea_data['primary_keywords'] = [k.strip() for k in line[3:].split(',')]
+                        elif line.upper().startswith('SK:'): idea_data['secondary_keywords'] = [k.strip() for k in line[3:].split(',')]
+                        elif line.upper().startswith('ANGLE:'): idea_data['content_angle'] = line[6:].strip()
+                        elif line.upper().startswith('AUDIENCE:'): idea_data['target_audience'] = line[9:].strip()
+                        elif line.upper().startswith('TIME:'): 
+                            try: idea_data['estimated_read_time'] = int(re.search(r'\d+', line).group())
+                            except: idea_data['estimated_read_time'] = 10
+                    
+                    if not idea_data.get('title'): continue
+                    
+                    keyword = top_keywords[idx % len(top_keywords)] if top_keywords else subtopic
                     
                     # Ensure keywords are in the title
                     title = idea_data.get('title', f"{subtopic} Guide")
@@ -1757,6 +1959,15 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         else:
                             title = f"{title} - {main_keyword.title()} Guide"
                     
+                    # Add random 4-digit ID to title
+                    title = f"{title} [#{random.randint(1000, 9999)}]"
+                    
+                    # Calculate overall quality score: (seo + traffic + (100 - difficulty)) / 3
+                    seo_score = 85
+                    traffic_score = 75
+                    difficulty_score = 50
+                    overall_quality = round((seo_score + traffic_score + (100 - difficulty_score)) / 3, 2)
+                    
                     idea = {
                         "id": str(uuid.uuid4()),
                         "title": title,
@@ -1766,10 +1977,11 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         "secondary_keywords": idea_data.get('secondary_keywords', [f"{subtopic} tips", f"{keyword} guide"]),
                         "difficulty": "intermediate",
                         "estimated_time": f"{idea_data.get('estimated_read_time', 8)} minutes",
-                        "seo_optimization_score": 85,
-                        "traffic_potential_score": 75,
+                        "seo_optimization_score": seo_score,
+                        "traffic_potential_score": traffic_score,
+                        "overall_quality_score": overall_quality,
                         "total_search_volume": 1000,
-                        "average_difficulty": 50,
+                        "average_difficulty": difficulty_score,
                         "average_cpc": 2.50,
                         "content_angle": idea_data.get('content_angle', 'tutorial'),
                         "target_audience": idea_data.get('target_audience', 'general'),
@@ -1794,147 +2006,163 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                         "generation_method": "llm"
                     }
                     ideas.append(idea)
-                
+                except Exception as e:
+                    logger.error(f"Error parsing blog idea block: {e}")
+                    continue
+            
+            if ideas:
                 return ideas
             else:
-                logger.warning(f"Could not parse LLM response for {subtopic}, using fallback")
+                error_detail = "No blog ideas could be parsed from LLM output"
         else:
-            logger.warning(f"LLM call failed for {subtopic}: {llm_result.get('error', 'Unknown error')}")
+            error_detail = llm_result.get('error', 'Unknown LLM error')
+            logger.warning(f"LLM call failed for {subtopic}: {error_detail}")
     
     except Exception as e:
-        logger.error(f"LLM generation failed for {subtopic}: {str(e)}")
+        error_detail = str(e)
+        logger.error(f"LLM generation failed for {subtopic}: {error_detail}")
     
-    # Fallback to template-based generation if LLM fails
-    logger.info(f"Using template fallback for {subtopic} (seed keywords)")
-    ideas = []
-    for i in range(10):  # Generate 10 ideas per subtopic
-        keyword = relevant_keywords[i % len(relevant_keywords)] if relevant_keywords else subtopic
-        
-        # Create more meaningful titles based on keyword and subtopic
-        title_templates = [
-            f"{keyword.title()}: Complete {subtopic} Guide",
-            f"How to {keyword} for {subtopic}",
-            f"{subtopic} {keyword.title()}: Best Practices",
-            f"Ultimate {keyword.title()} Guide for {subtopic}",
-            f"{keyword.title()} Strategies for {subtopic} Success",
-            f"Master {keyword} in {subtopic}",
-            f"{subtopic} {keyword.title()}: Expert Tips",
-            f"Advanced {keyword} Techniques for {subtopic}",
-            f"{keyword.title()} for {subtopic} Beginners",
-            f"Complete {subtopic} {keyword.title()} Tutorial"
-        ]
-        
-        description_templates = [
-            f"Comprehensive guide covering {keyword} specifically for {subtopic}",
-            f"Learn how to effectively use {keyword} in {subtopic}",
-            f"Expert insights on {keyword} for {subtopic} professionals",
-            f"Step-by-step {keyword} guide tailored for {subtopic}",
-            f"Master {keyword} techniques for {subtopic} success",
-            f"Everything you need to know about {keyword} in {subtopic}",
-            f"Professional {keyword} strategies for {subtopic}",
-            f"Advanced {keyword} methods for {subtopic}",
-            f"Beginner-friendly {keyword} guide for {subtopic}",
-            f"Complete tutorial on {keyword} for {subtopic}"
-        ]
-        
-        idea = {
-            "id": str(uuid.uuid4()),
-            "title": title_templates[i % len(title_templates)],
-            "content_type": "blog",
-            "description": description_templates[i % len(description_templates)],
-            "primary_keywords": [keyword, subtopic],
-            "secondary_keywords": [f"{subtopic} tips", f"{keyword} guide", f"{keyword} {subtopic}"],
-            "difficulty": "intermediate",
-            "estimated_time": "45 minutes",
-            "seo_optimization_score": 85,
-            "traffic_potential_score": 75,
-            "total_search_volume": 1000,
-            "average_difficulty": 50,
-            "average_cpc": 2.50,
-            "optimization_tips": [
-                f"Target long-tail keyword: {keyword}",
-                f"Focus on {subtopic} specific content",
-                "Include practical examples and case studies",
-                f"Leverage {keyword} for better {subtopic} results"
-            ],
-            "content_outline": [
-                f"Introduction to {keyword} in {subtopic}",
-                f"Key concepts and fundamentals",
-                f"Practical {keyword} applications",
-                f"Best practices for {subtopic}",
-                "Advanced techniques and tips",
-                "Conclusion and next steps"
-            ],
-            "user_id": user_id,
-            "topic_id": topic_id,
-            "subtopic": subtopic,
-            "enhanced_with_ahrefs": False,
-            "generation_method": "template"
-        }
-        ideas.append(idea)
-    
-    return ideas
+    # No fallback - raise error to prompt user to fix LLM connection
+    logger.error(f"LLM generation failed for '{subtopic}', raising error with details: {error_detail}")
+    raise Exception(f"LLM generation failed for {subtopic}: {error_detail}")
 
-def generate_software_ideas_for_topic_with_keywords(
+async def generate_software_ideas_for_topic_with_keywords(
     topic_id: str,
     topic_title: str,
     keywords: List[str],
     user_id: str
 ) -> List[Dict[str, Any]]:
     """
-    Generate software ideas for the topic using seed keywords
+    Generate software ideas for the topic using seed keywords and LLM
     """
-    # Use top keywords for software ideas
-    top_keywords = keywords[:5] if keywords else [topic_title]
+    top_keywords = keywords[:10] if keywords else [topic_title]
+    logger.info(f"Generating software ideas for '{topic_title}' using LLM")
     
-    software_types = [
-        "Web Application", "Mobile App", "SaaS Tool", "Calculator Tool", 
-        "Dashboard App", "Community Platform", "Analytics Tool", "Content Generator"
-    ]
+    prompt = f"""Generate exactly 10 unique software ideas for the topic "{topic_title}".
     
-    ideas = []
-    for i, software_type in enumerate(software_types):
-        keyword = top_keywords[i % len(top_keywords)]
+    Target Keywords: {', '.join(top_keywords[:20])}
+    
+    REQUIREMENTS:
+    - CRITICAL: Each title MUST be under 60 characters
+    - Each title MUST include at least one keyword.
+    - Format each idea EXACTLY like this:
+
+    [IDEA]
+    TITLE: Software Title [#{random.randint(1000, 9999)}]
+    DESC: Brief description.
+    PK: keyword 1, keyword 2
+    TYPE: SaaS
+    DIFF: intermediate
+    TIME: 2-4 weeks
+    [/IDEA]
+
+    Wait 10 ideas now:"""
+    
+    error_detail = "Software LLM response insufficient or unavailable"
+    try:
+        logger.info(f"🤖 Calling LLM for software ideas (DELIMITED FORMAT)")
+        llm_result = await generate_content_with_llm(prompt, "google", use_json_mode=False)
         
-        idea = {
-            "id": str(uuid.uuid4()),
-            "title": f"{topic_title} {software_type}",
-            "content_type": "software",
-            "description": f"Build a {software_type.lower()} for {keyword} management and analysis",
-            "primary_keywords": [f"{topic_title} {software_type.lower()}", keyword],
-            "secondary_keywords": [f"{software_type.lower()} tool", f"{topic_title} app"],
-            "difficulty": "advanced",
-            "estimated_time": "2-4 weeks",
-            "seo_optimization_score": 80,
-            "traffic_potential_score": 70,
-            "total_search_volume": 1000,
-            "average_difficulty": 50,
-            "average_cpc": 4.50,
-            "optimization_tips": [
-                f"Focus on {keyword} specific features",
-                "Include user-friendly interface design",
-                "Implement data visualization and analytics"
-            ],
-            "content_outline": [
-                f"Project overview and {keyword} focus",
-                "Technical architecture and features",
-                "User interface and experience design",
-                "Implementation timeline and milestones",
-                "Launch strategy and marketing"
-            ],
-            "user_id": user_id,
-            "topic_id": topic_id,
-            "enhanced_with_ahrefs": False
-        }
-        ideas.append(idea)
-    
-    return ideas
+        if llm_result.get('content') and 'error' not in llm_result:
+            content = llm_result['content']
+            if isinstance(content, list) and len(content) > 0:
+                content = content[0].get('text', '')
+            
+            # Parse Delimited Format
+            ideas = []
+            blocks = re.findall(r'\[IDEA\](.*?)\[/IDEA\]', content, re.DOTALL | re.IGNORECASE)
+            
+            if not blocks:
+                blocks = content.split('---')
+            
+            for i, block in enumerate(blocks):
+                if not block.strip(): continue
+                
+                try:
+                    data = {}
+                    lines = block.strip().split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line.upper().startswith('TITLE:'): data['title'] = line[6:].strip()
+                        elif line.upper().startswith('DESC:'): data['description'] = line[5:].strip()
+                        elif line.upper().startswith('PK:'): data['primary_keywords'] = [k.strip() for k in line[3:].split(',')]
+                        elif line.upper().startswith('TYPE:'): data['software_type'] = line[5:].strip()
+                        elif line.upper().startswith('DIFF:'): data['difficulty'] = line[5:].strip()
+                        elif line.upper().startswith('TIME:'): data['estimated_time'] = line[5:].strip()
+                    
+                    if not data.get('title'): continue
+                    title = data.get("title", f"{topic_title} Tool {i+1}")
+                    # Add random 4-digit ID to title
+                    title = f"{title} [#{random.randint(1000, 9999)}]"
+                    
+                    if len(title) > 60:
+                        # If adding the ID made it too long, truncate title part but keep ID
+                        base_title = title.split(" [#")[0]
+                        title = base_title[:50] + "... [#" + title.split(" [#")[1]
+                        
+                    # Calculate overall quality score: (seo + traffic + (100 - difficulty)) / 3
+                    seo_score = 80 + (i % 5)
+                    traffic_score = 70 + (i % 10)
+                    difficulty_val = 50 if data.get("difficulty") == "intermediate" else (30 if data.get("difficulty") == "beginner" else 70)
+                    overall_quality = round((seo_score + traffic_score + (100 - difficulty_val)) / 3, 2)
+                    
+                    idea = {
+                        "id": str(uuid.uuid4()),
+                        "title": title,
+                        "content_type": "software",
+                        "description": data.get("description", f"Software solution for {topic_title}"),
+                        "primary_keywords": data.get("primary_keywords", [topic_title]),
+                        "secondary_keywords": [f"{topic_title} tool", f"{data.get('software_type', 'software')} app"],
+                        "difficulty": data.get("difficulty", "intermediate"),
+                        "estimated_time": data.get("estimated_time", "2-4 weeks"),
+                        "seo_optimization_score": seo_score,
+                        "traffic_potential_score": traffic_score,
+                        "overall_quality_score": overall_quality,
+                        "total_search_volume": 1000,
+                        "average_difficulty": difficulty_val,
+                        "average_cpc": 4.50,
+                        "optimization_tips": [
+                            f"Focus on {topic_title} specific features",
+                            "Include user-friendly interface design"
+                        ],
+                        "content_outline": [
+                            "Project overview",
+                            "Technical architecture",
+                            "User experience design"
+                        ],
+                        "user_id": user_id,
+                        "topic_id": topic_id,
+                        "enhanced_with_ahrefs": False,
+                        "generation_method": "llm"
+                    }
+                    ideas.append(idea)
+                except Exception as e:
+                    logger.error(f"Error parsing software idea block: {e}")
+                    continue
+            
+            if ideas:
+                return ideas
+            else:
+                error_detail = "No software ideas could be parsed from LLM response"
+        else:
+            error_detail = llm_result.get('error', 'Unknown Software LLM error')
+                
+    except Exception as e:
+        error_detail = str(e)
+        logger.error(f"Software LLM generation failed: {error_detail}")
+        
+    # No fallback allowed
+    raise Exception(f"Software idea generation failed for {topic_title}: {error_detail}")
 
 # Keywords Generation Endpoint
 class KeywordGenerationRequest(BaseModel):
-    subtopics: List[str]
-    topicId: str
-    topicTitle: str
+    model_config = ConfigDict(extra='ignore')  # Ignore extra fields
+    
+    subtopics: List[str] = Field(default_factory=list, description="List of subtopics to generate keywords for")
+    topicId: Optional[str] = Field(default=None, description="Topic ID (optional)")
+    topicTitle: Optional[str] = Field(default=None, description="Topic title (optional)")
+    topic_title: Optional[str] = Field(default=None, description="Topic title alternative field (optional)")
+    user_id: Optional[str] = Field(default=None, description="User ID (optional)")
 
 class KeywordGenerationResponse(BaseModel):
     keywords: List[str]
@@ -1947,12 +2175,31 @@ async def generate_keywords(request: KeywordGenerationRequest):
     Generate simple seed keywords (max 3 words) using LLM for all subtopics
     """
     try:
-        logger.info(f"Generating seed keywords for topic: {request.topicTitle}, subtopics: {len(request.subtopics)}")
+        # Log the incoming request for debugging
+        logger.info(f"Received keyword generation request:")
+        logger.info(f"  - subtopics: {request.subtopics}")
+        logger.info(f"  - subtopics type: {type(request.subtopics)}")
+        logger.info(f"  - subtopics length: {len(request.subtopics) if request.subtopics else 0}")
+        logger.info(f"  - topicId: {request.topicId}")
+        logger.info(f"  - topicTitle: {request.topicTitle}")
+        logger.info(f"  - topic_title: {request.topic_title}")
+        logger.info(f"  - user_id: {request.user_id}")
+        
+        # Get topic title from either field
+        topic_title = request.topicTitle or request.topic_title or "Unknown Topic"
+        # Handle empty subtopics list
+        if not request.subtopics:
+            return KeywordGenerationResponse(
+                keywords=[],
+                success=False,
+                message="No subtopics provided. Please add at least one subtopic."
+            )
+        logger.info(f"Generating seed keywords for topic: {topic_title}, subtopics: {len(request.subtopics)}")
         
         # Create LLM prompt for seed keyword generation
         subtopics_list = ', '.join(request.subtopics)
         prompt = f"""
-Generate seed keywords for the topic "{request.topicTitle}" and its subtopics: {subtopics_list}
+Generate seed keywords for the topic "{topic_title}" and its subtopics: {subtopics_list}
 
 IMPORTANT REQUIREMENTS:
 - Generate 5-8 seed keywords for EACH subtopic
@@ -2048,7 +2295,8 @@ Return all keywords in a single flat JSON array.
             ]
             
             # Add topic-specific simple seed keywords
-            topic_lower = request.topic_title.lower()
+            topic_title_used = request.topicTitle or request.topic_title or "Unknown Topic"
+            topic_lower = topic_title_used.lower()
             if any(word in topic_lower for word in ["eco", "green", "sustainable", "environment"]):
                 seed_keywords.extend([
                     f"{subtopic} eco",

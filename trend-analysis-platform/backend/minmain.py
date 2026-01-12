@@ -6,13 +6,17 @@ It provides all necessary endpoints including:
 - Content ideas management (/api/content-ideas/*)
 - Research topics (/api/research-topics/*)
 - Trend analysis (/api/trend-analysis/*)
-- And more...
+- Keyword research store (/api/v1/keyword-research/store)
 
-🚀 To start: python3 backend/minimal_main.py
+⚠️ NOTE: This file runs in production. The keyword-research endpoints 
+are implemented directly here rather than using the DataForSEO router 
+due to import path issues.
+
+🚀 To start: cd backend && source venv/bin/activate && python minimal_main.py
 📡 Runs on: http://localhost:8000
 📚 API docs: http://localhost:8000/docs
 """
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -29,7 +33,8 @@ import csv
 import io
 from datetime import datetime
 from pathlib import Path
-from supabase import create_client, Client
+from src.core.supabase_singleton import get_supabase_client
+from src.core.config import validate_supabase_config
 import os
 from dotenv import load_dotenv
 
@@ -40,37 +45,18 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Supabase setup following the existing pattern
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-
-# Initialize Supabase client following the existing pattern
-supabase: Optional[Client] = None
-
-def initialize_supabase():
-    """Initialize Supabase client following the existing codebase pattern"""
-    global supabase
-    try:
-        # Try service role key first, then fall back to anon key (following existing pattern)
-        supabase_key = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
-        
-        if not SUPABASE_URL or not supabase_key:
-            logger.warning("⚠️ Supabase environment variables not configured - using local storage fallback")
-            return None
-        
-        supabase = create_client(SUPABASE_URL, supabase_key)
-        logger.info("✅ Supabase client initialized successfully")
-        return supabase
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize Supabase client: {e}")
-        return None
-
-# Initialize Supabase
-initialize_supabase()
-
+# Create FastAPI app
 app = FastAPI(title="Trend Analysis API", version="1.0.0")
+
+@app.on_event("startup")
+async def startup_event():
+    """Validate Supabase configuration on startup"""
+    try:
+        validate_supabase_config()
+        logger.info("✅ Supabase configuration validated")
+    except ValueError as e:
+        logger.error(f"❌ Supabase configuration validation failed: {e}")
+        raise
 
 # Configure CORS
 app.add_middleware(
@@ -80,6 +66,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Try to import and include DataForSEO router
+try:
+    import sys
+    from pathlib import Path
+    # Add the src directory to the path
+    sys.path.insert(0, str(Path(__file__).parent / "src"))
+    from routers.dataforseo_router import router as dataforseo_router
+    app.include_router(dataforseo_router)
+    logger.info("✅ DataForSEO router included successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import DataForSEO router: {e}")
+except Exception as e:
+    logger.error(f"❌ Error including DataForSEO router: {e}")
 
 class TopicDecompositionRequest(BaseModel):
     search_query: str
@@ -1634,13 +1634,14 @@ REQUIREMENTS:
 - Make content feel fresh and relevant to today's audience
 - Avoid outdated references or content from previous years
 - CRITICAL: Each title MUST include at least one primary keyword naturally
+- CRITICAL: Each title MUST be under 60 characters
 - Use keywords in titles in a way that sounds natural and compelling
 - Keywords should be prominent but not forced
 
 IMPORTANT: Return ONLY a valid JSON array with exactly 10 objects. No other text, no explanations, no markdown.
 
 Each object must have these exact fields:
-- title: SEO-optimized blog post title (MUST include at least one primary keyword naturally)
+- title: SEO-optimized blog post title (MUST include at least one primary keyword naturally AND be under 60 chars)
 - description: 2-3 sentence description emphasizing current relevance
 - primary_keywords: array of 2-3 main keywords (use these in the title)
 - secondary_keywords: array of 3-4 related keywords  
@@ -1698,10 +1699,19 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                     if primary_keywords and not any(kw.lower() in title.lower() for kw in primary_keywords):
                         main_keyword = primary_keywords[0]
                         # Add keyword naturally to the title
+                        # Add keyword naturally to the title
                         if ":" in title:
-                            title = f"{main_keyword.title()}: {title}"
+                            # Try to keep it short
+                            new_title = f"{main_keyword.title()}: {title.split(':')[1].strip()}"
+                            title = new_title if len(new_title) <= 60 else f"{main_keyword.title()}: Guide"
                         else:
-                            title = f"{title} - {main_keyword.title()} Guide"
+                            # Try to keep it short
+                            new_title = f"{title} - {main_keyword.title()}"
+                            title = new_title if len(new_title) <= 60 else f"{main_keyword.title()} Guide: {title}"
+                        
+                        # Hard truncate if still too long (last resort)
+                        if len(title) > 60:
+                             title = title[:57] + "..."
                     
                     idea = {
                         "id": str(uuid.uuid4()),
@@ -1751,65 +1761,8 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
         logger.error(f"LLM generation failed for {subtopic}: {str(e)}")
     
     # Fallback to template-based generation if LLM fails
-    logger.info(f"Using template fallback for {subtopic}")
-    ideas = []
-    for i in range(10):  # Generate 10 ideas per subtopic
-        keyword = relevant_keywords[i % len(relevant_keywords)] if relevant_keywords else {'keyword': subtopic, 'volume': 1000, 'kd': 50}
-        
-        # Create more meaningful titles based on keyword and subtopic
-        title_templates = [
-            f"{keyword['keyword'].title()}: Complete {subtopic} Guide",
-            f"How to {keyword['keyword']} for {subtopic}",
-            f"{subtopic} {keyword['keyword'].title()}: Best Practices",
-            f"Ultimate {keyword['keyword'].title()} Guide for {subtopic}",
-            f"{keyword['keyword'].title()} Strategies for {subtopic} Success"
-        ]
-        
-        description_templates = [
-            f"Comprehensive guide covering {keyword['keyword']} specifically for {subtopic}",
-            f"Learn how to effectively use {keyword['keyword']} in {subtopic}",
-            f"Expert insights on {keyword['keyword']} for {subtopic} professionals",
-            f"Step-by-step {keyword['keyword']} guide tailored for {subtopic}",
-            f"Master {keyword['keyword']} techniques for {subtopic} success"
-        ]
-        
-        idea = {
-            "id": str(uuid.uuid4()),
-            "title": title_templates[i % len(title_templates)],
-            "content_type": "blog",
-            "description": description_templates[i % len(description_templates)],
-            "primary_keywords": [keyword['keyword'], subtopic],
-            "secondary_keywords": [f"{subtopic} tips", f"{keyword['keyword']} guide", f"{keyword['keyword']} {subtopic}"],
-            "difficulty": "intermediate" if keyword.get('difficulty', 50) < 60 else "advanced",
-            "estimated_time": "45 minutes",
-            "seo_optimization_score": min(95, 60 + keyword.get('difficulty', 50)),
-            "traffic_potential_score": min(90, 50 + (keyword.get('volume', 1000) / 100)),
-            "total_search_volume": keyword.get('volume', 1000),
-            "average_difficulty": keyword.get('difficulty', 50),
-            "average_cpc": keyword.get('cpc', 2.50),
-            "optimization_tips": [
-                f"Target long-tail keyword: {keyword['keyword']}",
-                f"Focus on {subtopic} specific content",
-                "Include practical examples and case studies",
-                f"Leverage {keyword['keyword']} for better {subtopic} results"
-            ],
-            "content_outline": [
-                f"Introduction to {keyword['keyword']} in {subtopic}",
-                f"Key concepts and fundamentals",
-                f"Practical {keyword['keyword']} applications",
-                f"Best practices for {subtopic}",
-                "Advanced techniques and tips",
-                "Conclusion and next steps"
-            ],
-            "user_id": user_id,
-            "topic_id": topic_id,
-            "subtopic": subtopic,
-            "enhanced_with_ahrefs": True,
-            "generation_method": "template"
-        }
-        ideas.append(idea)
-    
-    return ideas
+    logger.error(f"LLM generation failed for {subtopic}, raising error as requested.")
+    raise Exception(f"LLM generation failed for {subtopic}. Please check LLM provider configuration.")
 
 def generate_software_ideas_for_topic(
     topic_id: str,
@@ -2092,13 +2045,14 @@ REQUIREMENTS:
 - Make content feel fresh and relevant to today's audience
 - Avoid outdated references or content from previous years
 - CRITICAL: Each title MUST include at least one primary keyword naturally
+- CRITICAL: Each title MUST be under 60 characters
 - Use keywords in titles in a way that sounds natural and compelling
 - Keywords should be prominent but not forced
 
 IMPORTANT: Return ONLY a valid JSON array with exactly 10 objects. No other text, no explanations, no markdown.
 
 Each object must have these exact fields:
-- title: SEO-optimized blog post title (MUST include at least one primary keyword naturally)
+- title: SEO-optimized blog post title (MUST include at least one primary keyword naturally AND be under 60 chars)
 - description: 2-3 sentence description emphasizing current relevance
 - primary_keywords: array of 2-3 main keywords (use these in the title)
 - secondary_keywords: array of 3-4 related keywords  
@@ -2154,10 +2108,22 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                     if primary_keywords and not any(kw.lower() in title.lower() for kw in primary_keywords):
                         main_keyword = primary_keywords[0]
                         # Add keyword naturally to the title
+                        # Add keyword naturally to the title
                         if ":" in title:
-                            title = f"{main_keyword.title()}: {title}"
+                            # Try to keep it short
+                            import random
+                            debug_suffix = f" {random.randint(100, 999)}"
+                            new_title = f"{main_keyword.title()}: {title.split(':')[1].strip()}{debug_suffix}"
+                            title = new_title if len(new_title) <= 60 else f"{main_keyword.title()}: Guide"
                         else:
-                            title = f"{title} - {main_keyword.title()} Guide"
+                            import random
+                            debug_suffix = f" {random.randint(100, 999)}"
+                            new_title = f"{title} - {main_keyword.title()}{debug_suffix}"
+                            title = new_title if len(new_title) <= 60 else f"{main_keyword.title()} Guide: {title}"
+                            
+                        # Hard truncate if still too long (last resort)
+                        if len(title) > 60:
+                             title = title[:57] + "..."
                     
                     # Calculate metrics for decision making
                     estimated_read_time = idea_data.get('estimated_read_time', 8)
@@ -2228,84 +2194,17 @@ Generate 10 current, up-to-date ideas for {current_year}:"""
                 
                 return ideas
             else:
-                logger.warning(f"Could not parse LLM response for {subtopic}, using fallback")
+                logger.error(f"Could not parse LLM response for {subtopic}")
         else:
-            logger.warning(f"LLM call failed for {subtopic}: {llm_result.get('error', 'Unknown error')}")
+            logger.error(f"LLM call failed for {subtopic}: {llm_result.get('error', 'Unknown error')}")
     
     except Exception as e:
         logger.error(f"LLM generation failed for {subtopic}: {str(e)}")
     
-    # Fallback to template-based generation if LLM fails
-    logger.info(f"Using template fallback for {subtopic} (seed keywords)")
-    ideas = []
-    for i in range(10):  # Generate 10 ideas per subtopic
-        keyword = relevant_keywords[i % len(relevant_keywords)] if relevant_keywords else subtopic
-        
-        # Create more meaningful titles based on keyword and subtopic
-        title_templates = [
-            f"{keyword.title()}: Complete {subtopic} Guide",
-            f"How to {keyword} for {subtopic}",
-            f"{subtopic} {keyword.title()}: Best Practices",
-            f"Ultimate {keyword.title()} Guide for {subtopic}",
-            f"{keyword.title()} Strategies for {subtopic} Success",
-            f"Master {keyword} in {subtopic}",
-            f"{subtopic} {keyword.title()}: Expert Tips",
-            f"Advanced {keyword} Techniques for {subtopic}",
-            f"{keyword.title()} for {subtopic} Beginners",
-            f"Complete {subtopic} {keyword.title()} Tutorial"
-        ]
-        
-        description_templates = [
-            f"Comprehensive guide covering {keyword} specifically for {subtopic}",
-            f"Learn how to effectively use {keyword} in {subtopic}",
-            f"Expert insights on {keyword} for {subtopic} professionals",
-            f"Step-by-step {keyword} guide tailored for {subtopic}",
-            f"Master {keyword} techniques for {subtopic} success",
-            f"Everything you need to know about {keyword} in {subtopic}",
-            f"Professional {keyword} strategies for {subtopic}",
-            f"Advanced {keyword} methods for {subtopic}",
-            f"Beginner-friendly {keyword} guide for {subtopic}",
-            f"Complete tutorial on {keyword} for {subtopic}"
-        ]
-        
-        idea = {
-            "id": str(uuid.uuid4()),
-            "title": title_templates[i % len(title_templates)],
-            "content_type": "blog",
-            "description": description_templates[i % len(description_templates)],
-            "primary_keywords": [keyword, subtopic],
-            "secondary_keywords": [f"{subtopic} tips", f"{keyword} guide", f"{keyword} {subtopic}"],
-            "difficulty": "intermediate",
-            "estimated_time": "45 minutes",
-            "seo_optimization_score": 85,
-            "traffic_potential_score": 75,
-            "total_search_volume": 1000,
-            "average_difficulty": 50,
-            "average_cpc": 2.50,
-            "optimization_tips": [
-                f"Target long-tail keyword: {keyword}",
-                f"Focus on {subtopic} specific content",
-                "Include practical examples and case studies",
-                f"Leverage {keyword} for better {subtopic} results"
-            ],
-            "content_outline": [
-                f"Introduction to {keyword} in {subtopic}",
-                f"Key concepts and fundamentals",
-                f"Practical {keyword} applications",
-                f"Best practices for {subtopic}",
-                "Advanced techniques and tips",
-                "Conclusion and next steps"
-            ],
-            "user_id": user_id,
-            "topic_id": topic_id,
-            "subtopic": subtopic,
-            "enhanced_with_ahrefs": False,
-            "generation_method": "template"
-        }
-        ideas.append(idea)
+    # No fallback - raise error to prompt user to fix LLM connection
+    logger.error(f"LLM generation failed for '{subtopic}', raising error as requested.")
+    raise Exception(f"LLM generation failed for {subtopic}. Please check LLM provider configuration.")
     
-    return ideas
-
 def generate_software_ideas_for_topic_with_keywords(
     topic_id: str,
     topic_title: str,
@@ -2313,94 +2212,14 @@ def generate_software_ideas_for_topic_with_keywords(
     user_id: str
 ) -> List[Dict[str, Any]]:
     """
-    Generate software ideas for the topic using seed keywords
+    Software idea generation is not yet implemented with LLM.
+    Returns empty list to avoid misleading results.
+    
+    TODO: Implement LLM-based software idea generation similar to blog ideas
     """
-    # Use top keywords for software ideas
-    top_keywords = keywords[:5] if keywords else [topic_title]
-    
-    software_types = [
-        "Web Application", "Mobile App", "SaaS Tool", "Calculator Tool", 
-        "Dashboard App", "Community Platform", "Analytics Tool", "Content Generator"
-    ]
-    
-    ideas = []
-    for i, software_type in enumerate(software_types):
-        keyword = top_keywords[i % len(top_keywords)]
-        
-        # Calculate metrics for software ideas
-        seo_score = 80
-        traffic_score = 70
-        difficulty_score = 60  # Software is generally harder
-        cpc_score = 4.50
-        
-        # Calculate overall quality score
-        overall_quality = (seo_score + traffic_score + (100 - difficulty_score)) / 3
-        
-        # Calculate monetization potential (software has higher potential)
-        monetization_potential = "high" if cpc_score > 3 else "medium" if cpc_score > 1.5 else "low"
-        
-        # Calculate difficulty level
-        difficulty_level = "hard"  # Software projects are typically advanced
-        
-        # Calculate development effort
-        development_effort = "high" if "SaaS" in software_type or "Platform" in software_type else "medium"
-        
-        # Calculate market demand
-        market_demand = "high" if "App" in software_type or "Tool" in software_type else "medium"
-        
-        idea = {
-            "id": str(uuid.uuid4()),
-            "title": f"{topic_title} {software_type}",
-            "content_type": "software",
-            "description": f"Build a {software_type.lower()} for {keyword} management and analysis",
-            "primary_keywords": [f"{topic_title} {software_type.lower()}", keyword],
-            "secondary_keywords": [f"{software_type.lower()} tool", f"{topic_title} app"],
-            "keywords": [f"{topic_title} {software_type.lower()}", keyword, f"{software_type.lower()} tool", f"{topic_title} app"],
-            "difficulty": difficulty_level,
-            "difficulty_level": difficulty_level,
-            "estimated_time": "2-4 weeks",
-            "estimated_read_time": 0,  # Not applicable for software
-            "estimated_word_count": 0,  # Not applicable for software
-            "seo_optimization_score": seo_score,
-            "traffic_potential_score": traffic_score,
-            "overall_quality_score": round(overall_quality, 1),
-            "total_search_volume": 1000,
-            "average_difficulty": difficulty_score,
-            "average_cpc": cpc_score,
-            "monetization_potential": monetization_potential,
-            "technical_complexity": difficulty_level,
-            "development_effort": development_effort,
-            "market_demand": market_demand,
-            "content_angle": "project",
-            "target_audience": "developers",
-            "category": software_type,
-            "subtopic": software_type,
-            "status": "draft",
-            "priority": "medium",
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-            "optimization_tips": [
-                f"Focus on {keyword} specific features",
-                "Include user-friendly interface design",
-                "Implement data visualization and analytics"
-            ],
-            "content_outline": [
-                f"Project overview and {keyword} focus",
-                "Technical architecture and features",
-                "User interface and experience design",
-                "Implementation timeline and milestones",
-                "Launch strategy and marketing"
-            ],
-            "user_id": user_id,
-            "topic_id": topic_id,
-            "enhanced_with_ahrefs": False,
-            "generation_method": "template",
-            "published": False,
-            "published_to_titles": False
-        }
-        ideas.append(idea)
-    
-    return ideas
+    logger.warning("⚠️ Software idea generation not implemented. Returning empty list to avoid misleading results.")
+    logger.info("💡 Software idea generation will be implemented with LLM in a future update")
+    return []
 
 # Keywords Generation Endpoint
 class KeywordGenerationRequest(BaseModel):
@@ -2421,52 +2240,139 @@ async def generate_keywords(request: KeywordGenerationRequest):
     try:
         logger.info(f"Generating keywords for topic: {request.topic_title}, subtopics: {len(request.subtopics)}")
         
-        # Generate keywords using the existing Google Autocomplete service
-        autocomplete_service = GoogleAutocompleteService()
-        all_keywords = []
+        # Create LLM prompt for intelligent keyword generation
+        subtopics_list = '\n'.join([f"- {st}" for st in request.subtopics])
+        
+        prompt = f"""
+You are an expert SEO keyword researcher. Generate high-quality seed keywords for the topic "{request.topic_title}" based on the following subtopics:
+
+Subtopics:
+{subtopics_list}
+
+CRITICAL REQUIREMENTS:
+1. Generate approximately 8-12 seed keywords TOTAL (not per subtopic)
+2. Create a BALANCED MIX across all subtopics:
+   - ~33% single-word keywords (core terms)
+   - ~33% two-word keywords (phrases)
+   - ~33% three-word keywords (specific searches)
+3. MAXIMUM 3 words per keyword - NO EXCEPTIONS
+4. Generate keywords that capture the main idea of EACH subtopic, not random variations
+5. Focus on foundational seed keywords perfect for further research in DataForSEO
+6. Keywords should be commercial and affiliate-friendly
+7. Use your intelligence to choose the best 1-3 word representation of each subtopic's core concept
+8. Do NOT truncate subtopics mechanically - choose the most powerful keywords naturally
+
+DO NOT:
+- Generate the same keyword multiple times
+- Create variations just by adding "guide", "tips", "best" - be more strategic
+- Use subtopic names verbatim if they're too long
+- Apply arbitrary truncation rules
+
+DO:
+- Use your knowledge to select the most valuable seed keywords
+- Create a diverse mix of keyword lengths (1, 2, 3 words)
+- Ensure each keyword represents a core concept from the subtopics
+- Think about what searchers would actually type
+
+Format: Return ONLY keywords, one per line, no numbering, bullets, or explanations.
+
+Example of good output:
+technology
+digital transformation
+enterprise software
+cloud computing
+SaaS solutions
+ai integration
+business intelligence
+data analytics
+automation tools
+"""
+        
+        # Try to get LLM response
+        llm_result = await generate_content_with_llm(prompt)
+        
+        if llm_result.get('content') and 'error' not in llm_result:
+            logger.info("Using LLM-generated seed keywords")
+            
+            # Parse LLM response
+            import json
+            import re
+            
+            content = llm_result['content']
+            if isinstance(content, list) and len(content) > 0:
+                content = content[0].get('text', '')
+            
+            # Parse keywords from LLM response
+            keywords = []
+            
+            for line in content.split('\n'):
+                line = line.strip()
+                if line and not line.startswith('#') and not line.startswith('Example'):
+                    # Clean up the keyword
+                    keyword = line.replace('•', '').replace('-', '').replace('*', '').strip()
+                    # Remove any line numbers, bullets, or other formatting
+                    keyword = keyword.lstrip('0123456789.)').strip()
+                    if keyword and len(keyword) > 1:
+                        # Filter out keywords longer than 3 words
+                        word_count = len(keyword.split())
+                        if word_count <= 3:
+                            keywords.append(keyword)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_keywords = []
+            for keyword in keywords:
+                if keyword.lower() not in seen:
+                    unique_keywords.append(keyword)
+                    seen.add(keyword.lower())
+            
+            unique_keywords = unique_keywords[:15]  # Limit to 15
+            
+            logger.info(f"Generated {len(unique_keywords)} seed keywords using LLM")
+            
+            return KeywordGenerationResponse(
+                keywords=unique_keywords,
+                success=True,
+                message=f"Generated {len(unique_keywords)} intelligent seed keywords"
+            )
+        else:
+            logger.warning("LLM service unavailable, using simplified fallback")
+        
+        # Fallback: Create simple keywords from subtopics without truncation rules
+        keywords = []
         
         for subtopic in request.subtopics:
-            try:
-                # Get autocomplete suggestions for each subtopic
-                suggestions = await autocomplete_service.get_suggestions(subtopic)
-                all_keywords.extend(suggestions[:5])  # Limit to 5 per subtopic
+            subtopic_words = subtopic.split()
+            word_count = len(subtopic_words)
+            
+            # If subtopic is already 3 words or less, use it directly
+            if word_count <= 3:
+                keywords.append(subtopic.lower())
+            # If subtopic is longer, try the first 1, 2, or 3 words as keywords
+            elif word_count > 3:
+                # Use first word as a single-word keyword
+                if subtopic_words[0].lower() not in ['the', 'a', 'an', 'how', 'what', 'why', 'when', 'where']:
+                    keywords.append(subtopic_words[0].lower())
                 
-                # Add some rule-based keywords
-                rule_based = [
-                    f"{subtopic} guide",
-                    f"{subtopic} tips", 
-                    f"best {subtopic}",
-                    f"{subtopic} tutorial",
-                    f"how to {subtopic}",
-                    f"{subtopic} for beginners",
-                    f"{subtopic} strategies",
-                    f"{subtopic} tools"
-                ]
-                all_keywords.extend(rule_based)
+                # Use first 2 words as a two-word keyword
+                if len(subtopic_words) >= 2:
+                    two_words = f"{subtopic_words[0].lower()} {subtopic_words[1].lower()}"
+                    if two_words not in keywords:
+                        keywords.append(two_words)
                 
-            except Exception as e:
-                logger.warning(f"Failed to get suggestions for {subtopic}: {str(e)}")
-                # Add fallback keywords
-                fallback = [
-                    f"{subtopic} guide",
-                    f"{subtopic} tips",
-                    f"best {subtopic}",
-                    f"{subtopic} tutorial"
-                ]
-                all_keywords.extend(fallback)
+                # Use first 3 words as a three-word keyword
+                if len(subtopic_words) >= 3:
+                    three_words = f"{subtopic_words[0].lower()} {subtopic_words[1].lower()} {subtopic_words[2].lower()}"
+                    if three_words not in keywords:
+                        keywords.append(three_words)
         
-        # Remove duplicates while preserving order
-        unique_keywords = list(dict.fromkeys(all_keywords))
-        
-        # Limit to 20 keywords total
-        final_keywords = unique_keywords[:20]
-        
-        logger.info(f"Generated {len(final_keywords)} keywords")
+        # Remove duplicates while preserving order and limit to 15
+        unique_keywords = list(dict.fromkeys(keywords))[:15]
         
         return KeywordGenerationResponse(
-            keywords=final_keywords,
+            keywords=unique_keywords,
             success=True,
-            message=f"Generated {len(final_keywords)} keywords"
+            message=f"Generated {len(unique_keywords)} keywords from subtopics (simplified fallback)"
         )
         
     except Exception as e:
@@ -2685,6 +2591,99 @@ async def get_content_ideas_stats(request: ContentIdeasStatsRequest):
     except Exception as e:
         logger.error(f"Error getting content ideas stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get content ideas stats: {str(e)}")
+
+# Keyword Research Store Endpoint
+class KeywordResearchStoreRequest(BaseModel):
+    keywords: List[Dict[str, Any]]
+
+class KeywordResearchStoreResponse(BaseModel):
+    success: bool
+    message: str
+    count: int
+    topic_id: Optional[str] = None
+    user_id: Optional[str] = None
+
+@app.post("/api/v1/keyword-research/store")
+async def store_keyword_research_data(request: List[Dict[str, Any]]):
+    """
+    Store keyword research data in Supabase database.
+    This endpoint receives keywords from DataForSEO research and stores them.
+    Accepts a direct array of keywords.
+    """
+    try:
+        keywords = request if isinstance(request, list) else []
+        
+        logger.info(f"📦 Storing {len(keywords)} keywords in Supabase")
+        
+        # Validate input
+        if not keywords or len(keywords) == 0:
+            logger.error("No keywords provided for storage")
+            raise HTTPException(status_code=400, detail="No keywords provided for storage")
+        
+        # Extract topic and user info for logging and validation
+        topic_id = keywords[0].get("topic_id")
+        user_id = keywords[0].get("user_id")
+        logger.info(f"Processing keywords for topic_id: {topic_id}, user_id: {user_id}")
+        
+        # Validate required fields
+        if not topic_id:
+            logger.error("Missing topic_id in keyword data")
+            raise HTTPException(status_code=400, detail="Missing topic_id in keyword data")
+        
+        if not user_id:
+            logger.error("Missing user_id in keyword data")
+            raise HTTPException(status_code=400, detail="Missing user_id in keyword data")
+        
+        # Log sample keyword data for debugging
+        if len(keywords) > 0:
+            sample_keyword = keywords[0]
+            logger.info(f"Sample keyword data: keyword='{sample_keyword.get('keyword')}', source='{sample_keyword.get('source')}', difficulty={sample_keyword.get('difficulty')}")
+        
+        # Store keywords in Supabase
+        if supabase:
+            try:
+                # Insert keywords into the keyword_data table
+                # Note: This assumes the table structure matches the keyword data format
+                for keyword in keywords:
+                    keyword_record = {
+                        "keyword": keyword.get("keyword", ""),
+                        "topic_id": keyword.get("topic_id"),
+                        "user_id": keyword.get("user_id"),
+                        "source": keyword.get("source", "dataforseo"),
+                        "search_volume": keyword.get("search_volume", 0),
+                        "keyword_difficulty": keyword.get("difficulty", 0),
+                        "cpc": keyword.get("cpc", 0),
+                        "intent_type": keyword.get("intent_type", "COMMERCIAL"),
+                        "competition_value": keyword.get("competition_value", 0),
+                        "priority_score": keyword.get("priority_score", 0),
+                    }
+                    
+                    # Try to insert (will handle upsert if needed)
+                    result = supabase.table("keyword_data").insert(keyword_record).execute()
+                    logger.debug(f"Inserted keyword: {keyword_record.get('keyword')}")
+                
+                logger.info(f"✅ Successfully stored {len(keywords)} keywords")
+                return {
+                    "success": True,
+                    "message": f"Successfully stored {len(keywords)} keywords",
+                    "count": len(keywords),
+                    "topic_id": topic_id,
+                    "user_id": user_id
+                }
+            except Exception as db_error:
+                logger.error(f"Database error storing keywords: {db_error}")
+                raise HTTPException(status_code=500, detail=f"Failed to store keywords in database: {str(db_error)}")
+        else:
+            logger.warning("Supabase not initialized - cannot store keywords")
+            raise HTTPException(status_code=500, detail="Database not available")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error storing keyword data: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to store keyword data: {str(e)}")
 
 if __name__ == "__main__":
     print("🚀 Starting minimal Trend Analysis backend with Supabase persistence...")

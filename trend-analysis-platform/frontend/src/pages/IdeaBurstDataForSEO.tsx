@@ -129,20 +129,20 @@ interface EnhancedKeywordRowProps {
   onToggleExpanded: () => void;
 }
 
-const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({ 
-  keyword, 
-  index, 
-  isExpanded, 
-  onToggleExpanded 
+const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({
+  keyword,
+  index,
+  isExpanded,
+  onToggleExpanded
 }) => {
   const keywordText = keyword.keyword || (typeof keyword === 'string' ? keyword : 'Unknown keyword');
   const hasRelatedKeywords = keyword.related_keywords && keyword.related_keywords.length > 0;
-  
+
   return (
     <>
-      <tr 
-        key={index} 
-        style={{ 
+      <tr
+        key={index}
+        style={{
           backgroundColor: index % 2 === 0 ? '#fafafa' : 'white',
           cursor: 'pointer'
         }}
@@ -187,10 +187,10 @@ const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({
             label={keyword.competition_level || 'UNKNOWN'}
             size="small"
             sx={{
-              backgroundColor: keyword.competition_level === 'HIGH' ? '#ffebee' : 
-                             keyword.competition_level === 'MEDIUM' ? '#fff3e0' : '#e8f5e8',
-              color: keyword.competition_level === 'HIGH' ? '#c62828' : 
-                     keyword.competition_level === 'MEDIUM' ? '#ef6c00' : '#2e7d32',
+              backgroundColor: keyword.competition_level === 'HIGH' ? '#ffebee' :
+                keyword.competition_level === 'MEDIUM' ? '#fff3e0' : '#e8f5e8',
+              color: keyword.competition_level === 'HIGH' ? '#c62828' :
+                keyword.competition_level === 'MEDIUM' ? '#ef6c00' : '#2e7d32',
               fontWeight: 'bold'
             }}
           />
@@ -221,7 +221,7 @@ const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({
           {keyword.priority_score ? keyword.priority_score.toFixed(1) : 'N/A'}
         </td>
       </tr>
-      
+
       {/* Expanded Row with Comprehensive Data */}
       {isExpanded && (
         <tr style={{ backgroundColor: '#f8f9fa' }}>
@@ -265,10 +265,10 @@ const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({
                   <Grid item xs={12} md={6}>
                     <Typography variant="subtitle2" gutterBottom>Categories</Typography>
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      {keyword.categories && keyword.categories.length > 0 ? 
+                      {keyword.categories && keyword.categories.length > 0 ?
                         keyword.categories.map((cat: string, idx: number) => (
                           <Chip key={idx} label={cat} size="small" variant="outlined" />
-                        )) : 
+                        )) :
                         <Typography variant="body2" color="text.secondary">No categories</Typography>
                       }
                     </Box>
@@ -313,10 +313,10 @@ const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({
                   <Grid item xs={12} md={6}>
                     <Typography variant="subtitle2" gutterBottom>SERP Item Types</Typography>
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      {keyword.serp_item_types && keyword.serp_item_types.length > 0 ? 
+                      {keyword.serp_item_types && keyword.serp_item_types.length > 0 ?
                         keyword.serp_item_types.map((type: string, idx: number) => (
                           <Chip key={idx} label={type} size="small" variant="outlined" />
-                        )) : 
+                        )) :
                         <Typography variant="body2" color="text.secondary">No SERP data</Typography>
                       }
                     </Box>
@@ -434,7 +434,7 @@ const EnhancedKeywordRow: React.FC<EnhancedKeywordRowProps> = ({
                       Clustering Algorithm: {keyword.synonym_clustering_algorithm || 'N/A'}
                     </Typography>
                     <Typography variant="body2">
-                      Foreign Intent: {keyword.foreign_intent && keyword.foreign_intent.length > 0 ? 
+                      Foreign Intent: {keyword.foreign_intent && keyword.foreign_intent.length > 0 ?
                         keyword.foreign_intent.join(', ') : 'None'}
                     </Typography>
                   </Grid>
@@ -467,18 +467,18 @@ interface IdeaBurstDataForSEOProps {
   selectedSubtopics?: string[];
 }
 
-const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({ 
-  className, 
-  selectedTopicId, 
-  selectedTopicTitle, 
-  selectedSubtopics 
+const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
+  className,
+  selectedTopicId,
+  selectedTopicTitle,
+  selectedSubtopics
 }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
-  
+
   // Authentication guard
   console.log('🔐 Auth state check - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'user:', user);
-  
+
   if (isLoading) {
     console.log('🔐 Auth guard - showing loading screen');
     return (
@@ -498,7 +498,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
   }
 
   console.log('🔐 Auth guard - authenticated, rendering component');
-  
+
   // State management
   const [seedKeywords, setSeedKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState<string>('');
@@ -510,13 +510,26 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [showPrioritization, setShowPrioritization] = useState<boolean>(false);
   const [tabValue, setTabValue] = useState<number>(0);
-  
+  const [depth, setDepth] = useState<number>(2); // Configurable depth for keyword research
+
+  // Advanced filter state
+  const [advancedFilters, setAdvancedFilters] = useState({
+    minVolume: 0,
+    maxVolume: 10000000,
+    minDifficulty: 0,
+    maxDifficulty: 100,
+    minCpc: 0,
+    maxCpc: 100,
+    minPriorityScore: 0,
+    maxPriorityScore: 100
+  });
+
   // Research topics state
   const [researchTopics, setResearchTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [topicsLoading, setTopicsLoading] = useState<boolean>(false);
   const [topicsError, setTopicsError] = useState<string | null>(null);
-  
+
   // LLM keyword generation state
   const [isGeneratingLLMKeywords, setIsGeneratingLLMKeywords] = useState<boolean>(false);
   const [llmKeywordError, setLlmKeywordError] = useState<string | null>(null);
@@ -541,23 +554,44 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
     setExpandedRows(newExpanded);
   };
 
+  // Apply advanced filters to keywords
+  const applyAdvancedFilters = (keywordList: any[]) => {
+    return keywordList.filter(k => {
+      const volume = k.search_volume || 0;
+      const difficulty = k.keyword_difficulty || k.difficulty || 0;
+      const cpc = k.cpc || 0;
+      const priorityScore = k.priority_score || 0;
+
+      const volumeMatch = volume >= advancedFilters.minVolume && volume <= advancedFilters.maxVolume;
+      const difficultyMatch = difficulty >= advancedFilters.minDifficulty && difficulty <= advancedFilters.maxDifficulty;
+      const cpcMatch = cpc >= advancedFilters.minCpc && cpc <= advancedFilters.maxCpc;
+      const priorityMatch = priorityScore >= advancedFilters.minPriorityScore && priorityScore <= advancedFilters.maxPriorityScore;
+
+      return volumeMatch && difficultyMatch && cpcMatch && priorityMatch;
+    });
+  };
+
   // Helper function to get filtered keywords for different tabs
   const getFilteredKeywords = (tabIndex: number) => {
     if (!keywords || keywords.length === 0) return [];
-    
+
+    // Apply advanced filters to the base keywords list
+    let filteredBaseList = applyAdvancedFilters(keywords);
+    let filteredPrioritizedList = applyAdvancedFilters(prioritizedKeywords || []);
+
     switch (tabIndex) {
       case 1: // Prioritized
-        return prioritizedKeywords || [];
+        return filteredPrioritizedList;
       case 2: // High Volume
-        return keywords
+        return filteredBaseList
           .filter(k => k.search_volume && k.search_volume >= 10000)
           .sort((a, b) => (b.search_volume || 0) - (a.search_volume || 0));
       case 3: // Low Difficulty
-        return keywords
+        return filteredBaseList
           .filter(k => k.difficulty && k.difficulty <= 30)
           .sort((a, b) => (a.difficulty || 100) - (b.difficulty || 100));
       default:
-        return keywords;
+        return filteredBaseList;
     }
   };
 
@@ -586,34 +620,34 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: '#f5f5f5' }}>
-                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>
+                <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Search sx={{ fontSize: 16 }} />
                     Keyword
                   </Box>
                 </th>
-                <th style={{ padding: '8px', textAlign: 'right', border: '1px solid #ddd' }}>
+                <th style={{ padding: '8px', textAlign: 'right', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
                     <Visibility sx={{ fontSize: 16 }} />
                     Search Volume
                   </Box>
                 </th>
-                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd' }}>
+                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
                     <Speed sx={{ fontSize: 16 }} />
                     Difficulty
                   </Box>
                 </th>
-                <th style={{ padding: '8px', textAlign: 'right', border: '1px solid #ddd' }}>
+                <th style={{ padding: '8px', textAlign: 'right', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
                     <AttachMoney sx={{ fontSize: 16 }} />
                     CPC
                   </Box>
                 </th>
-                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd' }}>Competition</th>
-                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd' }}>Intent</th>
-                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd' }}>Source</th>
-                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd' }}>Priority</th>
+                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>Competition</th>
+                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>Intent</th>
+                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>Source</th>
+                <th style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd', position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f5f5f5' }}>Priority</th>
               </tr>
             </thead>
             <tbody>
@@ -643,7 +677,9 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
 
   // Initialize subtopics from navigation state
   useEffect(() => {
+    console.log('🔍 Initialize subtopics useEffect - selectedSubtopics:', selectedSubtopics, 'Current subtopics:', subtopics);
     if (selectedSubtopics && selectedSubtopics.length > 0) {
+      console.log('🔍 Setting subtopics from navigation state:', selectedSubtopics);
       setSubtopics(selectedSubtopics);
     }
   }, [selectedSubtopics]);
@@ -694,14 +730,14 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
     try {
       setTopicsLoading(true);
       setTopicsError(null);
-      
+
       const { supabaseResearchTopicsService } = await import('../services/supabaseResearchTopicsService');
       const response = await supabaseResearchTopicsService.listResearchTopics();
-      
+
       // Handle the response format - it might be wrapped in an object
       const topics = Array.isArray(response) ? response : (response?.items || []);
       setResearchTopics(topics);
-      
+
       console.log('Loaded research topics:', topics);
     } catch (error) {
       console.error('Failed to load research topics:', error);
@@ -721,10 +757,10 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
       setPrioritizedKeywords([]);
       setSeedKeywords([]);
       setError(null);
-      
+
       setSelectedTopic(topic);
       await loadSubtopicsForTopic(topic);
-      
+
       // Load existing keywords for this topic
       await loadExistingKeywords(topicId);
     }
@@ -733,14 +769,24 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
   // Load subtopics for a specific topic
   const loadSubtopicsForTopic = async (topic: any) => {
     try {
-      if (!user?.id) {
-        console.log('No user ID available, using topic title only');
-        setSubtopics([topic.title]);
+      console.log('loadSubtopicsForTopic called for topic:', topic.title, 'Current subtopics:', subtopics);
+
+      // If we already have subtopics, don't overwrite them
+      if (subtopics.length > 0 && subtopics[0] !== topic.title) {
+        console.log('Already have subtopics, keeping them:', subtopics);
         return;
       }
-      
+
+      if (!user?.id) {
+        console.log('No user ID available, using topic title only');
+        if (subtopics.length === 0) {
+          setSubtopics([topic.title]);
+        }
+        return;
+      }
+
       console.log('Loading subtopics for topic:', topic.title, 'ID:', topic.id);
-      
+
       // Query Supabase directly for subtopics
       const { data, error } = await supabase
         .from('topic_decompositions')
@@ -752,7 +798,9 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
 
       if (error) {
         console.error('Error fetching subtopics from Supabase:', error);
-        setSubtopics([topic.title]);
+        if (subtopics.length === 0) {
+          setSubtopics([topic.title]);
+        }
         return;
       }
 
@@ -762,15 +810,17 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           const allSubtopics = [topic.title, ...existingSubtopics];
           setSubtopics(allSubtopics);
           console.log('Loaded subtopics from database:', allSubtopics);
-        } else {
+        } else if (subtopics.length === 0) {
           setSubtopics([topic.title]);
         }
-      } else {
+      } else if (subtopics.length === 0) {
         setSubtopics([topic.title]);
       }
     } catch (error) {
       console.error('Failed to load subtopics:', error);
-      setSubtopics([topic.title]);
+      if (subtopics.length === 0) {
+        setSubtopics([topic.title]);
+      }
     }
   };
 
@@ -783,7 +833,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
       }
 
       console.log('Loading existing keywords for topic:', topicId);
-      
+
       // Query Supabase for existing keyword research data
       const { data, error } = await supabase
         .from('keyword_research_data')
@@ -799,7 +849,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
 
       if (data && data.length > 0) {
         console.log(`Loaded ${data.length} existing keywords from database`);
-        
+
         // Process the keywords and set them with ALL fields from database
         const processedKeywords = data.map(item => ({
           keyword: item.keyword,
@@ -840,26 +890,37 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           depth: item.depth ?? 1
         }));
 
-        setKeywords(processedKeywords);
-        
+        // CRITICAL: Store all keywords in allKeywords state so intent filters work
+        setAllKeywords(processedKeywords);
+        console.log(`✅ Set allKeywords to ${processedKeywords.length} keywords from Supabase`);
+
+        // Apply intent filtering to the loaded keywords
+        const filteredKeywords = applyIntentFilter(processedKeywords, intentTypes);
+
+        setKeywords(filteredKeywords);
+
         // Calculate priority scores for the loaded keywords
-        const prioritized = processedKeywords
+        const prioritized = filteredKeywords
           .map(keyword => ({
             ...keyword,
             priority_score: calculatePriorityScore(keyword)
           }))
           .sort((a, b) => b.priority_score - a.priority_score);
-        
+
         setPrioritizedKeywords(prioritized);
+
+        console.log(`✅ Applied intent filter, showing ${filteredKeywords.length} of ${processedKeywords.length} keywords`);
       } else {
         console.log('No existing keywords found for this topic');
         // Clear keywords if none found
+        setAllKeywords([]);
         setKeywords([]);
         setPrioritizedKeywords([]);
       }
     } catch (error) {
       console.error('Failed to load existing keywords:', error);
       // Clear keywords on error
+      setAllKeywords([]);
       setKeywords([]);
       setPrioritizedKeywords([]);
     }
@@ -885,85 +946,98 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
 
   const handleResearchKeywords = async () => {
     if (seedKeywords.length === 0) return;
-    
+
     try {
       setLoading(true);
       console.log('Researching keywords with DataForSEO services:', seedKeywords);
-      
-      // Call DataForSEO services for each seed keyword with depth parameter
-      const keywordPromises = seedKeywords.map(async (keyword) => {
-        const [keywordIdeasResponse, relatedKeywordsResponse] = await Promise.all([
-          // Call keyword research service for single keyword
-          fetch('http://localhost:8000/api/v1/keyword-research/keyword-ideas', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              seed_keywords: [keyword],
-              location_code: 2840, // United States
-              language_code: "en",
-              limit: Math.ceil(maxResults / seedKeywords.length)
-            }),
-          }),
-          
-          // Call related keywords service for single keyword
-          fetch('http://localhost:8000/api/v1/keyword-research/related-keywords', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              keywords: [keyword],
-              location_code: 2840, // United States
-              language_code: "en",
-              depth: 2,
-              limit: Math.max(3, Math.ceil(50 / seedKeywords.length)) // Increased from 10 to 50, minimum 3 per keyword
-            }),
-          })
-        ]);
-        
-        return { keyword, keywordIdeasResponse, relatedKeywordsResponse };
+
+      // OPTIMIZED: Call keyword-ideas ONCE with all keywords
+      console.log('📊 Calling keyword-ideas API once with all keywords:', seedKeywords);
+      const keywordIdeasResponse = await fetch('http://localhost:8000/api/v1/keyword-research/keyword-ideas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          seed_keywords: seedKeywords,
+          location_code: 2840, // United States
+          language_code: "en",
+          limit: maxResults
+        }),
       });
-      
-      // Wait for all keyword research to complete
-      const keywordResults = await Promise.all(keywordPromises);
-      
-      // Process results from all keywords
+
+      // Call related keywords service for each individual keyword
+      console.log('📊 Calling related-keywords API for each keyword');
+      const relatedKeywordsPromises = seedKeywords.map(async (keyword) => {
+        const relatedKeywordsResponse = await fetch('http://localhost:8000/api/v1/keyword-research/related-keywords', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            keywords: [keyword],
+            location_code: 2840, // United States
+            language_code: "en",
+            depth: depth,
+            limit: Math.max(3, Math.ceil(50 / seedKeywords.length))
+          }),
+        });
+
+        return { keyword, relatedKeywordsResponse };
+      });
+
+      // Wait for related keywords to complete
+      const relatedKeywordsResults = await Promise.all(relatedKeywordsPromises);
+
+      // Process results
       let allKeywordIdeas = [];
       let allRelatedKeywords = [];
-      
-      for (const result of keywordResults) {
-        const { keyword, keywordIdeasResponse, relatedKeywordsResponse } = result;
-        
-        // Check if both requests were successful
-        if (!keywordIdeasResponse.ok) {
-          console.warn(`Keyword ideas API error for "${keyword}": ${keywordIdeasResponse.status}`);
-          continue;
+
+      // Process keyword-ideas response
+      if (!keywordIdeasResponse.ok) {
+        console.warn(`Keyword ideas API error: ${keywordIdeasResponse.status}`);
+      } else {
+        const keywordIdeasData = await keywordIdeasResponse.json();
+        console.log('🔍 Raw keyword-ideas response:', keywordIdeasData);
+        if (keywordIdeasData && Array.isArray(keywordIdeasData)) {
+          allKeywordIdeas = keywordIdeasData;
+          console.log(`✅ Received ${keywordIdeasData.length} keyword ideas`);
+          if (keywordIdeasData.length > 0) {
+            console.log('🔍 First keyword idea structure:', keywordIdeasData[0]);
+          }
+        } else {
+          console.error('❌ keywordIdeasData is not an array:', typeof keywordIdeasData, keywordIdeasData);
         }
+      }
+
+      // Process related keywords responses
+      for (const result of relatedKeywordsResults) {
+        const { keyword, relatedKeywordsResponse } = result;
+
         if (!relatedKeywordsResponse.ok) {
           console.warn(`Related keywords API error for "${keyword}": ${relatedKeywordsResponse.status}`);
           continue;
         }
 
-        // Parse responses
-        const keywordIdeasData = await keywordIdeasResponse.json();
         const relatedKeywordsData = await relatedKeywordsResponse.json();
-        
-        // Add keywords to combined results
-        if (keywordIdeasData && Array.isArray(keywordIdeasData)) {
-          allKeywordIdeas.push(...keywordIdeasData);
-        }
+        console.log(`🔍 Raw related-keywords response for "${keyword}":`, relatedKeywordsData);
+
         if (relatedKeywordsData && Array.isArray(relatedKeywordsData)) {
           allRelatedKeywords.push(...relatedKeywordsData);
+          console.log(`✅ Added ${relatedKeywordsData.length} related keywords for "${keyword}"`);
         } else if (relatedKeywordsData && relatedKeywordsData.related_keywords && Array.isArray(relatedKeywordsData.related_keywords)) {
           allRelatedKeywords.push(...relatedKeywordsData.related_keywords);
+          console.log(`✅ Added ${relatedKeywordsData.related_keywords.length} related keywords from nested structure`);
+        } else {
+          console.warn(`⚠️ Unexpected related keywords structure for "${keyword}":`, typeof relatedKeywordsData, relatedKeywordsData);
         }
       }
-      
+
+      console.log(`✅ Total related keywords: ${allRelatedKeywords.length}`);
+
       console.log('DataForSEO keyword ideas results:', allKeywordIdeas);
       console.log('DataForSEO related keywords results:', allRelatedKeywords);
-      
+
       // Debug first keyword idea
       if (allKeywordIdeas.length > 0) {
         console.log('DEBUG - First keyword idea:', {
@@ -974,30 +1048,117 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           cpc: allKeywordIdeas[0].cpc
         });
       }
-      
+
       // Combine and process the data
+      console.log(`🔍 Processing: ${allKeywordIdeas.length} keyword ideas + ${allRelatedKeywords.length} related keywords`);
+
+      // Check if we have any data
+      if (allKeywordIdeas.length === 0 && allRelatedKeywords.length === 0) {
+        console.error('❌ No keywords received from API!');
+        setError('No keywords received from DataForSEO. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       const keywordData = processKeywordData(allKeywordIdeas, allRelatedKeywords);
-      
-      console.log(`Received ${keywordData.length} keywords from backend`);
-      
-      // Store all keywords without filtering
-      setAllKeywords(keywordData);
-      
-      // Apply client-side intent filtering
-      const filteredKeywords = applyIntentFilter(keywordData, intentTypes);
-      
+
+      console.log(`✅ Processed ${keywordData.length} total keywords from backend`);
+
+      if (keywordData.length === 0) {
+        console.error('❌ No keywords after processing!');
+        setError('Keywords were received but processing failed.');
+        setLoading(false);
+        return;
+      }
+
+      // Store all keywords without filtering - SAVE TO DB FIRST
+      // setAllKeywords(keywordData); // Don't set state yet, wait for DB merge
+
+      console.log('📊 About to save keywords to database:', {
+        totalKeywords: keywordData.length,
+        keywordIdeasCount: allKeywordIdeas.length,
+        relatedKeywordsCount: allRelatedKeywords.length,
+        sampleKeywords: keywordData.slice(0, 3).map(k => ({
+          keyword: k.keyword,
+          source: k.source,
+          intent: k.intent_type
+        }))
+      });
+
+      // Store ALL keywords in Supabase (before filtering for display)
+      const storageResult = await storeKeywordDataInSupabase(keywordData);
+
+      let finalKeywords = keywordData;
+
+      // Use merged keywords from backend if available
+      if (storageResult && storageResult.success && Array.isArray(storageResult.keywords)) {
+        console.log(`Using ${storageResult.keywords.length} merged keywords from backend`);
+
+        // Map the raw DB data to the frontend structure, similar to loadExistingKeywords
+        finalKeywords = storageResult.keywords.map((item: any) => ({
+          keyword: item.keyword,
+          search_volume: item.search_volume ?? 0,
+          keyword_difficulty: item.keyword_difficulty ?? item.difficulty ?? 0,
+          cpc: item.cpc ?? 0,
+          competition: item.competition ?? item.competition_value ?? 0,
+          competition_level: item.competition_level ?? 'UNKNOWN',
+          difficulty: item.difficulty ?? item.keyword_difficulty ?? 0,
+          low_top_of_page_bid: item.low_top_of_page_bid,
+          high_top_of_page_bid: item.high_top_of_page_bid,
+          main_intent: item.main_intent,
+          intent_type: item.intent_type ?? item.main_intent ?? 'INFORMATIONAL',
+          priority_score: item.priority_score ?? 0,
+          monthly_trend: item.monthly_trend ?? {},
+          quarterly_trend: item.quarterly_trend ?? {},
+          yearly_trend: item.yearly_trend ?? {},
+          avg_backlinks: item.avg_backlinks,
+          avg_referring_domains: item.avg_referring_domains,
+          last_updated_time: item.last_updated_time,
+          source: item.source ?? 'unknown',
+          seed_keywords: item.seed_keywords ?? [],
+          related_keyword: item.related_keyword,
+          seed_keyword: item.seed_keyword,
+          related_keywords: item.related_keywords ?? [],
+          created_at: item.created_at,
+          // Additional fields
+          core_keyword: item.core_keyword,
+          detected_language: item.detected_language,
+          is_another_language: item.is_another_language ?? false,
+          foreign_intent: item.foreign_intent ?? [],
+          search_intent_last_updated_time: item.search_intent_last_updated_time,
+          clickstream_search_volume: item.clickstream_search_volume,
+          clickstream_gender_distribution: item.clickstream_gender_distribution ?? {},
+          clickstream_age_distribution: item.clickstream_age_distribution ?? {},
+          serp_item_types: item.serp_item_types ?? [],
+          categories: item.categories ?? [],
+          depth: item.depth ?? 1
+        }));
+
+        console.log(`✅ Set allKeywords to ${finalKeywords.length} merged keywords from Supabase`);
+      }
+
+      // Update state with the definitive list
+      setAllKeywords(finalKeywords);
+
+      // Apply client-side intent filtering for display
+      const filteredKeywords = applyIntentFilter(finalKeywords, intentTypes);
+
       console.log(`Filtered to ${filteredKeywords.length} keywords matching intent types: ${intentTypes}`);
-      
-      // Store in Supabase
-      await storeKeywordDataInSupabase(filteredKeywords);
-      
+
       // Update the keywords state with the filtered results
       console.log('Setting keywords state with:', filteredKeywords.length, 'keywords');
+
+      if (filteredKeywords.length === 0) {
+        console.warn('⚠️ No keywords after intent filtering');
+        console.warn('⚠️ This is expected - filters are: ' + intentTypes.join(', '));
+        console.warn('⚠️ Remove intent filter to see all keywords or change filter settings');
+      }
+
       setKeywords(filteredKeywords);
-      
+
       // Also update prioritized keywords for the table display
       setPrioritizedKeywords(filteredKeywords);
-      
+
       setLoading(false);
     } catch (err) {
       console.error('Error fetching keywords:', err);
@@ -1011,17 +1172,27 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
     if (!intentTypes || intentTypes.length === 0) {
       return keywords;
     }
-    
-    return keywords.filter(keyword => {
-      const keywordIntent = keyword.intent_type || keyword.main_intent || 'INFORMATIONAL';
-      return intentTypes.includes(keywordIntent);
+
+    const normalizedIntentTypes = intentTypes.map(t => t.toUpperCase());
+    console.log(`🔍 Intent filter - looking for: ${normalizedIntentTypes.join(', ')}`);
+
+    const filtered = keywords.filter(keyword => {
+      const keywordIntent = (keyword.intent_type || keyword.main_intent || 'INFORMATIONAL').toUpperCase();
+      const matches = normalizedIntentTypes.includes(keywordIntent);
+      if (!matches && keywords.indexOf(keyword) < 5) {
+        console.log(`❌ Filtered out: "${keyword.keyword}" (intent: ${keywordIntent})`);
+      }
+      return matches;
     });
+
+    console.log(`✅ Intent filter result: ${filtered.length}/${keywords.length} keywords passed`);
+    return filtered;
   };
 
   // Process and combine keyword data from both services
   const processKeywordData = (keywordIdeas: any[], relatedKeywords: any[]) => {
     const processedKeywords: any[] = [];
-    
+
     // Process keyword ideas data
     keywordIdeas.forEach((item, index) => {
       if (index < 3) { // Debug first 3 items
@@ -1033,9 +1204,17 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           cpc: item.cpc
         });
       }
-      
+
       const difficultyValue = item.keyword_difficulty || item.difficulty || 0;
-      
+
+      // Normalize intent type to uppercase
+      const rawIntent = item.main_intent || item.intent_type || 'INFORMATIONAL';
+      const normalizedIntent = rawIntent.toUpperCase();
+
+      if (index < 3) { // Debug first 3
+        console.log(`🔍 Intent mapping for "${item.keyword}": raw="${rawIntent}" -> normalized="${normalizedIntent}"`);
+      }
+
       const processedItem = {
         keyword: item.keyword,
         search_volume: item.search_volume,
@@ -1044,8 +1223,8 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         cpc: item.cpc,
         competition: item.competition,
         competition_level: item.competition_level,
-        main_intent: item.main_intent || 'COMMERCIAL',
-        intent_type: item.main_intent || 'COMMERCIAL',
+        main_intent: normalizedIntent,
+        intent_type: normalizedIntent,
         priority_score: calculatePriorityScore({
           search_volume: item.search_volume,
           keyword_difficulty: difficultyValue,
@@ -1055,7 +1234,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         created_at: item.created_at,
         source: 'keyword_ideas'
       };
-      
+
       if (index < 3) { // Debug first 3 processed items
         console.log(`DEBUG processed item ${index}:`, {
           keyword: processedItem.keyword,
@@ -1064,15 +1243,15 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           cpc: processedItem.cpc
         });
       }
-      
+
       processedKeywords.push(processedItem);
     });
-    
+
     // Process related keywords data
     relatedKeywords.forEach(item => {
       // Check if this keyword already exists
       const existingIndex = processedKeywords.findIndex(k => k.keyword === item.related_keyword);
-      
+
       if (existingIndex >= 0) {
         // Add to related keywords of existing item
         if (!processedKeywords[existingIndex].related_keywords) {
@@ -1082,7 +1261,11 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
       } else {
         // Create new keyword entry
         const relatedDifficultyValue = item.keyword_difficulty || item.difficulty || 0;
-        
+
+        // Normalize intent type to uppercase
+        const rawRelatedIntent = item.main_intent || item.intent_type || 'INFORMATIONAL';
+        const normalizedRelatedIntent = rawRelatedIntent.toUpperCase();
+
         processedKeywords.push({
           keyword: item.related_keyword,
           search_volume: item.search_volume || 0,
@@ -1091,8 +1274,8 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           cpc: item.cpc || 0,
           competition: item.competition || 0,
           competition_level: item.competition_level || 'UNKNOWN',
-          main_intent: item.main_intent || 'INFORMATIONAL',
-          intent_type: item.main_intent || 'INFORMATIONAL',
+          main_intent: normalizedRelatedIntent,
+          intent_type: normalizedRelatedIntent,
           priority_score: calculatePriorityScore({
             search_volume: item.search_volume || 0,
             keyword_difficulty: relatedDifficultyValue,
@@ -1104,7 +1287,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         });
       }
     });
-    
+
     return processedKeywords;
   };
 
@@ -1112,7 +1295,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
   const storeKeywordDataInSupabase = async (keywordData: any[]) => {
     console.log('💾 Store function called - selectedTopic:', selectedTopic, 'user:', user);
     console.log('💾 Auth state in store function - isAuthenticated:', isAuthenticated, 'user?.id:', user?.id);
-    
+
     try {
       if (!selectedTopic?.id) {
         console.warn('No topic selected, cannot store keyword data');
@@ -1144,21 +1327,26 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
 
       if (!response.ok) {
         console.warn('Failed to store keyword data in Supabase:', response.status);
+        return null;
       } else {
+        const result = await response.json();
         console.log('Successfully stored keyword data in Supabase for topic:', selectedTopic.id);
+        console.log(`Backend returned ${result.total_count} merged keywords`);
+        return result;
       }
     } catch (err) {
       console.warn('Error storing keyword data in Supabase:', err);
+      return null;
     }
   };
 
   const handlePrioritizeKeywords = async () => {
     if (!keywords || keywords.length === 0) return;
-    
+
     try {
       setLoading(true);
       console.log('Prioritizing keywords:', keywords);
-      
+
       // Simple client-side prioritization based on search volume, difficulty, and CPC
       const prioritized = [...keywords].sort((a, b) => {
         // Calculate priority score for each keyword
@@ -1166,9 +1354,9 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         const scoreB = calculatePriorityScore(b);
         return scoreB - scoreA; // Higher score = higher priority
       });
-      
+
       console.log('Client-side keyword prioritization results:', prioritized);
-      
+
       // Update the prioritized keywords state
       setPrioritizedKeywords(prioritized);
       setShowPrioritization(true);
@@ -1185,18 +1373,21 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
     const searchVolume = keyword.search_volume || 0;
     const difficulty = keyword.keyword_difficulty || keyword.difficulty || 50;
     const cpc = keyword.cpc || 0;
-    
+
     // Higher search volume = higher score
     // Lower difficulty = higher score  
     // Higher CPC = higher score (indicates commercial value)
     const volumeScore = Math.log10(searchVolume + 1) * 10;
     const difficultyScore = (100 - difficulty) * 0.5;
     const cpcScore = cpc * 2;
-    
+
     return volumeScore + difficultyScore + cpcScore;
   };
 
   const handleGenerateLLMKeywords = async () => {
+    console.log('🔍 Debug - subtopics before request:', subtopics);
+    console.log('🔍 Debug - subtopics length:', subtopics.length);
+
     if (subtopics.length === 0) {
       setLlmKeywordError('Please add subtopics first');
       return;
@@ -1210,6 +1401,8 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         throw new Error('User not authenticated');
       }
 
+      console.log('🔍 Debug - Sending request with subtopics:', subtopics);
+
       const response = await keywordService.generateKeywordsWithLLM({
         subtopics: subtopics,
         topicTitle: selectedTopic?.title || 'Unknown Topic',
@@ -1221,7 +1414,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         // Add LLM-generated keywords to the seed keywords
         const newKeywords = response.keywords.filter(kw => !seedKeywords.includes(kw));
         setSeedKeywords(prev => [...prev, ...newKeywords]);
-        
+
         // Show success message
         console.log(`Added ${newKeywords.length} LLM-generated seed keywords`);
       } else {
@@ -1286,7 +1479,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
             )}
           </Select>
         </FormControl>
-        
+
         {selectedTopic && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -1330,8 +1523,8 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
 
       {/* Error Alert */}
       {error && (
-        <Alert 
-          severity="error" 
+        <Alert
+          severity="error"
           sx={{ mb: 3 }}
         >
           {error}
@@ -1343,7 +1536,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         <Typography variant="h6" gutterBottom>
           Subtopics for LLM Generation
         </Typography>
-        
+
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <TextField
             fullWidth
@@ -1373,7 +1566,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
             Add
           </Button>
         </Box>
-        
+
         {/* Subtopics Chips */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
           {subtopics.map((subtopic) => (
@@ -1386,7 +1579,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
             />
           ))}
         </Box>
-        
+
         {/* LLM Generation Button */}
         <Button
           variant="contained"
@@ -1398,7 +1591,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         >
           {isGeneratingLLMKeywords ? 'Generating...' : 'Generate Keywords with LLM'}
         </Button>
-        
+
         {llmKeywordError && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {llmKeywordError}
@@ -1411,7 +1604,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         <Typography variant="h6" gutterBottom>
           Seed Keywords
         </Typography>
-        
+
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <TextField
             fullWidth
@@ -1429,7 +1622,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
             Add
           </Button>
         </Box>
-        
+
         {/* Keyword Chips */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {seedKeywords.map((keyword) => (
@@ -1449,7 +1642,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         <Typography variant="h6" gutterBottom>
           Research Configuration
         </Typography>
-        
+
         <Grid container spacing={3}>
           {/* Filters */}
           <Grid item xs={12} md={6}>
@@ -1463,7 +1656,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
                 inputProps={{ min: 0, max: 100 }}
                 sx={{ width: 120 }}
               />
-              
+
               <TextField
                 size="small"
                 label="Min Volume"
@@ -1473,7 +1666,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
                 inputProps={{ min: 0 }}
                 sx={{ width: 120 }}
               />
-              
+
               <TextField
                 size="small"
                 label="Max Results"
@@ -1483,8 +1676,19 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
                 inputProps={{ min: 1, max: 1000 }}
                 sx={{ width: 120 }}
               />
+
+              <TextField
+                size="small"
+                label="Research Depth"
+                type="number"
+                value={depth}
+                onChange={(e) => setDepth(Number(e.target.value))}
+                inputProps={{ min: 1, max: 5 }}
+                sx={{ width: 140 }}
+                helperText="1=shallow, 5=deepest"
+              />
             </Box>
-            
+
             {/* Intent Types */}
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
@@ -1499,9 +1703,9 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
                       const newIntentTypes = intentTypes.includes(option.value)
                         ? intentTypes.filter(t => t !== option.value)
                         : [...intentTypes, option.value];
-                      
+
                       setIntentTypes(newIntentTypes);
-                      
+
                       // Apply filtering immediately when intent types change
                       if (allKeywords.length > 0) {
                         const filteredKeywords = applyIntentFilter(allKeywords, newIntentTypes);
@@ -1530,7 +1734,21 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           >
             {loading ? <CircularProgress size={20} /> : 'Research Keywords'}
           </Button>
-          
+
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<Refresh />}
+            onClick={() => {
+              setDepth(Math.min(depth + 1, 5));
+              handleResearchKeywords();
+            }}
+            disabled={seedKeywords.length === 0 || loading || depth >= 5}
+            title="Re-run search with deeper depth to find more related keywords"
+          >
+            Deeper Search (Depth: {depth}/{depth >= 5 ? depth : depth + 1})
+          </Button>
+
           <Button
             variant="outlined"
             startIcon={<Star />}
@@ -1539,7 +1757,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           >
             Prioritize Keywords
           </Button>
-          
+
           <Button
             variant="outlined"
             startIcon={<FilterList />}
@@ -1547,7 +1765,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           >
             Advanced Filters
           </Button>
-          
+
           <Button
             variant="outlined"
             startIcon={<Refresh />}
@@ -1555,7 +1773,7 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
           >
             Refresh
           </Button>
-          
+
           {/* Go to Idea Burst Button - only show if we have keywords */}
           {keywords && keywords.length > 0 && selectedTopic?.id && (
             <Button
@@ -1580,12 +1798,241 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
       {/* Advanced Filters */}
       {showFilters && (
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
               Advanced Filters
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Filter functionality will be implemented here
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setAdvancedFilters({
+                minVolume: 0,
+                maxVolume: 10000000,
+                minDifficulty: 0,
+                maxDifficulty: 100,
+                minCpc: 0,
+                maxCpc: 100,
+                minPriorityScore: 0,
+                maxPriorityScore: 100
+              })}
+            >
+              Reset All
+            </Button>
+          </Box>
+
+          <Grid container spacing={3}>
+            {/* Search Volume Filter */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Search Volume: {advancedFilters.minVolume.toLocaleString()} - {advancedFilters.maxVolume.toLocaleString()}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="10000000"
+                  step="1000"
+                  value={advancedFilters.minVolume}
+                  onChange={(e) => {
+                    const newMin = parseInt(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, minVolume: newMin, maxVolume: Math.max(newMin, advancedFilters.maxVolume) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.minVolume === 0
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${(advancedFilters.minVolume / 10000000) * 100}%, #1976d2 ${(advancedFilters.minVolume / 10000000) * 100}%, #1976d2 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="10000000"
+                  step="1000"
+                  value={advancedFilters.maxVolume}
+                  onChange={(e) => {
+                    const newMax = parseInt(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, maxVolume: newMax, minVolume: Math.min(newMax, advancedFilters.minVolume) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.maxVolume === 10000000
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #1976d2 0%, #1976d2 ${(advancedFilters.maxVolume / 10000000) * 100}%, #e0e0e0 ${(advancedFilters.maxVolume / 10000000) * 100}%, #e0e0e0 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            {/* Difficulty Filter */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Difficulty: {advancedFilters.minDifficulty} - {advancedFilters.maxDifficulty}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={advancedFilters.minDifficulty}
+                  onChange={(e) => {
+                    const newMin = parseInt(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, minDifficulty: newMin, maxDifficulty: Math.max(newMin, advancedFilters.maxDifficulty) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.minDifficulty === 0
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${advancedFilters.minDifficulty}%, #1976d2 ${advancedFilters.minDifficulty}%, #1976d2 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={advancedFilters.maxDifficulty}
+                  onChange={(e) => {
+                    const newMax = parseInt(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, maxDifficulty: newMax, minDifficulty: Math.min(newMax, advancedFilters.minDifficulty) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.maxDifficulty === 100
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #1976d2 0%, #1976d2 ${advancedFilters.maxDifficulty}%, #e0e0e0 ${advancedFilters.maxDifficulty}%, #e0e0e0 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            {/* CPC Filter */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                CPC: ${advancedFilters.minCpc.toFixed(2)} - ${advancedFilters.maxCpc.toFixed(2)}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={advancedFilters.minCpc}
+                  onChange={(e) => {
+                    const newMin = parseFloat(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, minCpc: newMin, maxCpc: Math.max(newMin, advancedFilters.maxCpc) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.minCpc === 0
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${advancedFilters.minCpc}%, #1976d2 ${advancedFilters.minCpc}%, #1976d2 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={advancedFilters.maxCpc}
+                  onChange={(e) => {
+                    const newMax = parseFloat(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, maxCpc: newMax, minCpc: Math.min(newMax, advancedFilters.minCpc) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.maxCpc === 100
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #1976d2 0%, #1976d2 ${advancedFilters.maxCpc}%, #e0e0e0 ${advancedFilters.maxCpc}%, #e0e0e0 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            {/* Priority Score Filter */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>
+                Priority Score: {advancedFilters.minPriorityScore} - {advancedFilters.maxPriorityScore}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={advancedFilters.minPriorityScore}
+                  onChange={(e) => {
+                    const newMin = parseInt(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, minPriorityScore: newMin, maxPriorityScore: Math.max(newMin, advancedFilters.maxPriorityScore) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.minPriorityScore === 0
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #e0e0e0 0%, #e0e0e0 ${advancedFilters.minPriorityScore}%, #1976d2 ${advancedFilters.minPriorityScore}%, #1976d2 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={advancedFilters.maxPriorityScore}
+                  onChange={(e) => {
+                    const newMax = parseInt(e.target.value);
+                    setAdvancedFilters({ ...advancedFilters, maxPriorityScore: newMax, minPriorityScore: Math.min(newMax, advancedFilters.minPriorityScore) });
+                  }}
+                  style={{
+                    flex: 1,
+                    background: advancedFilters.maxPriorityScore === 100
+                      ? 'linear-gradient(to right, #1976d2 0%, #1976d2 100%)'
+                      : `linear-gradient(to right, #1976d2 0%, #1976d2 ${advancedFilters.maxPriorityScore}%, #e0e0e0 ${advancedFilters.maxPriorityScore}%, #e0e0e0 100%)`,
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    height: '6px',
+                    borderRadius: '3px',
+                    outline: 'none'
+                  }}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Showing {keywords.length} keywords based on current filters
             </Typography>
           </Box>
         </Paper>
@@ -1601,30 +2048,30 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
-          <EnhancedKeywordTable 
-            keywords={getFilteredKeywords(0)} 
-            title="All Keywords" 
+          <EnhancedKeywordTable
+            keywords={getFilteredKeywords(0)}
+            title="All Keywords"
           />
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <EnhancedKeywordTable 
-            keywords={getFilteredKeywords(1)} 
-            title="Prioritized Keywords" 
+          <EnhancedKeywordTable
+            keywords={getFilteredKeywords(1)}
+            title="Prioritized Keywords"
           />
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <EnhancedKeywordTable 
-            keywords={getFilteredKeywords(2)} 
-            title="High Volume Keywords" 
+          <EnhancedKeywordTable
+            keywords={getFilteredKeywords(2)}
+            title="High Volume Keywords"
           />
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <EnhancedKeywordTable 
-            keywords={getFilteredKeywords(3)} 
-            title="Low Difficulty Keywords" 
+          <EnhancedKeywordTable
+            keywords={getFilteredKeywords(3)}
+            title="Low Difficulty Keywords"
           />
         </TabPanel>
       </Paper>
@@ -1663,8 +2110,8 @@ const IdeaBurstDataForSEO: React.FC<IdeaBurstDataForSEOProps> = ({
                         <td style={{ padding: '8px', border: '1px solid #ddd', fontWeight: 'bold', color: '#1976d2' }}>{keyword.priority_score || calculatePriorityScore(keyword).toFixed(1)}</td>
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>{keyword.search_volume || 'N/A'}</td>
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>
-                          {keyword.keyword_difficulty !== null && keyword.keyword_difficulty !== undefined ? keyword.keyword_difficulty : 
-                           keyword.difficulty !== null && keyword.difficulty !== undefined ? keyword.difficulty : 'N/A'}
+                          {keyword.keyword_difficulty !== null && keyword.keyword_difficulty !== undefined ? keyword.keyword_difficulty :
+                            keyword.difficulty !== null && keyword.difficulty !== undefined ? keyword.difficulty : 'N/A'}
                         </td>
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>${keyword.cpc || 'N/A'}</td>
                       </tr>

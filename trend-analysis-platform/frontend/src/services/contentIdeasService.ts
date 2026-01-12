@@ -1,76 +1,8 @@
 import { supabase } from '../lib/supabase';
 
-export interface ContentIdea {
-  id: string;
-  title: string;
-  description: string;
-  content_type: 'blog' | 'software';
-  category: string;
-  subtopic: string;
-  topic_id: string;
-  user_id: string;
-  keywords: string[];
-  seo_score?: number;
-  difficulty_level: 'easy' | 'medium' | 'hard';
-  estimated_read_time?: number;
-  target_audience: string;
-  content_angle: string;
-  monetization_potential: 'low' | 'medium' | 'high';
-  technical_complexity?: 'low' | 'medium' | 'high';
-  development_effort?: 'low' | 'medium' | 'high';
-  market_demand?: 'low' | 'medium' | 'high';
-  created_at: string;
-  updated_at: string;
-  
-  // Status and workflow fields
-  status?: 'draft' | 'in_progress' | 'completed' | 'published' | 'archived';
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  workflow_status?: string;
-  
-  // Publishing tracking
-  published?: boolean;
-  published_at?: string;
-  published_to_titles?: boolean;
-  titles_record_id?: string;
-  
-  // Quality scores
-  overall_quality_score?: number;
-  seo_optimization_score?: number;
-  traffic_potential_score?: number;
-  viral_potential_score?: number;
-  competition_score?: number;
-  
-  // Content structure
-  content_outline?: any[];
-  key_points?: any[];
-  
-  // Enhanced keywords
-  primary_keywords?: string[];
-  secondary_keywords?: string[];
-  enhanced_keywords?: string[];
-  keyword_research_data?: any;
-  keyword_research_enhanced?: boolean;
-  
-  // Affiliate and monetization
-  affiliate_opportunities?: any;
-  monetization_score?: number;
-  estimated_annual_revenue?: number;
-  monetization_priority?: string;
-  
-  // Generation metadata
-  generation_method?: string;
-  generation_prompt?: string;
-  generation_parameters?: any;
-  enhancement_timestamp?: string;
-  
-  // Content metrics
-  estimated_word_count?: number;
-  estimated_reading_time?: number;
-  
-  // Workflow flags
-  content_generated?: boolean;
-  content_brief_generated?: boolean;
-}
+import { ContentIdea, ContentType } from '../types/ideaBurst';
+
+export type { ContentIdea, ContentType };
 
 export interface ContentIdeaGenerationRequest {
   topic_id: string;
@@ -78,7 +10,7 @@ export interface ContentIdeaGenerationRequest {
   subtopics: string[];
   keywords: KeywordData[];  // Changed to accept rich keyword data
   user_id: string;
-  content_types?: ('blog' | 'software')[];
+  content_types?: ContentType[];
 }
 
 export interface OptimizedContentIdeaGenerationRequest {
@@ -86,7 +18,7 @@ export interface OptimizedContentIdeaGenerationRequest {
   topic_title: string;
   subtopics?: string[];
   user_id: string;
-  content_types?: ('blog' | 'software')[];
+  content_types?: ContentType[];
   max_keywords?: number;
 }
 
@@ -156,9 +88,9 @@ class ContentIdeasService {
           user_id: request.user_id,
           content_types: request.content_types || ['blog', 'software']
         };
-        
+
         console.log(`🔍 Frontend sending request (attempt ${attempt}/${maxRetries}):`, JSON.stringify(requestBody, null, 2));
-        
+
         const response = await fetch('http://localhost:8000/api/content-ideas/generate', {
           method: 'POST',
           headers: {
@@ -170,7 +102,7 @@ class ContentIdeasService {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`❌ Backend error response (attempt ${attempt}):`, errorText);
-          
+
           // If it's a 404 and we have retries left, wait and try again
           if (response.status === 404 && attempt < maxRetries) {
             console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
@@ -178,12 +110,12 @@ class ContentIdeasService {
             lastError = new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             continue;
           }
-          
+
           throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
-        
+
         // Transform the response to match the expected interface
         return {
           success: result.success || true,
@@ -196,7 +128,7 @@ class ContentIdeasService {
       } catch (error) {
         console.error(`Failed to generate content ideas (attempt ${attempt}):`, error);
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        
+
         // If this is not the last attempt, wait and try again
         if (attempt < maxRetries) {
           console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
@@ -225,18 +157,18 @@ class ContentIdeasService {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const requestBody = {
+        topic_id: request.topic_id,
+        topic_title: request.topic_title,
+        subtopics: request.subtopics || [],
+        user_id: request.user_id,
+        content_types: request.content_types || ['blog', 'software'],
+        max_keywords: request.max_keywords || 50
+      };
+
+      console.log(`🔍 Frontend sending optimized request (attempt ${attempt}/${maxRetries}):`, JSON.stringify(requestBody, null, 2));
+
       try {
-        const requestBody = {
-          topic_id: request.topic_id,
-          topic_title: request.topic_title,
-          subtopics: request.subtopics || [],
-          user_id: request.user_id,
-          content_types: request.content_types || ['blog', 'software'],
-          max_keywords: request.max_keywords || 50
-        };
-        
-        console.log(`🔍 Frontend sending optimized request (attempt ${attempt}/${maxRetries}):`, JSON.stringify(requestBody, null, 2));
-        
         const response = await fetch('http://localhost:8000/api/content-ideas/generate-optimized', {
           method: 'POST',
           headers: {
@@ -248,7 +180,7 @@ class ContentIdeasService {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`❌ Backend error response (attempt ${attempt}):`, errorText);
-          
+
           // If it's a 404 and we have retries left, wait and try again
           if (response.status === 404 && attempt < maxRetries) {
             console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
@@ -256,12 +188,12 @@ class ContentIdeasService {
             lastError = new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             continue;
           }
-          
+
           throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
-        
+
         // Transform the response to match the expected interface
         return {
           success: result.success || true,
@@ -274,7 +206,7 @@ class ContentIdeasService {
       } catch (error) {
         console.error(`Failed to generate content ideas (optimized attempt ${attempt}):`, error);
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        
+
         // If this is not the last attempt, wait and try again
         if (attempt < maxRetries) {
           console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
@@ -301,7 +233,7 @@ class ContentIdeasService {
         userId,
         contentType
       });
-      
+
       const response = await fetch('http://localhost:8000/api/content-ideas/list', {
         method: 'POST',
         headers: {
@@ -426,7 +358,7 @@ class ContentIdeasService {
   ): Promise<{ blog: ContentIdea[]; software: ContentIdea[] }> {
     try {
       const allIdeas = await this.getContentIdeas(topicId, userId);
-      
+
       return {
         blog: allIdeas.filter(idea => idea.content_type === 'blog'),
         software: allIdeas.filter(idea => idea.content_type === 'software'),

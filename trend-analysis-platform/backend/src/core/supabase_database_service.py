@@ -3,36 +3,22 @@ Supabase-only database service for TrendTap
 This replaces all PostgreSQL/SQLAlchemy dependencies with Supabase SDK
 """
 
-import os
 from typing import Dict, List, Any, Optional, Union, Generator
-from supabase import create_client, Client
-from dotenv import load_dotenv
+from supabase import Client
 import structlog
 import json
 from datetime import datetime
 import uuid
 from contextlib import contextmanager
+from src.core.supabase_singleton import get_supabase_client
 
 logger = structlog.get_logger()
-
-# Load environment variables
-load_dotenv()
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    raise ValueError("Missing required Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
-
-# Create Supabase client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 class SupabaseDatabaseService:
     """Main database service using Supabase API only"""
     
     def __init__(self):
-        self.client = supabase
+        self.client = get_supabase_client()
         logger.info("Supabase database service initialized")
     
     # User operations
@@ -285,11 +271,13 @@ class SupabaseDatabaseService:
             # Test connection with a simple query
             result = self.client.table("users").select("id").limit(1).execute()
             
+            from src.core.config import get_settings
+            settings = get_settings()
             return {
                 "healthy": True,
                 "status": "connected",
                 "timestamp": datetime.utcnow().isoformat(),
-                "supabase_url": SUPABASE_URL
+                "supabase_url": settings.supabase_url
             }
         except Exception as e:
             logger.error("Database health check failed", error=str(e))

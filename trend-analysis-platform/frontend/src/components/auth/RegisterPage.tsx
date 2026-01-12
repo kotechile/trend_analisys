@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface RegisterFormData {
@@ -60,7 +60,7 @@ const RegisterPage: React.FC = () => {
         confirmPassword: formData.confirmPassword,
         acceptTerms: true
       });
-      navigate('/dashboard');
+      navigate('/');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {

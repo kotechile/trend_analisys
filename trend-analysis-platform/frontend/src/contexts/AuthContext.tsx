@@ -105,17 +105,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = authService.getToken();
         console.log('🔐 Auth initialization - token:', token);
         if (token) {
+          // Verify Supabase session is still valid
+          const { supabase } = await import('../lib/supabase');
+          const { data: { user: supabaseUser }, error: supabaseError } = await supabase.auth.getUser();
+          
+          if (supabaseError || !supabaseUser) {
+            console.log('🔐 Auth initialization - Supabase session invalid, clearing auth');
+            // Clear invalid auth data
+            authService.clearAuth();
+            apiClient.clearAuthToken();
+            dispatch({ type: 'AUTH_LOGOUT' });
+            return;
+          }
+          
+          console.log('🔐 Auth initialization - Supabase user found:', supabaseUser.id);
+          
           // Set token in API client
           apiClient.setAuthToken(token);
           
+          // Get user from Supabase (more reliable than localStorage)
           const user = await authService.getCurrentUser();
-          console.log('🔐 Auth initialization - user:', user);
-          if (user) {
-            console.log('🔐 Auth initialization - dispatching AUTH_SUCCESS');
+          console.log('🔐 Auth initialization - LocalStorage user:', user?.id);
+
+          if (user && user.id === supabaseUser.id) {
+            console.log('🔐 Auth initialization - User IDs match, dispatching AUTH_SUCCESS');
             dispatch({ type: 'AUTH_SUCCESS', payload: user });
           } else {
-            console.log('🔐 Auth initialization - no user found, logging out');
-            dispatch({ type: 'AUTH_LOGOUT' });
+            console.warn('🔐 Auth initialization - User ID mismatch!', { 
+              localStorage: user?.id, 
+              supabase: supabaseUser.id 
+            });
+            // Try to recover if possible, or force logout
+            if (user) {
+              console.log('🔐 Attempting to use Supabase user as source of truth');
+              dispatch({ type: 'AUTH_SUCCESS', payload: { ...user, id: supabaseUser.id } });
+            } else {
+              authService.clearAuth();
+              apiClient.clearAuthToken();
+              dispatch({ type: 'AUTH_LOGOUT' });
+            }
           }
         } else {
           console.log('🔐 Auth initialization - no token, logging out');
@@ -125,11 +153,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('🔐 Auth initialization completed');
       } catch (error) {
         console.error('🔐 Auth initialization failed:', error);
+        // Clear any stale auth data
+        authService.clearAuth();
+        apiClient.clearAuthToken();
         dispatch({ type: 'AUTH_LOGOUT' });
       }
     };
 
     initializeAuth();
+
+    // Listen for Supabase auth state changes
+    let unsubscribe: (() => void) | null = null;
+    
+    const setupAuthListener = async () => {
+      const { supabase } = await import('../lib/supabase');
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log('🔐 Auth state changed:', event, 'has session:', !!session);
+        if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+          console.log('🔐 Session expired or signed out, clearing auth');
+          authService.clearAuth();
+          apiClient.clearAuthToken();
+          dispatch({ type: 'AUTH_LOGOUT' });
+        } else if (event === 'SIGNED_IN' && session) {
+          console.log('🔐 User signed in, updating auth state');
+          // User signed in, update auth state
+          const user = authService.getCurrentUser();
+          if (user) {
+            dispatch({ type: 'AUTH_SUCCESS', payload: user });
+          }
+        }
+      });
+
+      unsubscribe = () => {
+        subscription.unsubscribe();
+      };
+    };
+
+    setupAuthListener();
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   // Login function

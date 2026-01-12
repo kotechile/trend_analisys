@@ -112,6 +112,18 @@ def validate_required_settings() -> List[str]:
     
     return missing_settings
 
+def validate_supabase_config() -> None:
+    """
+    Validate that required Supabase configuration is present.
+    
+    Raises:
+        ValueError: If SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY are not configured
+    """
+    if not settings.supabase_url:
+        raise ValueError("SUPABASE_URL environment variable is required")
+    if not settings.supabase_service_role_key:
+        raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
+
 def get_database_url() -> str:
     """Get database URL with proper formatting"""
     return settings.database_url

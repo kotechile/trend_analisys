@@ -5,19 +5,21 @@ Add real DataForSEO API key to Supabase
 
 import os
 import sys
-from supabase import create_client, Client
+from pathlib import Path
 from datetime import datetime
+
+# Add the src directory to the path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from src.core.supabase_singleton import get_supabase_client
+from src.core.config import validate_supabase_config
 
 def add_real_dataforseo_key():
     """Add real DataForSEO API key to Supabase"""
     
-    # Load Supabase credentials from environment variables
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    
     try:
-        # Initialize Supabase client
-        supabase: Client = create_client(supabase_url, supabase_key)
+        validate_supabase_config()
+        supabase = get_supabase_client()
         print("✅ Connected to Supabase")
         
         # Get API key from user input

@@ -40,38 +40,70 @@ export interface ContentIdea {
   status?: ContentIdeaStatus;
   author_id?: string;
   project_id?: string;
-  version: number;
+  version?: number;
+
+  // Fields present in service but missing here
+  category?: string;
+  subtopic?: string;
+  seo_score?: number;
+
+  // Publishing tracking
+  published?: boolean;
+  published_at?: string;
+  published_to_titles?: boolean;
+  titles_record_id?: string;
+
+  // Optional extended properties
+  description?: string;
+  keywords?: string[];
+  estimated_word_count?: number;
+  estimated_read_time?: number;
+  monetization_potential?: string;
+  target_audience?: string;
+  overall_quality_score?: number;
+  viral_score?: number;
+  competition_level?: string;
+  ahrefs_keywords?: any[];
+  generation_method?: string;
+
+  // Viability Score Metrics
+  viability_score?: number;
+  trend_score?: number;
+  monetization_score?: number;
+  seo_ease_score?: number;
 }
 
 // Content types
-export type ContentType = 
-  | 'article' 
-  | 'comparison' 
-  | 'guide' 
-  | 'tutorial' 
-  | 'review' 
-  | 'list' 
-  | 'case_study' 
-  | 'whitepaper' 
-  | 'infographic' 
-  | 'video_script' 
+export type ContentType =
+  | 'blog'
+  | 'software'
+  | 'article'
+  | 'comparison'
+  | 'guide'
+  | 'tutorial'
+  | 'review'
+  | 'list'
+  | 'case_study'
+  | 'whitepaper'
+  | 'infographic'
+  | 'video_script'
   | 'podcast_script';
 
 // Content idea status
-export type ContentIdeaStatus = 
-  | 'draft' 
-  | 'in_progress' 
-  | 'review' 
-  | 'approved' 
-  | 'published' 
+export type ContentIdeaStatus =
+  | 'draft'
+  | 'in_progress'
+  | 'review'
+  | 'approved'
+  | 'published'
   | 'archived';
 
 // Idea burst session status
-export type IdeaBurstSessionStatus = 
-  | 'active' 
-  | 'paused' 
-  | 'completed' 
-  | 'expired' 
+export type IdeaBurstSessionStatus =
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'expired'
   | 'cancelled';
 
 // Idea burst filters
@@ -100,12 +132,12 @@ export interface IdeaBurstMetadata {
 }
 
 // Generation methods
-export type GenerationMethod = 
-  | 'seed_keywords' 
-  | 'ahrefs_data' 
-  | 'competitor_analysis' 
-  | 'trend_analysis' 
-  | 'ai_generation' 
+export type GenerationMethod =
+  | 'seed_keywords'
+  | 'ahrefs_data'
+  | 'competitor_analysis'
+  | 'trend_analysis'
+  | 'ai_generation'
   | 'hybrid';
 
 // Source data
@@ -223,26 +255,26 @@ export interface ContentGoal {
 }
 
 // Content goal types
-export type ContentGoalType = 
-  | 'traffic' 
-  | 'conversions' 
-  | 'engagement' 
-  | 'brand_awareness' 
-  | 'lead_generation' 
-  | 'sales' 
-  | 'education' 
+export type ContentGoalType =
+  | 'traffic'
+  | 'conversions'
+  | 'engagement'
+  | 'brand_awareness'
+  | 'lead_generation'
+  | 'sales'
+  | 'education'
   | 'entertainment';
 
 // Priorities
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 
 // Optimization focus
-export type OptimizationFocus = 
-  | 'seo' 
-  | 'conversion' 
-  | 'engagement' 
-  | 'branding' 
-  | 'technical' 
+export type OptimizationFocus =
+  | 'seo'
+  | 'conversion'
+  | 'engagement'
+  | 'branding'
+  | 'technical'
   | 'content_quality';
 
 // Difficulty preferences
@@ -284,16 +316,16 @@ export interface OptimizationTip {
 }
 
 // Optimization tip categories
-export type OptimizationTipCategory = 
-  | 'title' 
-  | 'content' 
-  | 'keywords' 
-  | 'technical' 
-  | 'link_building' 
-  | 'meta' 
-  | 'images' 
-  | 'structure' 
-  | 'performance' 
+export type OptimizationTipCategory =
+  | 'title'
+  | 'content'
+  | 'keywords'
+  | 'technical'
+  | 'link_building'
+  | 'meta'
+  | 'images'
+  | 'structure'
+  | 'performance'
   | 'accessibility';
 
 // Impact levels
@@ -380,12 +412,12 @@ export interface Recommendation {
 }
 
 // Recommendation types
-export type RecommendationType = 
-  | 'content_improvement' 
-  | 'seo_optimization' 
-  | 'keyword_strategy' 
-  | 'technical_enhancement' 
-  | 'user_experience' 
+export type RecommendationType =
+  | 'content_improvement'
+  | 'seo_optimization'
+  | 'keyword_strategy'
+  | 'technical_enhancement'
+  | 'user_experience'
   | 'performance_optimization';
 
 // Effort levels
@@ -414,13 +446,13 @@ export interface IdeaBurstSessionSorting {
 }
 
 // Idea burst session sort fields
-export type IdeaBurstSessionSortField = 
-  | 'created_at' 
-  | 'updated_at' 
-  | 'ideas_count' 
-  | 'status' 
-  | 'generation_method' 
-  | 'quality_score' 
+export type IdeaBurstSessionSortField =
+  | 'created_at'
+  | 'updated_at'
+  | 'ideas_count'
+  | 'status'
+  | 'generation_method'
+  | 'quality_score'
   | 'performance_score';
 
 // Sort directions
@@ -531,14 +563,14 @@ export interface IdeaBurstImportOptions {
 }
 
 // Import sources
-export type ImportSource = 
-  | 'ahrefs' 
-  | 'semrush' 
-  | 'google' 
-  | 'manual' 
-  | 'csv' 
-  | 'json' 
-  | 'xlsx' 
+export type ImportSource =
+  | 'ahrefs'
+  | 'semrush'
+  | 'google'
+  | 'manual'
+  | 'csv'
+  | 'json'
+  | 'xlsx'
   | 'api';
 
 // Import formats
@@ -568,16 +600,16 @@ export interface IdeaBurstBatchOperation {
 }
 
 // Batch operation types
-export type BatchOperationType = 
-  | 'update' 
-  | 'delete' 
-  | 'export' 
-  | 'archive' 
-  | 'favorite' 
-  | 'bookmark' 
-  | 'tag' 
-  | 'status_change' 
-  | 'merge' 
+export type BatchOperationType =
+  | 'update'
+  | 'delete'
+  | 'export'
+  | 'archive'
+  | 'favorite'
+  | 'bookmark'
+  | 'tag'
+  | 'status_change'
+  | 'merge'
   | 'duplicate';
 
 // Batch operation options

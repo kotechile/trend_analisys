@@ -2,35 +2,21 @@
 Supabase-based database operations for TrendTap
 This replaces direct PostgreSQL connections with Supabase API calls
 """
-import os
 from typing import Dict, List, Any, Optional, Union
-from supabase import create_client, Client
-from dotenv import load_dotenv
+from supabase import Client
 import structlog
 import json
 from datetime import datetime
 import uuid
+from src.core.supabase_singleton import get_supabase_client
 
 logger = structlog.get_logger()
-
-# Load environment variables
-load_dotenv()
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    raise ValueError("Missing required Supabase environment variables")
-
-# Create Supabase client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 class SupabaseDatabase:
     """Database operations using Supabase API"""
     
     def __init__(self):
-        self.client = supabase
+        self.client = get_supabase_client()
         logger.info("Supabase database client initialized")
     
     # User operations

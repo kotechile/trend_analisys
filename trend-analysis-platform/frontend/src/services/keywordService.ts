@@ -34,7 +34,7 @@ class KeywordService {
   async loadExistingKeywords(topicId: string, userId: string): Promise<Keyword[]> {
     try {
       console.log('KeywordService - Loading keywords for topic:', topicId, 'user:', userId);
-      
+
       const { data, error } = await supabase
         .from('keywords')
         .select('*')
@@ -43,13 +43,13 @@ class KeywordService {
         .order('created_at', { ascending: false });
 
       console.log('KeywordService - Supabase query result:', { data, error });
-      
+
       // Debug: Check the first few keywords to see their topic_id values
       if (data && data.length > 0) {
         console.log('KeywordService - First 3 keywords topic_ids:', data.slice(0, 3).map(k => ({ keyword: k.keyword, topic_id: k.topic_id })));
         console.log('KeywordService - Searching for topic_id:', topicId);
         console.log('KeywordService - Topic ID type:', typeof topicId);
-        
+
         // Check if any keywords match the topic_id we're searching for
         const matchingKeywords = data.filter(k => k.topic_id === topicId);
         console.log('KeywordService - Keywords matching topic_id:', matchingKeywords.length);
@@ -103,15 +103,38 @@ class KeywordService {
    */
   async generateKeywordsWithLLM(request: KeywordGenerationRequest): Promise<KeywordGenerationResponse> {
     try {
+      // Log the request payload for debugging
+      console.log('🔍 KeywordService - Request payload:', {
+        subtopics: request.subtopics,
+        topicTitle: request.topicTitle,
+        topicId: request.topicId,
+        user_id: request.userId
+      });
+
       // Use the authenticated API client
       const response = await apiClient.post('/api/keywords/generate', {
         subtopics: request.subtopics,
+        topicTitle: request.topicTitle,
         topicId: request.topicId,
-        topicTitle: request.topicTitle
+        user_id: request.userId
       });
 
+      console.log('🔍 KeywordService - Response:', response);
+
       if (!response.success) {
-        throw new Error(response.error?.message || 'Failed to generate keywords');
+        let errorMsg = 'Failed to generate keywords';
+        if (response.error) {
+          // Try to extract detailed error info from axios error
+          const axiosError = response.error as any;
+          if (axiosError.response?.data) {
+            const errorData = axiosError.response.data;
+            errorMsg = errorData.detail || errorData.message || JSON.stringify(errorData);
+          } else {
+            errorMsg = axiosError.message || 'Failed to generate keywords';
+          }
+        }
+        console.error('🔍 KeywordService - Error details:', response.error);
+        throw new Error(errorMsg);
       }
 
       // Transform the response to match the expected interface
@@ -122,7 +145,7 @@ class KeywordService {
       };
     } catch (error) {
       console.error('Failed to generate keywords with LLM:', error);
-      
+
       return {
         success: false,
         keywords: [],
@@ -137,7 +160,7 @@ class KeywordService {
   async saveKeywords(keywords: string[], topicId: string, userId: string, source: 'llm' | 'ahrefs' | 'manual' = 'manual'): Promise<Keyword[]> {
     try {
       console.log('Saving keywords to database:', { keywords, topicId, userId, source });
-      
+
       const keywordData = keywords.map(keyword => ({
         keyword: keyword.trim(),
         topic_id: topicId,
@@ -260,7 +283,7 @@ class KeywordService {
   }> {
     try {
       const keywords = await this.loadExistingKeywords(topicId, userId);
-      
+
       const stats = {
         total: keywords.length,
         bySource: keywords.reduce((acc, keyword) => {

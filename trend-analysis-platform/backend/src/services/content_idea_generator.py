@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 import random
+import httpx
 
 from ..core.llm_provider_config import llm_provider_config
 from ..core.supabase_database_service import supabase
@@ -16,6 +17,78 @@ logger = logging.getLogger(__name__)
 class ContentIdeaGenerator:
     def __init__(self):
         self.supabase = supabase
+        
+    async def _get_llm_credentials(self) -> Dict[str, Any]:
+        """Fetch active LLM provider and API key from database"""
+        try:
+            # Get active provider
+            provider_response = self.supabase.table('llm_providers').select('*').eq('is_active', True).execute()
+            if not provider_response.data:
+                raise ValueError("No active LLM provider found")
+            
+            active_provider = provider_response.data[0]
+            model_name = active_provider.get('model_name') or active_provider.get('name')
+            
+            if not model_name:
+                raise ValueError("Active LLM provider has no model name configured")
+
+            # Infer provider from model name
+            provider_type = 'openai' # Default
+            model_lower = model_name.lower()
+            
+            if 'gpt' in model_lower:
+                provider_type = 'openai'
+            elif 'deepseek' in model_lower:
+                provider_type = 'deepseek'
+            elif 'gemini' in model_lower or 'google' in model_lower:
+                provider_type = 'gemini' 
+            elif 'claude' in model_lower:
+                provider_type = 'anthropic'
+            elif 'kimi' in model_lower or 'moonshoot' in model_lower:
+                provider_type = 'moonshoot'
+                
+            # Try to get API key using Foreign Key
+            api_key_id = active_provider.get('api_keys_id') or active_provider.get('api_key_id')
+            api_key = None
+            
+            if api_key_id:
+                try:
+                    id_response = self.supabase.table('api_keys').select('key_value').eq('id', api_key_id).execute()
+                    if id_response.data:
+                        api_key = id_response.data[0]['key_value']
+                except Exception:
+                    pass
+
+            # Fallback: Get API key for the inferred provider type
+            if not api_key:
+                try:
+                    # Try exact match first
+                    key_response = self.supabase.table('api_keys').select('key_value').eq('provider', provider_type).eq('is_active', True).execute()
+                    
+                    # If failed and provider is gemini/google, try the other
+                    if not key_response.data and provider_type in ['gemini', 'google', 'Google']:
+                        alt_provider = 'Google' if provider_type == 'gemini' else 'gemini'
+                        key_response = self.supabase.table('api_keys').select('key_value').eq('provider', alt_provider).eq('is_active', True).execute()
+                    
+                    if not key_response.data:
+                         key_response = self.supabase.table('api_keys').select('key_value').eq('provider', provider_type.capitalize()).eq('is_active', True).execute()
+                    
+                    if key_response.data:
+                        api_key = key_response.data[0]['key_value']
+                except Exception:
+                    pass
+
+            if not api_key:
+                raise ValueError(f"No active API key found for {provider_type}")
+                
+            return {
+                "provider_type": provider_type,
+                "model_name": model_name,
+                "api_key": api_key
+            }
+        except Exception as e:
+            logger.error(f"Failed to get LLM credentials: {str(e)}")
+            raise
         
     async def generate_content_ideas(
         self,
@@ -78,6 +151,56 @@ class ContentIdeaGenerator:
             
         except Exception as e:
             logger.error(f"Failed to generate content ideas: {str(e)}")
+            raise
+
+    async def generate_content_ideas_optimized(
+        self,
+        topic_id: str,
+        topic_title: str,
+        subtopics: List[str],
+        user_id: str,
+        content_types: List[str] = None,
+        max_keywords: int = 50
+    ) -> Dict[str, Any]:
+        """
+        Optimized generation method that fetches keywords directly from database
+        """
+        try:
+            logger.info(f"Generating optimized content ideas for topic: {topic_title} ({topic_id})")
+            
+            # Fetch keywords from database
+            response = self.supabase.table('keyword_research_data')\
+                .select('*')\
+                .eq('topic_id', topic_id)\
+                .order('search_volume', desc=True)\
+                .limit(max_keywords)\
+                .execute()
+                
+            keywords = response.data
+            logger.info(f"Fetched {len(keywords)} keywords from database")
+            
+            if not keywords:
+                # If no keywords found in DB, we should report this if strict mode is implied, 
+                # or perhaps return empty if we can't generate "optimized" ideas without data.
+                # Given "no shortcuts", if we expect data and found none, we should probably stop.
+                logger.warning("No keywords found in database for this topic. Cannot generate optimized ideas.")
+                return {
+                     "success": False,
+                     "error": "No keyword data available for this topic. Please perform keyword research first."
+                }
+            
+            # Use the existing generation logic with fetched keywords
+            return await self.generate_content_ideas(
+                topic_id=topic_id,
+                topic_title=topic_title,
+                subtopics=subtopics,
+                keywords=keywords,
+                user_id=user_id,
+                content_types=content_types
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to generate optimized content ideas: {str(e)}")
             raise
     
     def _sort_keywords_by_priority(self, keywords: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -193,6 +316,352 @@ class ContentIdeaGenerator:
             selected = selected[:2] + additional_keywords[:2]
         
         return selected[:4]  # Ensure max 4 keywords
+
+    async def _call_llm(self, provider_type: str, model_name: str, api_key: str, prompt: str) -> str:
+        """Call LLM provider API"""
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            if provider_type == "openai":
+                payload = {
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 1000,
+                    "temperature": 0.7 
+                }
+                
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+                
+            elif provider_type == "deepseek":
+                payload = {
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2000,
+                    "temperature": 0.7 
+                }
+                
+                response = await client.post(
+                    "https://api.deepseek.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+            
+            else:
+                raise ValueError(f"Provider {provider_type} not implemented in ContentIdeaGenerator")
+
+    async def _generate_blog_idea_with_llm(
+        self,
+        subtopic: str,
+        topic_title: str,
+        selected_keywords: List[Dict[str, Any]],
+        topic_id: str,
+        user_id: str,
+        idea_index: int
+    ) -> Dict[str, Any]:
+        """Generate a blog idea using LLM based on keywords"""
+        try:
+            logger.info(f"Generating blog idea with LLM for subtopic: {subtopic}")
+
+            creds = await self._get_llm_credentials()
+            provider_type = creds['provider_type']
+            model_name = creds['model_name']
+            api_key = creds['api_key']
+
+            primary_keyword = max(selected_keywords, key=lambda k: k.get('priority_score', 0))
+            keywords_list = ", ".join([k.get('keyword', '') for k in selected_keywords])
+
+            prompt = f"""
+            Generate a unique, creative, and SEO-optimized Blog Post idea for the topic "{topic_title}" focusing on the subtopic "{subtopic}".
+            
+            Context:
+            - Primary Keyword: {primary_keyword.get('keyword', '')}
+            - Secondary Keywords: {keywords_list}
+            
+            Requirements:
+            1. Title must be catchy, SEO-friendly, and include the primary keyword naturally.
+            2. Description must be a compelling hook and summary of what the article covers.
+            3. Target Audience (e.g., "Beginners", "Experts").
+            4. Content Angle (e.g., "Step-by-step Guide", "Case Study", "Deep Dive", "Listicle").
+            
+            CRITICAL INSTRUCTIONS:
+            - DO NOT simply concatenate the keyword and subtopic (e.g. "Keyword Guide for Subtopic").
+            - DO NOT use the format "{primary_keyword.get('keyword', '')}: Complete {subtopic} Guide".
+            - Make the title sound like a real human wrote it.
+            - Examples of GOOD titles:
+              - "7 Ways to Master {primary_keyword.get('keyword', '')}"
+              - "{subtopic} Errors: {primary_keyword.get('keyword', '')} Fixes"
+              - "{primary_keyword.get('keyword', '')} Success Blueprint"
+
+            CRITICAL:
+            1. Return 5 unique title options in a "titles" array.
+            2. Each title MUST include the keyword "{primary_keyword.get('keyword', '')}".
+            3. Each title MUST be under 60 characters if possible.
+            4. Make titles catchy but concise.
+                "titles": ["string", "string", "string", "string", "string"], 
+                "description": "string",
+                "target_audience": "string",
+                "content_angle": "string"
+            }}
+            """
+
+            try:
+                content = await self._call_llm(provider_type, model_name, api_key, prompt)
+            except Exception as llm_error:
+                logger.error(f"Error calling LLM provider {provider_type}: {str(llm_error)}")
+                logger.error(f"Prompt content was: {prompt[:200]}...") # Log start of prompt for context
+                # Re-raise to trigger fallback
+                raise llm_error 
+            
+            try:
+                # Clean markdown code blocks if present
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                data = json.loads(content)
+            except Exception as e:
+                logger.error(f"Failed to parse LLM response for blog idea: {str(e)}")
+                raise ValueError(f"LLM response parsing failed: {str(e)}")
+
+            # Process titles to select the best one
+            generated_titles = data.get("titles", [])
+            # Handle legacy response format if LLM returns single title
+            if not generated_titles and data.get("title"):
+                generated_titles = [data.get("title")]
+            
+            # Selection logic:
+            # 1. Must include primary keyword (case-insensitive)
+            # 2. Prefer <= 60 chars
+            # 3. If <= 60 chars, prefer longest (most descriptive within limit)
+            # 4. If > 60 chars, prefer shortest (closest to limit)
+            
+            primary_kw_text = primary_keyword.get('keyword', '').lower()
+            
+            # Step 1: Filter by keyword inclusion
+            keyword_matching_titles = [
+                t for t in generated_titles 
+                if primary_kw_text in t.lower()
+            ]
+            
+            # If no titles match keyword, fallback to all titles (better than nothing)
+            candidates = keyword_matching_titles if keyword_matching_titles else generated_titles
+            
+            if not candidates:
+                 # Fallback to a constructed title if list is empty
+                 candidates = [f"{primary_keyword.get('keyword', '').title()}: Guide for {subtopic}"]
+
+            # Step 2: Separate by length
+            short_titles = [t for t in candidates if len(t) <= 60]
+            long_titles = [t for t in candidates if len(t) > 60]
+            
+            final_title = ""
+            
+            if short_titles:
+                # Step 3: Select longest valid title (max info within limit)
+                final_title = max(short_titles, key=len)
+            elif long_titles:
+                # Step 4: Select shortest invalid title (minimize overflow)
+                final_title = min(long_titles, key=len)
+            else:
+                 final_title = candidates[0] # Should not happen given logic above
+
+            # Calculate metrics
+            avg_search_volume = sum(kw.get('search_volume', 0) for kw in selected_keywords) / len(selected_keywords)
+            avg_difficulty = sum(kw.get('keyword_difficulty', 0) for kw in selected_keywords) / len(selected_keywords)
+            avg_cpc = sum(kw.get('cpc', 0) for kw in selected_keywords) / len(selected_keywords)
+            
+            seo_score = self._calculate_seo_score_from_keywords(selected_keywords)
+            difficulty_level = self._map_difficulty_score(avg_difficulty)
+            monetization_potential = self._calculate_monetization_potential(selected_keywords)
+
+            return {
+                "title": final_title,
+                "description": data.get("description"),
+                "content_type": "blog",
+                "category": "seo_optimized",
+                "subtopic": subtopic,
+                "topic_id": topic_id,
+                "user_id": user_id,
+                "keywords": [kw.get('keyword', '') for kw in selected_keywords],
+                "keyword_metrics": {
+                    "avg_search_volume": round(avg_search_volume, 0),
+                    "avg_difficulty": round(avg_difficulty, 1),
+                    "avg_cpc": round(avg_cpc, 2),
+                    "primary_keyword": primary_keyword.get('keyword', ''),
+                    "total_keywords_used": len(selected_keywords)
+                },
+                "seo_score": seo_score,
+                "difficulty_level": difficulty_level,
+                "estimated_read_time": random.randint(5, 15),
+                "target_audience": data.get("target_audience", "General"),
+                "content_angle": data.get("content_angle", "Guide"),
+                "monetization_potential": monetization_potential,
+                "generation_method": "llm_enhanced",
+                "data_source": "real_keyword_metrics"
+            }
+
+        except Exception as e:
+            logger.error(f"LLM blog idea generation failed: {str(e)}")
+            raise e
+
+    async def _generate_software_idea_with_llm(
+        self,
+        subtopic: str,
+        topic_title: str,
+        selected_keywords: List[Dict[str, Any]],
+        topic_id: str,
+        user_id: str,
+        idea_index: int
+    ) -> Dict[str, Any]:
+        """Generate a software idea using LLM based on keywords"""
+        try:
+            logger.info(f"Generating software idea with LLM for subtopic: {subtopic}")
+
+            creds = await self._get_llm_credentials()
+            provider_type = creds['provider_type']
+            model_name = creds['model_name']
+            api_key = creds['api_key']
+
+            primary_keyword = max(selected_keywords, key=lambda k: k.get('priority_score', 0))
+            keywords_list = ", ".join([k.get('keyword', '') for k in selected_keywords])
+
+            prompt = f"""
+            Generate a unique and viable Software/SaaS idea for the topic "{topic_title}" focusing on the subtopic "{subtopic}".
+            
+            Context:
+            - Primary Keyword: {primary_keyword.get('keyword', '')}
+            - Secondary Keywords: {keywords_list}
+            
+            Requirements:
+            1. Title must be professional and sound like a product name.
+            2. Description must explain the core value proposition (product summary).
+            3. Category must be one of: "web_app", "mobile_app", "desktop_tool", "browser_extension", "api_service".
+            4. Target Audience (e.g., "Freelancers", "Enterprise").
+            5. Unique Selling Point (Content Angle).
+            
+            CRITICAL:
+            1. Return 5 unique title options in a "titles" array.
+            2. Each title MUST include the keyword "{primary_keyword.get('keyword', '')}".
+            3. Each title MUST be under 60 characters.
+            4. Keep titles concise and professional (e.g. "{primary_keyword.get('keyword', '')} Analytics").
+            
+                "titles": ["string", "string", "string", "string", "string"],
+                "description": "string",
+                "category": "string",
+                "target_audience": "string",
+                "content_angle": "string"
+            }}
+            """
+
+            content = await self._call_llm(provider_type, model_name, api_key, prompt)
+            
+            try:
+                # Clean markdown code blocks if present
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                data = json.loads(content)
+            except Exception as e:
+                 logger.error(f"Failed to parse LLM response for software idea: {str(e)}")
+                 raise ValueError(f"LLM response parsing failed: {str(e)}")
+
+            # Process titles to select the best one
+            generated_titles = data.get("titles", [])
+            # Handle legacy response format
+            if not generated_titles and data.get("title"):
+                generated_titles = [data.get("title")]
+            
+            # Selection logic (same as blog):
+            # 1. Must include primary keyword
+            # 2. Prefer <= 60 chars
+            # 3. If <= 60 chars, prefer longest
+            # 4. If > 60 chars, prefer shortest
+            
+            primary_kw_text = primary_keyword.get('keyword', '').lower()
+            
+            # Step 1: Filter by keyword inclusion
+            keyword_matching_titles = [
+                t for t in generated_titles 
+                if primary_kw_text in t.lower()
+            ]
+            
+            candidates = keyword_matching_titles if keyword_matching_titles else generated_titles
+            
+            if not candidates:
+                 candidates = [f"{primary_keyword.get('keyword', '').title()} Manager"]
+
+            # Step 2: Separate by length
+            short_titles = [t for t in candidates if len(t) <= 60]
+            long_titles = [t for t in candidates if len(t) > 60]
+            
+            final_title = ""
+            
+            if short_titles:
+                final_title = max(short_titles, key=len)
+            elif long_titles:
+                final_title = min(long_titles, key=len)
+            else:
+                 final_title = candidates[0]
+
+            # Calculate metrics
+            avg_search_volume = sum(kw.get('search_volume', 0) for kw in selected_keywords) / len(selected_keywords)
+            avg_difficulty = sum(kw.get('keyword_difficulty', 0) for kw in selected_keywords) / len(selected_keywords)
+            avg_cpc = sum(kw.get('cpc', 0) for kw in selected_keywords) / len(selected_keywords)
+            
+            market_demand = self._calculate_market_demand(selected_keywords)
+            technical_complexity = self._map_technical_complexity(avg_difficulty)
+            monetization_potential = self._calculate_software_monetization_potential(selected_keywords)
+            development_effort = "high" if avg_cpc > 2 and avg_difficulty > 60 else "medium"
+
+            return {
+                "title": final_title,
+                "description": data.get("description"),
+                "content_type": "software",
+                "category": data.get("category", "web_app"),
+                "subtopic": subtopic,
+                "topic_id": topic_id,
+                "user_id": user_id,
+                "keywords": [kw.get('keyword', '') for kw in selected_keywords],
+                "keyword_metrics": {
+                    "avg_search_volume": round(avg_search_volume, 0),
+                    "avg_difficulty": round(avg_difficulty, 1),
+                    "avg_cpc": round(avg_cpc, 2),
+                    "primary_keyword": primary_keyword.get('keyword', ''),
+                    "total_keywords_used": len(selected_keywords)
+                },
+                # Software specific fields
+                "technical_complexity": technical_complexity,
+                "development_effort": development_effort,
+                "market_demand": market_demand,
+                "monetization_potential": monetization_potential,
+                
+                "seo_score": 0,  # Not applicable
+                "difficulty_level": technical_complexity,
+                "estimated_read_time": None,
+                "target_audience": data.get("target_audience", "General"),
+                "content_angle": data.get("content_angle", "SaaS Solution"),
+                "generation_method": "llm_enhanced",
+                "data_source": "real_keyword_metrics"
+            }
+
+        except Exception as e:
+            logger.error(f"LLM software idea generation failed: {str(e)}")
+            raise e
     
     def _select_software_keywords(self, keywords: List[Dict[str, Any]], idea_index: int) -> List[Dict[str, Any]]:
         """
@@ -244,13 +713,14 @@ class ContentIdeaGenerator:
         user_id: str
     ) -> List[Dict[str, Any]]:
         """Generate SEO-optimized blog ideas using intelligent keyword selection"""
+            
         try:
             logger.info("Generating blog ideas with intelligent keyword selection")
-            return self._generate_enhanced_blog_ideas(topic_title, subtopics, keywords, topic_id, user_id)
+            return await self._generate_enhanced_blog_ideas(topic_title, subtopics, keywords, topic_id, user_id)
             
         except Exception as e:
             logger.error(f"Failed to generate blog ideas: {str(e)}")
-            return self._generate_fallback_blog_ideas(topic_title, subtopics, [kw.get('keyword', '') for kw in keywords], topic_id, user_id)
+            raise e # No fallback, just report error
 
     async def _generate_software_ideas(
         self,
@@ -263,13 +733,13 @@ class ContentIdeaGenerator:
         """Generate software-related ideas using intelligent keyword selection"""
         try:
             logger.info("Generating software ideas with intelligent keyword selection")
-            return self._generate_enhanced_software_ideas(topic_title, subtopics, keywords, topic_id, user_id)
+            return await self._generate_enhanced_software_ideas(topic_title, subtopics, keywords, topic_id, user_id)
             
         except Exception as e:
             logger.error(f"Failed to generate software ideas: {str(e)}")
-            return self._generate_fallback_software_ideas(topic_title, subtopics, [kw.get('keyword', '') for kw in keywords], topic_id, user_id)
+            raise e # No fallback
 
-    def _generate_enhanced_blog_ideas(
+    async def _generate_enhanced_blog_ideas(
         self, 
         topic_title: str,
         subtopics: List[str],
@@ -284,8 +754,8 @@ class ContentIdeaGenerator:
         ideas = []
         
         if not keywords:
-            logger.warning("No keywords available for idea generation, using fallback")
-            return self._generate_fallback_blog_ideas(topic_title, subtopics, [], topic_id, user_id)
+            logger.warning("No keywords available for idea generation")
+            return [] # Return empty instead of fallback
         
         # Group keywords by intent type for better idea generation
         informational_keywords = [kw for kw in keywords if kw.get('intent_type', '').upper() == 'INFORMATIONAL']
@@ -323,9 +793,9 @@ class ContentIdeaGenerator:
                 
                 logger.info(f"Selected keywords for idea {i}: {[kw.get('keyword', 'N/A') for kw in selected_keywords]}")
                 
-                # Generate idea based on actual keyword data
-                logger.info(f"Calling _generate_blog_idea_from_keywords with {len(selected_keywords)} keywords")
-                idea = self._generate_blog_idea_from_keywords(
+                # Generate idea based on actual keyword data using LLM
+                logger.info(f"Calling _generate_blog_idea_with_llm with {len(selected_keywords)} keywords")
+                idea = await self._generate_blog_idea_with_llm(
                     subtopic, topic_title, selected_keywords, topic_id, user_id, i
                 )
                 logger.info(f"Generated idea: {idea.get('title', 'No title')} - generation_method: {idea.get('generation_method', 'None')}")
@@ -397,50 +867,50 @@ class ContentIdeaGenerator:
         # Use more dynamic title generation based on keyword metrics
         if avg_search_volume > 1000:
             title_templates = [
-                f"The Complete Guide to {primary_keyword_text} for {subtopic}",
-                f"Ultimate {primary_keyword_text} Strategies for {subtopic}",
-                f"How to Master {primary_keyword_text} in {subtopic}",
-                f"{primary_keyword_text} Best Practices for {subtopic} Success",
-                f"Everything You Need to Know About {primary_keyword_text} in {subtopic}",
-                f"Advanced {primary_keyword_text} Techniques for {subtopic}",
-                f"Expert {primary_keyword_text} Guide for {subtopic}",
-                f"Professional {primary_keyword_text} Solutions for {subtopic}"
+                f"Definitive Guide to {primary_keyword_text} ({datetime.now().year})",
+                f"Mastering {primary_keyword_text} for {subtopic}",
+                f"Why {primary_keyword_text} Matters for {subtopic}",
+                f"{primary_keyword_text} Explained: {subtopic} Handbook",
+                f"Leverage {primary_keyword_text} in Your Strategy",
+                f"Advanced {primary_keyword_text} Tactics",
+                f"Unlocking {primary_keyword_text} for {subtopic}",
+                f"Professional's Roadmap to {primary_keyword_text}"
             ]
         elif avg_cpc > 2:
             title_templates = [
-                f"Professional {primary_keyword_text} Guide for {subtopic}",
-                f"Advanced {primary_keyword_text} Techniques in {subtopic}",
-                f"Expert {primary_keyword_text} Strategies for {subtopic}",
-                f"High-Value {primary_keyword_text} Solutions for {subtopic}",
-                f"Premium {primary_keyword_text} Methods for {subtopic}",
-                f"Master {primary_keyword_text} in {subtopic}",
-                f"Pro {primary_keyword_text} Tips for {subtopic}",
-                f"Elite {primary_keyword_text} Strategies for {subtopic}"
+                f"Maximizing ROI with {primary_keyword_text}",
+                f"High-Impact {primary_keyword_text} Strategies",
+                f"The Executive Guide to {primary_keyword_text}",
+                f"Value Driving: {primary_keyword_text} Solutions",
+                f"Premium Tactics: {primary_keyword_text}",
+                f"Scale {subtopic} with {primary_keyword_text}",
+                f"Proven {primary_keyword_text} Professional Methods",
+                f"Strategic {primary_keyword_text} Implementation"
             ]
         else:
             title_templates = [
-                f"Beginner's Guide to {primary_keyword_text} in {subtopic}",
-                f"Simple {primary_keyword_text} Tips for {subtopic}",
-                f"Getting Started with {primary_keyword_text} in {subtopic}",
-                f"Essential {primary_keyword_text} Knowledge for {subtopic}",
-                f"Easy {primary_keyword_text} Solutions for {subtopic}",
-                f"Basic {primary_keyword_text} Guide for {subtopic}",
-                f"Introduction to {primary_keyword_text} in {subtopic}",
-                f"Fundamental {primary_keyword_text} Tips for {subtopic}"
+                f"Start with {primary_keyword_text}: {subtopic} Primer",
+                f"{primary_keyword_text} 101: {subtopic} Guide",
+                f"Simple {primary_keyword_text} Steps: {subtopic}",
+                f"Beginner's {primary_keyword_text} Blueprint",
+                f"Demystifying {primary_keyword_text} for {subtopic}",
+                f"Quick {primary_keyword_text} Wins for {subtopic}",
+                f"Intro to {primary_keyword_text} Best Practices",
+                f"Basic {primary_keyword_text} Tips for {subtopic}"
             ]
         
         # If keywords are unrelated to the topic, create more creative titles
         if not any(word in primary_keyword_text.lower() for word in subtopic.lower().split()):
             # Create titles that bridge the gap between keywords and topic
             creative_templates = [
-                f"How {primary_keyword_text} Can Help with {subtopic}",
-                f"Using {primary_keyword_text} for {subtopic} Success",
-                f"{primary_keyword_text} Strategies That Work in {subtopic}",
-                f"Integrating {primary_keyword_text} into {subtopic}",
-                f"{primary_keyword_text} Solutions for {subtopic} Challenges",
+                f"How {primary_keyword_text} Helps {subtopic}",
+                f"Using {primary_keyword_text} for {subtopic}",
+                f"{primary_keyword_text} Strategies for {subtopic}",
+                f"Integrating {primary_keyword_text} in {subtopic}",
+                f"{primary_keyword_text} Solutions for {subtopic}",
                 f"Leveraging {primary_keyword_text} in {subtopic}",
-                f"{primary_keyword_text} Best Practices for {subtopic}",
-                f"Advanced {primary_keyword_text} Techniques for {subtopic}"
+                f"{primary_keyword_text} Best Practices",
+                f"Advanced {primary_keyword_text} Methods"
             ]
             title_templates = creative_templates
         
@@ -558,7 +1028,7 @@ class ContentIdeaGenerator:
             "data_source": "template_based"
         }
 
-    def _generate_enhanced_software_ideas(
+    async def _generate_enhanced_software_ideas(
         self, 
         topic_title: str,
         subtopics: List[str],
@@ -573,8 +1043,8 @@ class ContentIdeaGenerator:
         ideas = []
         
         if not keywords:
-            logger.warning("No keywords available for software idea generation, using fallback")
-            return self._generate_fallback_software_ideas(topic_title, subtopics, [], topic_id, user_id)
+            logger.warning("No keywords available for software idea generation")
+            return []
         
         # Group keywords by intent type for better idea generation
         commercial_keywords = [kw for kw in keywords if kw.get('intent_type', '').upper() in ['COMMERCIAL', 'TRANSACTIONAL']]
@@ -608,8 +1078,8 @@ class ContentIdeaGenerator:
                 if not selected_keywords:
                     continue
                 
-                # Generate idea based on actual keyword data
-                idea = self._generate_software_idea_from_keywords(
+                # Generate idea based on actual keyword data using LLM
+                idea = await self._generate_software_idea_with_llm(
                     subtopic, topic_title, selected_keywords, topic_id, user_id, i
                 )
                 ideas.append(idea)
@@ -643,7 +1113,7 @@ class ContentIdeaGenerator:
         if avg_search_volume > 1000:
             software_templates = [
                 {
-                    "title": f"Advanced {primary_keyword_text} Management Platform",
+                    "title": f"{primary_keyword_text} Manager Pro",
                     "description": f"A comprehensive enterprise platform for managing {primary_keyword_text} in {subtopic}. Features include advanced automation, real-time analytics, and enterprise-grade security for {topic_title} professionals.",
                     "category": "web_app",
                     "complexity": "high",
@@ -652,7 +1122,7 @@ class ContentIdeaGenerator:
                     "angle": "Enterprise-grade management solution"
                 },
                 {
-                    "title": f"AI-Powered {primary_keyword_text} Assistant",
+                    "title": f"AI {primary_keyword_text} Assistant",
                     "description": f"An intelligent assistant that automates {primary_keyword_text} tasks in {subtopic}. Uses advanced machine learning to provide personalized recommendations and insights for {topic_title}.",
                     "category": "mobile_app",
                     "complexity": "high",
@@ -661,7 +1131,7 @@ class ContentIdeaGenerator:
                     "angle": "AI-powered personalization"
                 },
                 {
-                    "title": f"{primary_keyword_text} Analytics Suite",
+                    "title": f"{primary_keyword_text} Analytics",
                     "description": f"Comprehensive analytics platform for {primary_keyword_text} data in {subtopic}. Track performance, trends, and insights with advanced visualization tools for {topic_title}.",
                     "category": "web_app",
                     "complexity": "high",
@@ -673,7 +1143,7 @@ class ContentIdeaGenerator:
         elif avg_cpc > 2:
             software_templates = [
                 {
-                    "title": f"Professional {primary_keyword_text} Platform",
+                    "title": f"Pro {primary_keyword_text} Platform",
                     "description": f"A professional-grade platform for {primary_keyword_text} in {subtopic}. Features include automation, analytics, and collaboration tools for {topic_title} professionals.",
                     "category": "web_app",
                     "complexity": "medium",
@@ -691,7 +1161,7 @@ class ContentIdeaGenerator:
                     "angle": "Smart automation"
                 },
                 {
-                    "title": f"{primary_keyword_text} API Service",
+                    "title": f"{primary_keyword_text} API",
                     "description": f"RESTful API service for {primary_keyword_text} functionality. Integrate {primary_keyword_text} capabilities into any {subtopic} application for {topic_title}.",
                     "category": "api_service",
                     "complexity": "medium",
@@ -703,7 +1173,7 @@ class ContentIdeaGenerator:
         else:
             software_templates = [
                 {
-                    "title": f"{primary_keyword_text} Quick Tools",
+                    "title": f"{primary_keyword_text} Quick Tool",
                     "description": f"Simple, user-friendly tools for {primary_keyword_text} in {subtopic}. Perfect for beginners and quick projects in {topic_title}.",
                     "category": "desktop_tool",
                     "complexity": "low",
@@ -721,7 +1191,7 @@ class ContentIdeaGenerator:
                     "angle": "Beginner-friendly"
                 },
                 {
-                    "title": f"{primary_keyword_text} Helper Extension",
+                    "title": f"{primary_keyword_text} Chrome Extension",
                     "description": f"Browser extension that adds {primary_keyword_text} functionality to any website. Simple and lightweight for {subtopic} users.",
                     "category": "browser_extension",
                     "complexity": "low",

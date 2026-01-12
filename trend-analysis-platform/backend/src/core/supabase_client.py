@@ -4,17 +4,15 @@ Supabase Client Initialization and Management
 This module provides centralized Supabase client initialization and configuration
 for the trend analysis platform backend, replacing direct PostgreSQL connections
 with managed Supabase database operations.
+
+Note: This module now uses the singleton pattern from supabase_singleton.py
 """
 
-import os
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
-from supabase import create_client, Client
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from supabase import Client
+from src.core.supabase_singleton import get_supabase_client as get_singleton_client
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,10 +20,10 @@ logger = logging.getLogger(__name__)
 class SupabaseClientManager:
     """
     Manages Supabase client instances with connection pooling and error handling.
+    Now uses the centralized singleton for client access.
     """
     
     def __init__(self):
-        self._client: Optional[Client] = None
         self._connection_status = "disconnected"
         self._error_count = 0
         self._retry_count = 0
@@ -35,7 +33,7 @@ class SupabaseClientManager:
         
     def get_client(self) -> Client:
         """
-        Get or create Supabase client instance.
+        Get Supabase client instance from singleton.
         
         Returns:
             Client: Configured Supabase client
@@ -44,50 +42,18 @@ class SupabaseClientManager:
             ValueError: If environment variables are missing
             ConnectionError: If client initialization fails
         """
-        if self._client is None:
-            self._initialize_client()
-        
-        if self._connection_status == "error" and self._error_count >= self._max_errors:
-            raise ConnectionError("Max error count exceeded. Client disabled.")
-            
-        return self._client
-    
-    def _initialize_client(self) -> None:
-        """
-        Initialize Supabase client with environment configuration.
-        """
         try:
-            url = os.getenv("SUPABASE_URL")
-            key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-            
-            if not url or not key:
-                raise ValueError(
-                    "Missing Supabase environment variables. "
-                    "Required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY"
-                )
-            
-            # Validate URL format
-            if not url.startswith("https://"):
-                raise ValueError("SUPABASE_URL must be a valid HTTPS URL")
-            
-            # Create client
-            self._client = create_client(url, key)
+            client = get_singleton_client()
             self._connection_status = "connected"
             self._error_count = 0
-            self._retry_count = 0
             self._last_used = datetime.utcnow()
-            
-            logger.info("Supabase client initialized successfully", 
-                       url=url, 
-                       key_prefix=key[:10] + "...")
-            
+            return client
         except Exception as e:
             self._connection_status = "error"
             self._error_count += 1
-            logger.error("Failed to initialize Supabase client", 
-                       error=str(e), 
-                       error_count=self._error_count)
-            raise ConnectionError(f"Supabase client initialization failed: {e}")
+            if self._error_count >= self._max_errors:
+                raise ConnectionError("Max error count exceeded. Client disabled.")
+            raise ConnectionError(f"Supabase client access failed: {e}")
     
     def health_check(self) -> Dict[str, Any]:
         """
@@ -97,16 +63,12 @@ class SupabaseClientManager:
             Dict containing health status and metrics
         """
         try:
-            if self._client is None:
-                return {
-                    "status": "unhealthy",
-                    "message": "Client not initialized",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+            # Get client from singleton
+            client = get_singleton_client()
             
             # Test connection with simple query
             start_time = datetime.utcnow()
-            result = self._client.table("users").select("id").limit(1).execute()
+            result = client.table("users").select("id").limit(1).execute()
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             
             self._connection_status = "connected"
@@ -195,18 +157,12 @@ def reset_supabase_connection() -> None:
 # Convenience function for backward compatibility
 def create_supabase_client() -> Client:
     """
-    Create new Supabase client instance.
+    Get Supabase client instance (uses singleton).
     
-    Note: This creates a new client each time. Use get_supabase_client() 
-    for connection pooling.
+    Note: This now uses the singleton pattern. Use get_supabase_client() 
+    for the same behavior.
     
     Returns:
-        Client: New Supabase client instance
+        Client: Supabase client instance
     """
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    
-    if not url or not key:
-        raise ValueError("Missing Supabase environment variables")
-    
-    return create_client(url, key)
+    return get_singleton_client()

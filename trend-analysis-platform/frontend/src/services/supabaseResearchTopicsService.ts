@@ -68,7 +68,7 @@ class SupabaseResearchTopicsService {
     const currentUserId = await this.getCurrentUserId();
     console.log('createResearchTopic - currentUserId:', currentUserId);
     console.log('createResearchTopic - data:', data);
-    
+
     const { data: result, error } = await supabase
       .from(this.tableName)
       .insert([{
@@ -101,35 +101,10 @@ class SupabaseResearchTopicsService {
     // Get user from Supabase auth
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
-      console.log('Supabase auth response:', { user, error });
-      console.log('User ID length:', user?.id?.length);
-      console.log('User ID type:', typeof user?.id);
-      
+
       if (!error && user?.id) {
-        // Check if the user ID is truncated (less than 36 characters)
-        if (user.id.length < 36) {
-          console.warn('User ID appears to be truncated:', user.id);
-          console.warn('User ID length:', user.id.length);
-          console.warn('Expected UUID length: 36');
-          
-          // Try to find the full user ID in the database
-          const { data: existingUsers } = await supabase
-            .from('users')
-            .select('id')
-            .ilike('id', `%${user.id}%`)
-            .limit(1);
-          
-          if (existingUsers && existingUsers.length > 0) {
-            const fullUserId = existingUsers[0].id;
-            console.log('Found full user ID in database:', fullUserId);
-            this.cachedUserId = fullUserId;
-            return fullUserId;
-          }
-        }
-        
         this.cachedUserId = user.id;
         console.log('Using user ID from Supabase auth:', user.id);
-        console.log('Full user object:', user);
         return user.id;
       } else {
         console.error('No authenticated user found:', error);
@@ -172,13 +147,13 @@ class SupabaseResearchTopicsService {
       throw new Error(`Failed to update research topic: ${error.message}`);
     }
 
-    return this.mapAffiliateResearchToResearchTopic(result);
+    return this.mapResearchTopicToResearchTopic(result);
   }
 
   async deleteResearchTopic(id: string): Promise<void> {
     // Get current user ID
     const currentUserId = await this.getCurrentUserId();
-    
+
     try {
       // Use the new cascade delete endpoint that removes all related data
       const response = await fetch(`http://localhost:8000/api/research-topics/${id}?user_id=${currentUserId}`, {
@@ -195,10 +170,10 @@ class SupabaseResearchTopicsService {
 
       const result = await response.json();
       console.log('Cascade delete result:', result);
-      
+
     } catch (error) {
       console.error('Error calling cascade delete endpoint:', error);
-      
+
       // Fallback to direct Supabase delete if API fails
       console.log('Falling back to direct Supabase delete...');
       const { error: supabaseError } = await supabase
@@ -218,7 +193,7 @@ class SupabaseResearchTopicsService {
     const currentUserId = await this.getCurrentUserId();
     console.log('listResearchTopics - currentUserId:', currentUserId);
     console.log('listResearchTopics - cachedUserId:', this.cachedUserId);
-    
+
     let query = supabase
       .from(this.tableName)
       .select('*', { count: 'exact' })
@@ -246,9 +221,9 @@ class SupabaseResearchTopicsService {
 
     if (error) {
       // If table doesn't exist, return empty result instead of throwing error
-      if (error.message.includes('relation "research_topics" does not exist') || 
-          error.message.includes('404') ||
-          error.message.includes('Not Found')) {
+      if (error.message.includes('relation "research_topics" does not exist') ||
+        error.message.includes('404') ||
+        error.message.includes('Not Found')) {
         console.warn('Research topics table does not exist. Please check your database setup.');
         return {
           items: [],
@@ -395,7 +370,7 @@ class SupabaseResearchTopicsService {
   async archiveResearchTopic(id: string): Promise<ResearchTopic> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .update({ 
+      .update({
         status: 'cancelled', // Map archived to cancelled
         updated_at: new Date().toISOString()
       })
@@ -413,7 +388,7 @@ class SupabaseResearchTopicsService {
   async restoreResearchTopic(id: string): Promise<ResearchTopic> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .update({ 
+      .update({
         status: 'pending', // Map active to pending
         updated_at: new Date().toISOString()
       })

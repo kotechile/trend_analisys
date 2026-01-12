@@ -19,9 +19,9 @@ import {
   Alert,
   Checkbox,
   FormControlLabel,
-  FormGroup,
   Collapse,
   IconButton,
+  TextField,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -32,6 +32,10 @@ import {
   ExpandMore,
   ExpandLess,
   Save,
+  Edit,
+  Check,
+  Close,
+  Delete,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,7 +54,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const navigationState = location.state as { selectedTopicId?: string; selectedTopicTitle?: string; subtopics?: string[] } | null;
-  
+
   // State management
   const [researchTopics, setResearchTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
@@ -61,7 +65,9 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   const [newSubtopic, setNewSubtopic] = useState('');
   const [showManageSubtopics, setShowManageSubtopics] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+
   // Get selected topic ID from props or navigation state
   const selectedTopicId = propSelectedTopicId || navigationState?.selectedTopicId;
   const selectedTopicTitle = propSelectedTopicTitle || navigationState?.selectedTopicTitle;
@@ -85,7 +91,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
         version: 1
       };
       setSelectedTopic(tempTopic);
-      
+
       // If we have subtopics from navigation state, use them
       if (navigationState?.subtopics && navigationState.subtopics.length > 0) {
         console.log('TrendAnalysis - Using subtopics from navigation state immediately:', navigationState.subtopics);
@@ -103,29 +109,24 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
         console.log('TrendAnalysis - Found topic in database:', topic);
         // Update the selectedTopic with the full data from database
         setSelectedTopic(topic);
-        
-        // If we don't have subtopics yet, load them
-        if (subtopics.length === 0) {
-          if (navigationState?.subtopics && navigationState.subtopics.length > 0 && 
-              selectedTopicId === navigationState.selectedTopicId) {
-            console.log('TrendAnalysis - Using subtopics from navigation state:', navigationState.subtopics);
-            setSubtopics(navigationState.subtopics);
-          } else {
-            handleTopicChange(selectedTopicId);
-          }
-        }
+
+        // Always load fresh subtopics from database to ensure persistence
+        // We do typically get subtopics passed in via navigationState, but that state
+        // might be stale (e.g. if we navigated back after editing, or refreshed).
+        // The database is the source of truth.
+        handleTopicChange(topic.id);
       } else {
         console.log('TrendAnalysis - Topic not found for ID:', selectedTopicId);
       }
     }
-  }, [selectedTopicId, researchTopics, navigationState?.subtopics, navigationState?.selectedTopicId, subtopics.length]);
+  }, [selectedTopicId, researchTopics]);
 
   const loadResearchTopics = async () => {
     try {
       setLoading(true);
       const { supabaseResearchTopicsService } = await import('../services/supabaseResearchTopicsService');
       const response = await supabaseResearchTopicsService.listResearchTopics();
-      
+
       // Handle the response format - it might be wrapped in an object
       const topics = Array.isArray(response) ? response : (response?.items || []);
       console.log('TrendAnalysis - Loaded research topics:', topics);
@@ -146,18 +147,12 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
     const topic = researchTopics.find(t => t.id === topicId);
     console.log('TrendAnalysis - Found topic:', topic);
     setSelectedTopic(topic);
-    
+
     if (topic) {
-      // Check if this is the same topic from navigation state and we have subtopics
-      if (navigationState?.subtopics && navigationState.subtopics.length > 0 && 
-          topicId === navigationState.selectedTopicId) {
-        console.log('TrendAnalysis - Using subtopics from navigation state for pre-selected topic:', navigationState.subtopics);
-        setSubtopics(navigationState.subtopics);
-      } else {
-        // Load existing subtopics for this topic from database
-        console.log('TrendAnalysis - Loading subtopics for topic:', topic.title, 'with ID:', topic.id);
-        await loadSubtopicsForTopic(topic);
-      }
+      // Always load existing subtopics for this topic from database
+      // to ensure we have the latest version (persisted edits/deletions)
+      console.log('TrendAnalysis - Loading subtopics for topic:', topic.title, 'with ID:', topic.id);
+      await loadSubtopicsForTopic(topic);
     } else {
       console.log('TrendAnalysis - No topic found for ID:', topicId);
     }
@@ -167,26 +162,31 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
     try {
       console.log('TrendAnalysis - loadSubtopicsForTopic called for topic:', topic.title, 'ID:', topic.id);
       setLoading(true);
-      
+
       if (!user?.id) {
         console.log('TrendAnalysis - No user ID available, using topic title only');
         setSubtopics([topic.title]);
         return;
       }
-      
+
       console.log('TrendAnalysis - User ID available:', user.id);
-      
+
       // Use direct Supabase query (same as Page 2) to get subtopics from the database
       console.log('TrendAnalysis - Querying Supabase directly for subtopics...');
       const { data, error } = await supabase
         .from('topic_decompositions')
-        .select('subtopics, research_topic_id, user_id, created_at')
+        .select('id, subtopics, research_topic_id, user_id, created_at')
         .eq('research_topic_id', topic.id)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1);
 
-      console.log('TrendAnalysis - Supabase query result:', { data, error });
+      console.log('TrendAnalysis - Supabase query result:', {
+        dataLength: data?.length,
+        firstRecordId: data?.[0]?.id,
+        firstRecordCreatedAt: data?.[0]?.created_at,
+        error
+      });
 
       if (error) {
         console.error('TrendAnalysis - Error fetching subtopics from Supabase:', error);
@@ -197,10 +197,15 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
       if (data && data.length > 0) {
         const existingSubtopics = data[0].subtopics || [];
         console.log('TrendAnalysis - Found existing subtopics in database:', existingSubtopics);
-        
+
         if (existingSubtopics.length > 0) {
           // If we have subtopics from the database, use them
-          const allSubtopics = [topic.title, ...existingSubtopics];
+          // Check if the main topic is already in the list to avoid duplication
+          let allSubtopics = existingSubtopics;
+          if (!existingSubtopics.includes(topic.title)) {
+            allSubtopics = [topic.title, ...existingSubtopics];
+          }
+
           setSubtopics(allSubtopics);
           console.log('TrendAnalysis - Loaded subtopics from database:', allSubtopics);
         } else {
@@ -224,18 +229,18 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   const generateAndStoreSubtopics = async (topic: any) => {
     try {
       const { affiliateResearchService } = await import('../services/affiliateResearchService');
-      
+
       console.log('TrendAnalysis - Generating subtopics for topic:', topic.title);
-      const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic.title, user.id);
+      const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic.title, user?.id || '');
       const allSubtopics = [topic.title, ...generatedSubtopics];
       setSubtopics(allSubtopics);
       console.log('TrendAnalysis - Generated subtopics:', allSubtopics);
-      
+
       // Store the generated subtopics in the database for future use
       try {
         await affiliateResearchService.storeSubtopics(
           generatedSubtopics,
-          user.id,
+          user?.id || '',
           topic.title,
           topic.id
         );
@@ -252,10 +257,10 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   const openGoogleTrends = (subtopic: string) => {
     // Encode the subtopic for URL
     const encodedSubtopic = encodeURIComponent(subtopic);
-    
+
     // Create Google Trends URL with the subtopic pre-populated
     const googleTrendsUrl = `https://trends.google.com/trends/explore?q=${encodedSubtopic}`;
-    
+
     // Open in new tab
     window.open(googleTrendsUrl, '_blank', 'noopener,noreferrer');
   };
@@ -272,23 +277,61 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
     });
   };
 
+  const persistSubtopics = async (updatedSubtopics: string[]) => {
+    if (!user?.id || !selectedTopic) return;
+
+    setSaveMessage('Saving changes...');
+    try {
+      const { affiliateResearchService } = await import('../services/affiliateResearchService');
+
+      // Filter out the main topic for storage
+      const subtopicsToSave = updatedSubtopics.filter(s => s !== selectedTopic.title);
+
+      console.log('TrendAnalysis - Persisting subtopics:', {
+        originalList: updatedSubtopics,
+        toSave: subtopicsToSave,
+        userId: user.id,
+        mainTopicTitle: selectedTopic.title,
+        researchTopicId: selectedTopic.id
+      });
+
+      await affiliateResearchService.storeSubtopics(
+        subtopicsToSave,
+        user.id,
+        selectedTopic.title,
+        selectedTopic.id
+      );
+      setSaveMessage('Changes saved successfully');
+      setTimeout(() => setSaveMessage(null), 2000);
+    } catch (err) {
+      console.error('Failed to persist subtopics:', err);
+      setSaveMessage('Failed to save changes');
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
+  };
+
   const addSubtopic = () => {
     if (newSubtopic.trim() && !subtopics.includes(newSubtopic.trim())) {
-      setSubtopics(prev => [...prev, newSubtopic.trim()]);
+      const updatedList = [...subtopics, newSubtopic.trim()];
+      setSubtopics(updatedList);
       setNewSubtopic('');
+      persistSubtopics(updatedList);
     }
   };
 
   const removeSubtopic = (index: number) => {
     const removedSubtopic = subtopics[index];
-    setSubtopics(prev => prev.filter((_, i) => i !== index));
-    
+    const updatedList = subtopics.filter((_, i) => i !== index);
+    setSubtopics(updatedList);
+
     // Remove from selected subtopics if it was selected
     if (selectedSubtopics.has(removedSubtopic)) {
       const newSelected = new Set(selectedSubtopics);
       newSelected.delete(removedSubtopic);
       setSelectedSubtopics(newSelected);
     }
+
+    persistSubtopics(updatedList);
   };
 
   const toggleSubtopicSelection = (subtopic: string) => {
@@ -314,18 +357,18 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
       console.log('Trend Analysis - Cannot save subtopics: missing user, topic, or selected subtopics');
       return;
     }
-    
+
     try {
       const { affiliateResearchService } = await import('../services/affiliateResearchService');
       const subtopicsArray = Array.from(selectedSubtopics);
-      
+
       console.log('Trend Analysis - Saving selected subtopics to database:', {
         subtopics: subtopicsArray,
         userId: user.id,
         mainTopic: selectedTopic.title,
         researchTopicId: selectedTopic.id
       });
-      
+
       // Save subtopics to database
       await affiliateResearchService.storeSubtopics(
         subtopicsArray,
@@ -333,7 +376,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
         selectedTopic.title,
         selectedTopic.id
       );
-      
+
       console.log('Trend Analysis - Successfully saved selected subtopics to database');
       setSaveMessage(`Successfully saved ${subtopicsArray.length} selected subtopics!`);
       setTimeout(() => setSaveMessage(null), 3000); // Clear message after 3 seconds
@@ -352,23 +395,23 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
         selectedTopicTitle: selectedTopic?.title,
         selectedSubtopics: subtopicsArray
       };
-      
-      console.log('Trend Analysis - Navigating to Idea Burst with state:', navigationState);
+
+      console.log('Trend Analysis - Navigating to Keywords Armory with state:', navigationState);
       console.log('Trend Analysis - Selected subtopics array:', subtopicsArray);
       console.log('Trend Analysis - Selected subtopics size:', selectedSubtopics.size);
       console.log('Trend Analysis - Selected topic:', selectedTopic);
-      
+
       // Save selected subtopics to database before navigation
       await saveSelectedSubtopics();
-      
+
       // Use replace: false to ensure state is passed
-      navigate('/idea-burst', {
+      navigate('/keywords_armoury', {
         state: navigationState
       });
-      
+
       // Also try storing in sessionStorage as backup
       try {
-        sessionStorage.setItem('ideaBurstState', JSON.stringify(navigationState));
+        sessionStorage.setItem('keywordsArmoryState', JSON.stringify(navigationState));
         console.log('Trend Analysis - Stored state in sessionStorage:', navigationState);
       } catch (e) {
         console.log('Trend Analysis - Failed to store in sessionStorage:', e);
@@ -376,6 +419,44 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
     } else {
       console.log('Trend Analysis - Not enough subtopics selected:', selectedSubtopics.size);
     }
+  };
+
+  const startEditing = (index: number, value: string) => {
+    setEditingIndex(index);
+    setEditValue(value);
+  };
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditValue('');
+  };
+
+  const saveEdit = (index: number) => {
+    if (!editValue.trim()) return;
+
+    const oldValue = subtopics[index];
+    const newValue = editValue.trim();
+
+    if (oldValue === newValue) {
+      cancelEdit();
+      return;
+    }
+
+    // Update subtopics list
+    const newSubtopics = [...subtopics];
+    newSubtopics[index] = newValue;
+    setSubtopics(newSubtopics);
+
+    // Update selected subtopics if necessary
+    if (selectedSubtopics.has(oldValue)) {
+      const newSelected = new Set(selectedSubtopics);
+      newSelected.delete(oldValue);
+      newSelected.add(newValue);
+      setSelectedSubtopics(newSelected);
+    }
+
+    persistSubtopics(newSubtopics);
+    cancelEdit();
   };
 
 
@@ -409,22 +490,22 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
         Analyze Google Trends data for your research topics and subtopics to identify trending opportunities.
       </Typography>
-      
+
       {/* Save Message */}
       {saveMessage && (
-        <Alert 
-          severity={saveMessage.includes('Successfully') ? 'success' : 'error'} 
+        <Alert
+          severity={saveMessage.includes('Successfully') ? 'success' : 'error'}
           sx={{ mb: 2 }}
           onClose={() => setSaveMessage(null)}
         >
           {saveMessage}
         </Alert>
       )}
-      
+
       {/* Google Trends Notice */}
       <Alert severity="info" sx={{ mb: 3 }}>
         <Typography variant="body2">
-          <strong>Google Trends Integration:</strong> Click the "View Google Trends" buttons to open Google Trends with your subtopics pre-populated. 
+          <strong>Google Trends Integration:</strong> Click the "View Google Trends" buttons to open Google Trends with your subtopics pre-populated.
           This provides real-time trend data directly from Google.
         </Typography>
       </Alert>
@@ -474,7 +555,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
             )}
           </Select>
         </FormControl>
-        
+
         {selectedTopic && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -518,34 +599,34 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
               {showManageSubtopics ? <ExpandLess /> : <ExpandMore />}
             </IconButton>
           </Box>
-          
+
           <Collapse in={showManageSubtopics}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Add or remove subtopics for trend analysis. These will be used to generate Google Trends links.
             </Typography>
-            
+
             {/* Add new subtopic */}
             <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel>Add new subtopic</InputLabel>
-              <Select
-                value={newSubtopic}
-                onChange={(e) => setNewSubtopic(e.target.value)}
-                label="Add new subtopic"
+              <FormControl fullWidth>
+                <InputLabel>Add new subtopic</InputLabel>
+                <Select
+                  value={newSubtopic}
+                  onChange={(e) => setNewSubtopic(e.target.value)}
+                  label="Add new subtopic"
+                >
+                  <MenuItem value="">Select or type a subtopic</MenuItem>
+                  {/* Add common subtopics based on the main topic */}
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={addSubtopic}
+                disabled={!newSubtopic.trim()}
               >
-                <MenuItem value="">Select or type a subtopic</MenuItem>
-                {/* Add common subtopics based on the main topic */}
-              </Select>
-            </FormControl>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={addSubtopic}
-              disabled={!newSubtopic.trim()}
-            >
-              Add Subtopic
-            </Button>
-          </Box>
+                Add Subtopic
+              </Button>
+            </Box>
 
             {/* Subtopics List for Management */}
             {subtopics.length > 0 && (
@@ -573,7 +654,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
             >
               Open All in Google Trends
             </Button>
-            
+
             <Button
               variant="outlined"
               startIcon={<Timeline />}
@@ -619,11 +700,11 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
               </Box>
             )}
           </Box>
-          
+
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Select subtopics using checkboxes, then click "View Google Trends" to open Google Trends with that search term pre-populated.
           </Typography>
-          
+
           {selectedSubtopics.size > 0 && (
             <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -648,34 +729,127 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
                     startIcon={<Analytics />}
                     size="small"
                   >
-                    Go to Idea Burst ({selectedSubtopics.size} subtopics)
+                    Go to Keywords Armory ({selectedSubtopics.size} subtopics)
                   </Button>
                 )}
               </Box>
             </Box>
           )}
-          
+
           <Grid container spacing={2}>
-            {subtopics.map((subtopic) => (
-              <Grid item xs={12} md={6} lg={4} key={subtopic}>
+            {/* Add Subtopic Card */}
+            <Grid item xs={12} md={6} lg={4}>
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  border: '2px dashed #e0e0e0',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    bgcolor: 'action.hover'
+                  }
+                }}
+                onClick={() => {
+                  const val = window.prompt("Enter new subtopic name:");
+                  if (val && val.trim()) {
+                    // Quick add logic reusing persistSubtopics
+                    const newVal = val.trim();
+                    if (!subtopics.includes(newVal)) {
+                      const updatedList = [...subtopics, newVal];
+                      setSubtopics(updatedList);
+                      persistSubtopics(updatedList);
+                    }
+                  }
+                }}
+              >
+                <Add sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                <Typography variant="h6" color="text.secondary">
+                  Add New Subtopic
+                </Typography>
+              </Card>
+            </Grid>
+
+            {subtopics.map((subtopic, index) => (
+              <Grid item xs={12} md={6} lg={4} key={index}>
                 <Card sx={{ height: '100%', border: selectedSubtopics.has(subtopic) ? 2 : 1, borderColor: selectedSubtopics.has(subtopic) ? 'primary.main' : 'divider' }}>
                   <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={selectedSubtopics.has(subtopic)}
-                            onChange={() => toggleSubtopicSelection(subtopic)}
-                            color="primary"
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                      {editingIndex === index ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+                          <TextField
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            size="small"
+                            fullWidth
+                            autoFocus
+                            multiline
+                            maxRows={3}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                saveEdit(index);
+                              }
+                            }}
                           />
-                        }
-                        label={
-                          <Typography variant="h6" noWrap sx={{ ml: 1 }}>
-                            {subtopic}
-                          </Typography>
-                        }
-                        sx={{ flexGrow: 1 }}
-                      />
+                          <IconButton size="small" color="primary" onClick={() => saveEdit(index)}>
+                            <Check />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={cancelEdit}>
+                            <Close />
+                          </IconButton>
+                        </Box>
+                      ) : (
+                        <>
+                          <Box sx={{ display: 'flex', alignItems: 'flex-start', flex: 1, minWidth: 0, mr: 1 }}>
+                            <Checkbox
+                              checked={selectedSubtopics.has(subtopic)}
+                              onChange={() => toggleSubtopicSelection(subtopic)}
+                              color="primary"
+                              sx={{ p: 0.5, mr: 0.5, mt: 0.5 }}
+                            />
+                            <Typography
+                              variant="h6"
+                              title={subtopic}
+                              sx={{
+                                cursor: 'pointer',
+                                wordBreak: 'break-word',
+                                lineHeight: 1.4,
+                                py: 0.5
+                              }}
+                              onClick={() => toggleSubtopicSelection(subtopic)}
+                            >
+                              {subtopic}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', flexShrink: 0, mt: 0.5 }}>
+                            <IconButton
+                              size="small"
+                              onClick={() => startEditing(index, subtopic)}
+                              sx={{ mr: 0.5 }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to delete "${subtopic}"?`)) {
+                                  removeSubtopic(index);
+                                }
+                              }}
+                              color="error"
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </>
+                      )}
+
                       <Chip
                         label="Google Trends"
                         color={selectedSubtopics.has(subtopic) ? 'primary' : 'default'}
@@ -683,15 +857,15 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
                         icon={<TrendingUp />}
                       />
                     </Box>
-                    
+
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {selectedSubtopics.has(subtopic) 
+                      {selectedSubtopics.has(subtopic)
                         ? 'Selected for Idea Burst. Click the button below to view Google Trends.'
                         : 'Click the checkbox to select, then click the button below to view Google Trends.'
                       }
                     </Typography>
                   </CardContent>
-                  
+
                   <CardActions>
                     <Button
                       size="small"
@@ -699,6 +873,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
                       startIcon={<Timeline />}
                       onClick={() => openGoogleTrends(subtopic)}
                       sx={{ width: '100%' }}
+                      disabled={editingIndex === index}
                     >
                       View Google Trends
                     </Button>

@@ -132,7 +132,7 @@ class KeywordData(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "keyword": "weight loss tips",
                 "search_volume": 50000,
@@ -164,7 +164,7 @@ class KeywordResearchResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": [
@@ -223,7 +223,7 @@ class PrioritizedKeyword(KeywordData):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "keyword": "weight loss tips",
                 "search_volume": 50000,
@@ -242,7 +242,7 @@ class KeywordPrioritizationResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "prioritized_keywords": [

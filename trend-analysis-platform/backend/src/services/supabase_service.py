@@ -3,12 +3,11 @@ Supabase service for dataflow persistence
 This service handles all database operations using the Supabase Client/SDK
 """
 
-import os
 import logging
 from typing import Optional, Dict, Any, List, Union
 from uuid import UUID
-from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
+from supabase import Client
+from src.core.supabase_singleton import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -16,38 +15,14 @@ class SupabaseService:
     """Service for interacting with Supabase database"""
     
     def __init__(self):
-        """Initialize Supabase client"""
-        self.client: Optional[Client] = None
-        self._initialize_client()
-    
-    def _initialize_client(self):
-        """Initialize Supabase client with configuration"""
-        try:
-            supabase_url = os.getenv("SUPABASE_URL")
-            # Try service role key first, then fall back to anon key
-            supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
-            
-            if not supabase_url or not supabase_key:
-                raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) environment variables are required")
-            
-            # Configure client options
-            options = ClientOptions(
-                auto_refresh_token=True,
-                persist_session=True
-            )
-            
-            self.client = create_client(supabase_url, supabase_key, options)
-            logger.info("Supabase client initialized successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Supabase client: {e}")
-            raise
+        """Initialize Supabase service"""
+        self._client: Optional[Client] = None
     
     def get_client(self) -> Client:
-        """Get the Supabase client instance"""
-        if not self.client:
-            self._initialize_client()
-        return self.client
+        """Get the Supabase client instance from singleton"""
+        if not self._client:
+            self._client = get_supabase_client()
+        return self._client
     
     async def execute_query(self, table: str, operation: str, **kwargs) -> Dict[str, Any]:
         """Execute a database query with error handling"""

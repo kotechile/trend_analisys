@@ -28,7 +28,26 @@ export const GoogleAuth: React.FC<GoogleAuthProps> = ({
       setLoading(true);
       setError(null);
 
-      const redirectUrl = `${window.location.origin}/auth/callback`;
+      // Use explicit localhost URL for development, or current origin for production
+      // For development, always use localhost with the port from Vite (usually 5173)
+      const isDevelopment = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1' ||
+                           window.location.hostname.includes('localhost');
+      
+      // Get port from current URL or default to 3000 (current frontend port)
+      const port = window.location.port || '3000';
+      const redirectUrl = isDevelopment 
+        ? `http://localhost:${port}/auth/callback`
+        : `${window.location.origin}/auth/callback`;
+
+      // Store redirect URL in localStorage as fallback (for oauth-redirect.html)
+      localStorage.setItem('oauth_redirect_url', redirectUrl.replace('/auth/callback', ''));
+
+      console.log('GoogleAuth: Redirect URL set to:', redirectUrl);
+      console.log('GoogleAuth: Current origin:', window.location.origin);
+      console.log('GoogleAuth: Current hostname:', window.location.hostname);
+      console.log('GoogleAuth: Current port:', window.location.port);
+      console.log('GoogleAuth: Is development:', isDevelopment);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

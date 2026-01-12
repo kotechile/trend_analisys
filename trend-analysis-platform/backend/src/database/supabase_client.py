@@ -1,20 +1,20 @@
 """
 Supabase client configuration for TrendTap
 Enhanced with connection management and error handling
+
+Note: This module now uses the singleton pattern from supabase_singleton.py
 """
-import os
 from typing import Optional, Dict, Any
-from supabase import create_client, Client
+from supabase import Client, create_client
 from supabase.exceptions import APIError, AuthError
-from dotenv import load_dotenv
 import structlog
 from datetime import datetime
 from enum import Enum
+from src.core.supabase_singleton import get_supabase_client as get_singleton_client
+from src.core.config import get_settings
+import os
 
 logger = structlog.get_logger()
-
-# Load environment variables
-load_dotenv()
 
 class ConnectionStatus(Enum):
     """Supabase connection status"""
@@ -26,43 +26,42 @@ class ConnectionStatus(Enum):
     RECONNECTING = "reconnecting"
 
 class SupabaseClient:
-    """Enhanced Supabase client with connection management"""
+    """Enhanced Supabase client with connection management
+    
+    Note: Now uses singleton pattern for service role key client.
+    Anon key client is created separately when needed.
+    """
     
     def __init__(self):
-        self.url = os.getenv("SUPABASE_URL")
-        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        settings = get_settings()
+        self.url = settings.supabase_url
+        self.service_role_key = settings.supabase_service_role_key
+        # Anon key not in Settings, get from env directly
         self.anon_key = os.getenv("SUPABASE_ANON_KEY")
         self.connection_status = ConnectionStatus.INITIALIZED
         self.last_activity = None
-        self.client: Optional[Client] = None
         
         if not self.url or not self.service_role_key:
             raise ValueError("Supabase URL and service role key are required")
-        
-        self._initialize_client()
-    
-    def _initialize_client(self):
-        """Initialize the Supabase client"""
-        try:
-            self.connection_status = ConnectionStatus.CONNECTING
-            self.client = create_client(self.url, self.service_role_key)
-            self.connection_status = ConnectionStatus.CONNECTED
-            logger.info("Supabase client initialized", url=self.url)
-        except Exception as e:
-            self.connection_status = ConnectionStatus.ERROR
-            logger.error("Failed to initialize Supabase client", error=str(e))
-            raise
     
     def get_client(self) -> Client:
-        """Get the Supabase client instance"""
-        if self.client is None:
-            self._initialize_client()
-        return self.client
+        """Get the Supabase client instance from singleton"""
+        try:
+            client = get_singleton_client()
+            self.connection_status = ConnectionStatus.CONNECTED
+            self.last_activity = datetime.utcnow()
+            return client
+        except Exception as e:
+            self.connection_status = ConnectionStatus.ERROR
+            logger.error("Failed to get Supabase client from singleton", error=str(e))
+            raise
     
     def get_anon_client(self) -> Client:
         """Get Supabase client with anon key for frontend operations"""
         if not self.anon_key:
             raise ValueError("SUPABASE_ANON_KEY is required for anon client")
+        if not self.url:
+            raise ValueError("SUPABASE_URL is required for anon client")
         return create_client(self.url, self.anon_key)
     
     def test_connection(self) -> Dict[str, Any]:

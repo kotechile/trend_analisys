@@ -19,6 +19,8 @@ export interface AffiliateOffer {
   // New fields for multi-subtopic support
   subtopics?: string[];
   relevance_score?: number;
+  offer_link?: string;
+  is_search_link?: boolean;
 }
 
 export interface Subtopic {
@@ -69,7 +71,7 @@ class AffiliateResearchService {
   async decomposeTopic(searchQuery: string, userId: string): Promise<string[]> {
     try {
       console.log('🔄 Decomposing topic using direct LLM API:', searchQuery);
-      
+
       // Try direct LLM API call first
       try {
         const subtopics = await llmApiService.generateSubtopics(searchQuery, 8);
@@ -131,9 +133,9 @@ class AffiliateResearchService {
   ): Promise<{ [subtopic: string]: AffiliateOffer[] }> {
     try {
       console.log('Searching affiliate programs for subtopics:', subtopics);
-      
+
       const results: { [subtopic: string]: AffiliateOffer[] } = {};
-      
+
       // Search for each subtopic
       for (const subtopic of subtopics) {
         try {
@@ -146,7 +148,7 @@ class AffiliateResearchService {
           results[subtopic] = [];
         }
       }
-      
+
       return results;
     } catch (error) {
       console.error('Multi-subtopic affiliate research error:', error);
@@ -159,23 +161,23 @@ class AffiliateResearchService {
    */
   deduplicateOffersBySubtopics(
     offersBySubtopic: { [subtopic: string]: AffiliateOffer[] }
-  ): { 
-    combinedOffers: AffiliateOffer[], 
+  ): {
+    combinedOffers: AffiliateOffer[],
     offersBySubtopic: { [subtopic: string]: AffiliateOffer[] },
     duplicateMap: { [offerId: string]: string[] }
   } {
     const seenOffers = new Map<string, AffiliateOffer>();
     const duplicateMap: { [offerId: string]: string[] } = {};
     const deduplicatedBySubtopic: { [subtopic: string]: AffiliateOffer[] } = {};
-    
+
     // First pass: collect all unique offers and track duplicates
     for (const [subtopic, offers] of Object.entries(offersBySubtopic)) {
       deduplicatedBySubtopic[subtopic] = [];
-      
+
       for (const offer of offers) {
         // Create a unique key based on offer name and network
         const offerKey = `${offer.offer_name.toLowerCase()}_${offer.linkup_data?.network || 'unknown'}`;
-        
+
         if (seenOffers.has(offerKey)) {
           // This is a duplicate - add to duplicate map
           if (!duplicateMap[offerKey]) {
@@ -189,14 +191,14 @@ class AffiliateResearchService {
         }
       }
     }
-    
+
     // Second pass: add subtopic information to offers
     const combinedOffers = Array.from(seenOffers.values()).map(offer => ({
       ...offer,
       subtopics: this._getSubtopicsForOffer(offer, offersBySubtopic),
       relevance_score: this._calculateRelevanceScore(offer, offersBySubtopic)
     }));
-    
+
     return {
       combinedOffers,
       offersBySubtopic: deduplicatedBySubtopic,
@@ -208,22 +210,22 @@ class AffiliateResearchService {
    * Get subtopics that contain this offer
    */
   private _getSubtopicsForOffer(
-    offer: AffiliateOffer, 
+    offer: AffiliateOffer,
     offersBySubtopic: { [subtopic: string]: AffiliateOffer[] }
   ): string[] {
     const subtopics: string[] = [];
-    
+
     for (const [subtopic, offers] of Object.entries(offersBySubtopic)) {
       const offerKey = `${offer.offer_name.toLowerCase()}_${offer.linkup_data?.network || 'unknown'}`;
-      const hasOffer = offers.some(o => 
+      const hasOffer = offers.some(o =>
         `${o.offer_name.toLowerCase()}_${o.linkup_data?.network || 'unknown'}` === offerKey
       );
-      
+
       if (hasOffer) {
         subtopics.push(subtopic);
       }
     }
-    
+
     return subtopics;
   }
 
@@ -236,7 +238,7 @@ class AffiliateResearchService {
   ): number {
     const totalSubtopics = Object.keys(offersBySubtopic).length;
     const matchingSubtopics = this._getSubtopicsForOffer(offer, offersBySubtopic).length;
-    
+
     return totalSubtopics > 0 ? matchingSubtopics / totalSubtopics : 0;
   }
 
@@ -261,6 +263,7 @@ class AffiliateResearchService {
         body: JSON.stringify({
           search_term: searchTerm,
           topic: topic,
+          user_id: userId,
         }),
         signal: controller.signal,
       });
@@ -273,7 +276,7 @@ class AffiliateResearchService {
 
       const data = await response.json();
       console.log('Backend response:', data);
-      
+
       // Handle both response formats: {programs: [...]} and {data: {programs: [...]}}
       let programs = [];
       if (data.programs) {
@@ -284,12 +287,12 @@ class AffiliateResearchService {
         console.warn('Unexpected response format:', data);
         return [];
       }
-      
+
       // Map backend fields to frontend interface
       return programs.map((program: any) => {
         // Keep commission rate as string to preserve ranges like "4-6%"
         let commissionRate = program.commission_rate || 'Unknown';
-        
+
         return {
           id: program.id,
           offer_name: program.name || program.offer_name,
@@ -298,13 +301,15 @@ class AffiliateResearchService {
           access_instructions: program.access_instructions || 'Contact the affiliate network for access instructions',
           subtopic_id: program.subtopic_id,
           linkup_data: program.linkup_data || { link: program.link, network: program.network, epc: program.epc },
+          offer_link: this._resolveOfferLink(program),
+          is_search_link: this._isSearchLink(this._resolveOfferLink(program)),
           status: program.status || 'active',
           created_at: program.created_at || new Date().toISOString(),
         };
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Affiliate research error:', error);
-      if (error.name === 'AbortError') {
+      if (error?.name === 'AbortError') {
         console.log('Affiliate research timeout, returning empty results');
       } else {
         console.log('Affiliate research failed, returning empty results');
@@ -319,9 +324,9 @@ class AffiliateResearchService {
   async loadExistingOffers(topicId: string, userId: string): Promise<AffiliateOffer[]> {
     try {
       console.log('Loading existing offers for topic:', topicId, 'user:', userId);
-      
+
       // First, let's check what offers exist for this user
-      const { data: allUserOffers, error: allError } = await supabase
+      const { data: allUserOffers, error: _allError } = await supabase
         .from('affiliate_offers')
         .select('*')
         .eq('user_id', userId)
@@ -329,7 +334,7 @@ class AffiliateResearchService {
 
       console.log('All offers for user:', allUserOffers?.length || 0);
       console.log('Sample offer workflow_session_id:', allUserOffers?.[0]?.workflow_session_id);
-      
+
       // Try to load offers by workflow_session_id first
       let { data, error } = await supabase
         .from('affiliate_offers')
@@ -349,18 +354,18 @@ class AffiliateResearchService {
           .eq('status', 'active')
           .order('created_at', { ascending: false })
           .limit(100); // Get recent offers
-        
+
         if (fallbackQuery.error) {
           console.log('Fallback query also failed:', fallbackQuery.error);
           return [];
         }
-        
+
         data = fallbackQuery.data;
         console.log('Using fallback query, found offers:', data?.length || 0);
       } else {
         console.log('Loaded existing offers for topic', topicId, ':', data?.length || 0);
         console.log('Query details - user_id:', userId, 'workflow_session_id:', topicId);
-        
+
         // If no offers found with topic ID, try to load offers with "temp-session" as fallback
         if ((data?.length || 0) === 0) {
           console.log('No offers found for topic ID, trying temp-session fallback...');
@@ -371,14 +376,14 @@ class AffiliateResearchService {
             .eq('workflow_session_id', 'temp-session')
             .eq('status', 'active')
             .order('created_at', { ascending: false });
-          
+
           if (!fallbackQuery.error && fallbackQuery.data && fallbackQuery.data.length > 0) {
             console.log('Found offers with temp-session fallback:', fallbackQuery.data.length);
             data = fallbackQuery.data;
           }
         }
       }
-      
+
       // Convert database format to frontend format
       return (data || []).map(offer => ({
         id: offer.id,
@@ -392,7 +397,9 @@ class AffiliateResearchService {
         created_at: offer.created_at,
         // Add any additional fields that might be stored
         subtopics: offer.subtopics || [],
-        relevance_score: offer.relevance_score || 0
+        relevance_score: offer.relevance_score || 0,
+        offer_link: this._resolveOfferLink(offer),
+        is_search_link: this._isSearchLink(this._resolveOfferLink(offer))
       }));
     } catch (error) {
       console.error('Failed to load existing offers:', error);
@@ -406,13 +413,13 @@ class AffiliateResearchService {
   async loadExistingOffersBySubtopics(topicId: string, userId: string): Promise<{ [subtopic: string]: AffiliateOffer[] }> {
     try {
       const offers = await this.loadExistingOffers(topicId, userId);
-      
+
       // Group offers by subtopic
       const offersBySubtopic: { [subtopic: string]: AffiliateOffer[] } = {};
-      
+
       for (const offer of offers) {
         const subtopics = offer.subtopics || ['General'];
-        
+
         for (const subtopic of subtopics) {
           if (!offersBySubtopic[subtopic]) {
             offersBySubtopic[subtopic] = [];
@@ -420,7 +427,7 @@ class AffiliateResearchService {
           offersBySubtopic[subtopic].push(offer);
         }
       }
-      
+
       return offersBySubtopic;
     } catch (error) {
       console.error('Failed to load existing offers by subtopics:', error);
@@ -434,7 +441,7 @@ class AffiliateResearchService {
   async storeAffiliateOffers(offers: AffiliateOffer[], userId: string, topicId?: string): Promise<void> {
     try {
       console.log('Storing offers:', offers.length, 'for topic:', topicId, 'user:', userId);
-      
+
       const { error } = await supabase
         .from('affiliate_offers')
         .insert(
@@ -448,7 +455,7 @@ class AffiliateResearchService {
                 commissionRate = parseFloat(match[1]);
               }
             }
-            
+
             const offerData = {
               user_id: userId,
               workflow_session_id: topicId || 'unknown-topic', // Use topicId as session identifier
@@ -462,7 +469,7 @@ class AffiliateResearchService {
               subtopics: offer.subtopics || [],
               relevance_score: offer.relevance_score || 0
             };
-            
+
             console.log('Storing offer data:', offerData);
             return offerData;
           })
@@ -470,9 +477,9 @@ class AffiliateResearchService {
 
       if (error) {
         // Don't throw error for missing table - just log and continue
-        if (error.message.includes('Could not find the table') || 
-            error.message.includes('relation') || 
-            error.message.includes('does not exist')) {
+        if (error.message.includes('Could not find the table') ||
+          error.message.includes('relation') ||
+          error.message.includes('does not exist')) {
           console.log('Affiliate offers table not found - skipping storage');
           return;
         }
@@ -509,17 +516,17 @@ class AffiliateResearchService {
         insertData.research_topic_id = researchTopicId;
       }
 
-      console.log('storeSubtopics - Insert data:', insertData);
+      console.log('storeSubtopics - Insert data (using upsert):', insertData);
 
       const { error } = await supabase
         .from('topic_decompositions')
-        .insert(insertData);
+        .upsert(insertData, { onConflict: 'research_topic_id, search_query' });
 
       if (error) {
         // Don't throw error for missing table - just log and continue
-        if (error.message.includes('Could not find the table') || 
-            error.message.includes('relation') || 
-            error.message.includes('does not exist')) {
+        if (error.message.includes('Could not find the table') ||
+          error.message.includes('relation') ||
+          error.message.includes('does not exist')) {
           console.log('Topic decompositions table not found - skipping storage');
           return;
         }
@@ -541,7 +548,7 @@ class AffiliateResearchService {
     try {
       console.log('getSubtopicsForTopic - researchTopicId:', researchTopicId);
       console.log('getSubtopicsForTopic - userId:', userId);
-      
+
       const { data, error } = await supabase
         .from('topic_decompositions')
         .select('subtopics, research_topic_id, user_id, created_at')
@@ -599,7 +606,7 @@ class AffiliateResearchService {
   async migrateOffersToTopicId(topicId: string, userId: string): Promise<void> {
     try {
       console.log('=== MIGRATION: Updating offers to use topic ID ===');
-      
+
       // Find all offers with temp-session for this user
       const { data: tempOffers, error: fetchError } = await supabase
         .from('affiliate_offers')
@@ -644,7 +651,7 @@ class AffiliateResearchService {
   async debugStoredOffers(userId: string): Promise<void> {
     try {
       console.log('=== DEBUG: Checking stored offers ===');
-      
+
       const { data, error } = await supabase
         .from('affiliate_offers')
         .select('*')
@@ -657,7 +664,7 @@ class AffiliateResearchService {
       }
 
       console.log('Total offers in database:', data?.length || 0);
-      
+
       if (data && data.length > 0) {
         console.log('Sample offers:');
         data.slice(0, 3).forEach((offer, index) => {
@@ -669,7 +676,7 @@ class AffiliateResearchService {
             user_id: offer.user_id
           });
         });
-        
+
         // Group by workflow_session_id
         const groupedBySession = data.reduce((acc, offer) => {
           const sessionId = offer.workflow_session_id || 'no-session';
@@ -679,10 +686,10 @@ class AffiliateResearchService {
           acc[sessionId].push(offer);
           return acc;
         }, {} as { [key: string]: any[] });
-        
+
         console.log('Offers grouped by workflow_session_id:', groupedBySession);
       }
-      
+
       console.log('=== END DEBUG ===');
     } catch (error) {
       console.error('Debug function failed:', error);
@@ -694,7 +701,7 @@ class AffiliateResearchService {
    */
   private generateFallbackSubtopics(topic: string): string[] {
     console.log('LLM not available, generating intelligent fallback subtopics');
-    
+
     // Generate intelligent fallback subtopics based on common research patterns
     const baseSubtopics = [
       `${topic} benefits`,
@@ -706,11 +713,42 @@ class AffiliateResearchService {
       `${topic} future outlook`,
       `${topic} comparison`
     ];
-    
+
     // Return a subset of the most relevant ones
     return baseSubtopics.slice(0, 6);
   }
 
+  /**
+   * Resolve the best available offer link
+   */
+  private _resolveOfferLink(program: any): string {
+    const directLink = (program.link && program.link !== '#') ? program.link :
+      (program.offer_link && program.offer_link !== '#') ? program.offer_link :
+        (program.linkup_data?.link && program.linkup_data.link !== '#') ? program.linkup_data.link : undefined;
+
+    if (directLink) return directLink;
+
+    // Try to extract from description
+    const description = program.description || program.offer_description || '';
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const matches = description.match(urlRegex);
+    if (matches && matches.length > 0) {
+      // Return the first URL found, excluding obvious non-affiliate ones if needed
+      return matches[0];
+    }
+
+    // Fallback to Google Search
+    const name = program.name || program.offer_name || 'Affiliate Program';
+    return `https://www.google.com/search?q=${encodeURIComponent(name + ' affiliate program')}`;
+  }
+
+  /**
+   * Check if a link is a search fallback
+   */
+  private _isSearchLink(link: string | undefined): boolean {
+    if (!link) return false;
+    return link.includes('google.com/search');
+  }
 }
 
 export const affiliateResearchService = new AffiliateResearchService();

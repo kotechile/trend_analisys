@@ -64,7 +64,7 @@ class SubtopicData(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "subtopic_001",
                 "topic": "weight loss",
@@ -86,7 +86,7 @@ class SubtopicDataResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": [

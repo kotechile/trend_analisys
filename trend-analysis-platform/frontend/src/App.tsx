@@ -12,6 +12,7 @@ import { ResearchTopic, ResearchTopicCreate, ResearchTopicStatus } from './types
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import { AuthCallback } from './components/auth/AuthCallback';
+import RegisterPage from './components/auth/RegisterPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -51,12 +52,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Research Topics component for managing research topics
 const ResearchTopics = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [topics, setTopics] = useState<ResearchTopic[]>([]);
   const [newTopic, setNewTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Subtopic management states
   const [isGeneratingSubtopics, setIsGeneratingSubtopics] = useState(false);
   const [topicSubtopics, setTopicSubtopics] = useState<Record<string, string[]>>({});
@@ -75,31 +76,47 @@ const ResearchTopics = () => {
       console.log('No user ID available, skipping topic loading');
       return;
     }
-    
+
     try {
       console.log('Loading research topics...');
       console.log('Current user:', user);
       console.log('User ID:', user?.id);
       console.log('Is authenticated:', isAuthenticated);
       setLoading(true);
-      
+
       const response = await supabaseResearchTopicsService.listResearchTopics();
       console.log('Research topics response:', response);
       setTopics(response.items);
       console.log('Set topics to:', response.items);
       console.log('Topics count:', response.items.length);
-      
+
       // Load subtopics for each topic
       if (response.items.length > 0) {
         await loadSubtopicsForTopics(response.items);
       }
-      
+
       if (response.items.length === 0) {
         console.log('No topics found - this might be due to user ID mismatch');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load topics:', err);
-      setError('Failed to load research topics. Please check your connection.');
+
+      // Check if this is an authentication error
+      if (err?.message?.includes('Authentication required') ||
+        err?.message?.includes('No authenticated user') ||
+        err?.message?.includes('Auth session missing')) {
+        console.log('Authentication error detected, logging out and redirecting to login');
+        setError('Your session has expired. Please log in again.');
+        // Logout and redirect to login
+        logout().then(() => {
+          navigate('/login');
+        }).catch(() => {
+          // If logout fails, still redirect
+          navigate('/login');
+        });
+      } else {
+        setError('Failed to load research topics. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }
@@ -107,7 +124,7 @@ const ResearchTopics = () => {
 
   const loadSubtopicsForTopics = async (topics: any[]) => {
     if (!user?.id) return;
-    
+
     try {
       for (const topic of topics) {
         try {
@@ -119,22 +136,22 @@ const ResearchTopics = () => {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(1);
-          
+
           if (error) {
             console.error(`Error loading subtopics for topic ${topic.id}:`, error);
             continue;
           }
-          
+
           if (subtopicData && subtopicData.length > 0) {
             const subtopics = subtopicData[0].subtopics || [];
             // Include the main topic as the first subtopic
             const allSubtopics = [topic.title, ...subtopics];
-            
+
             setTopicSubtopics(prev => ({
               ...prev,
               [topic.id]: allSubtopics
             }));
-            
+
             console.log(`Loaded subtopics for topic ${topic.title}:`, allSubtopics);
           } else {
             // If no subtopics found, generate them
@@ -152,7 +169,7 @@ const ResearchTopics = () => {
 
   const handleCreateTopic = async () => {
     if (!newTopic.trim()) return;
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -162,16 +179,16 @@ const ResearchTopics = () => {
         description: '', // Will be filled by LLM explosion
         status: ResearchTopicStatus.ACTIVE
       };
-      
+
       // Create the research topic (user ID will be obtained from Supabase auth)
       const createdTopic = await supabaseResearchTopicsService.createResearchTopic(topicData);
-      
+
       // Generate and save subtopics automatically
       await generateAndSaveSubtopics(newTopic, createdTopic.id);
-      
+
       setTopics(prev => [createdTopic, ...prev]);
       setNewTopic('');
-      
+
       // Show success message
       console.log('Topic created successfully:', createdTopic);
     } catch (error) {
@@ -194,33 +211,33 @@ const ResearchTopics = () => {
       `${topicTitle} future outlook`,
       `${topicTitle} comparison`
     ];
-    
+
     // Return a subset of the most relevant ones
     return baseSubtopics.slice(0, 6);
   };
 
   const generateAndSaveSubtopics = async (topic: string, topicId: string) => {
     if (!user?.id) return;
-    
+
     setIsGeneratingSubtopics(true);
-    
+
     // Import the service once at the beginning
     const { affiliateResearchService } = await import('./services/affiliateResearchService');
-    
+
     try {
       const generatedSubtopics = await affiliateResearchService.decomposeTopic(topic, user.id);
-      
+
       // Always include the main topic in the subtopics list
       const allSubtopics = [topic, ...generatedSubtopics];
-      
+
       // Update the topicSubtopics state
       setTopicSubtopics(prev => ({
         ...prev,
         [topicId]: allSubtopics
       }));
-      
+
       console.log('Generated subtopics:', allSubtopics);
-      
+
       // Automatically save subtopics to database
       try {
         await affiliateResearchService.storeSubtopics(
@@ -239,13 +256,13 @@ const ResearchTopics = () => {
       // Use intelligent fallback when LLM is unavailable
       const fallbackSubtopics = generateIntelligentFallbackSubtopics(topic);
       const allSubtopics = [topic, ...fallbackSubtopics];
-      
+
       // Update the topicSubtopics state
       setTopicSubtopics(prev => ({
         ...prev,
         [topicId]: allSubtopics
       }));
-      
+
       // Also save fallback subtopics
       try {
         await affiliateResearchService.storeSubtopics(
@@ -267,7 +284,7 @@ const ResearchTopics = () => {
   const handleDeleteTopic = async (topicId: string) => {
     const topic = topics.find(t => t.id === topicId);
     const topicTitle = topic?.title || 'this topic';
-    
+
     const confirmMessage = `⚠️ PERMANENT DELETE WARNING ⚠️
 
 Are you sure you want to delete "${topicTitle}" and ALL related data?
@@ -289,20 +306,20 @@ Type "DELETE" to confirm:`;
       console.log('Topic deletion cancelled by user');
       return;
     }
-    
+
     setError(null);
     try {
       console.log(`🗑️ Starting cascade delete for topic: ${topicTitle} (${topicId})`);
       await supabaseResearchTopicsService.deleteResearchTopic(topicId);
       setTopics(prev => prev.filter(topic => topic.id !== topicId));
-      
+
       // Remove subtopics from state
       setTopicSubtopics(prev => {
         const newState = { ...prev };
         delete newState[topicId];
         return newState;
       });
-      
+
       console.log('✅ Topic and all related data deleted successfully');
     } catch (error) {
       console.error('❌ Failed to delete topic:', error);
@@ -310,56 +327,56 @@ Type "DELETE" to confirm:`;
     }
   };
 
-      const handleNavigateToAffiliateResearch = async (topicId: string) => {
-        // Find the topic to get its subtopics
-        const topic = topics.find(t => t.id === topicId);
-        
-        console.log('handleNavigateToAffiliateResearch - navigating to /affiliate-research');
-        console.log('Current location before navigation:', window.location.pathname);
-        
-        // Load subtopics from database for this topic
-        let topicSubtopics: string[] = [];
-        if (user?.id) {
-          try {
-            // Query topic_decompositions table directly using Supabase
-            const { data, error } = await supabase
-              .from('topic_decompositions')
-              .select('subtopics, research_topic_id, user_id, created_at')
-              .eq('research_topic_id', topicId)
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(1);
+  const handleNavigateToAffiliateResearch = async (topicId: string) => {
+    // Find the topic to get its subtopics
+    const topic = topics.find(t => t.id === topicId);
 
-            if (!error && data && data.length > 0) {
-              const dbSubtopics = data[0].subtopics || [];
-              // Ensure main topic is included in navigation subtopics
-              if (!dbSubtopics.includes(topic?.title)) {
-                topicSubtopics = [topic?.title, ...dbSubtopics];
-              } else {
-                topicSubtopics = dbSubtopics;
-              }
-              console.log('Loaded subtopics for navigation:', topicSubtopics);
-            }
-          } catch (error) {
-            console.error('Failed to load subtopics for navigation:', error);
+    console.log('handleNavigateToAffiliateResearch - navigating to /affiliate-research');
+    console.log('Current location before navigation:', window.location.pathname);
+
+    // Load subtopics from database for this topic
+    let topicSubtopics: string[] = [];
+    if (user?.id) {
+      try {
+        // Query topic_decompositions table directly using Supabase
+        const { data, error } = await supabase
+          .from('topic_decompositions')
+          .select('subtopics, research_topic_id, user_id, created_at')
+          .eq('research_topic_id', topicId)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          const dbSubtopics = data[0].subtopics || [];
+          // Ensure main topic is included in navigation subtopics
+          if (!dbSubtopics.includes(topic?.title)) {
+            topicSubtopics = [topic?.title, ...dbSubtopics];
+          } else {
+            topicSubtopics = dbSubtopics;
           }
+          console.log('Loaded subtopics for navigation:', topicSubtopics);
         }
-        
-        // Navigate to affiliate research tab with selected topic ID and subtopics
-        navigate('/affiliate-research', { 
-          state: { 
-            selectedTopicId: topicId,
-            selectedTopicTitle: topic?.title,
-            subtopics: topicSubtopics.length > 0 ? topicSubtopics : undefined
-          } 
-        });
-        console.log('Navigate to affiliate research with topic ID:', topicId, 'and subtopics:', topicSubtopics);
-      };
+      } catch (error) {
+        console.error('Failed to load subtopics for navigation:', error);
+      }
+    }
+
+    // Navigate to affiliate research tab with selected topic ID and subtopics
+    navigate('/affiliate-research', {
+      state: {
+        selectedTopicId: topicId,
+        selectedTopicTitle: topic?.title,
+        subtopics: topicSubtopics.length > 0 ? topicSubtopics : undefined
+      }
+    });
+    console.log('Navigate to affiliate research with topic ID:', topicId, 'and subtopics:', topicSubtopics);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>🔬 Research Topics</Typography>
-      
+
       {/* Error Display */}
       {error && (
         <Paper sx={{ p: 2, mb: 3, backgroundColor: '#ffebee', border: '1px solid #f44336' }}>
@@ -368,7 +385,7 @@ Type "DELETE" to confirm:`;
           </Typography>
         </Paper>
       )}
-      
+
       {/* Create New Topic */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Create New Research Topic</Typography>
@@ -426,16 +443,16 @@ Type "DELETE" to confirm:`;
                         {topic.title}
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                        <Chip 
-                          label={topic.status} 
+                        <Chip
+                          label={topic.status}
                           color={topic.status === 'completed' ? 'success' : topic.status === 'active' ? 'primary' : 'default'}
-                          size="small" 
+                          size="small"
                         />
                         {topic.description && (
                           <Chip label={topic.description} variant="outlined" size="small" />
                         )}
                       </Box>
-                      
+
                       {/* Display subtopics */}
                       {subtopics.length > 0 && (
                         <Box sx={{ mb: 2 }}>
@@ -455,7 +472,7 @@ Type "DELETE" to confirm:`;
                           </Box>
                         </Box>
                       )}
-                      
+
                       <Typography variant="body2" color="text.secondary">
                         Created: {new Date(topic.created_at).toLocaleDateString()}
                       </Typography>
@@ -494,15 +511,15 @@ const AffiliateResearch = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Get selected topic from navigation state
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
     location.state?.selectedTopicId || null
   );
-  
+
   // Get passed subtopics from navigation state
   // Removed passedSubtopics - always generate fresh subtopics with LLM
-  
+
   const [researchTopics, setResearchTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<any>(null);
   const [subtopics, setSubtopics] = useState<string[]>([]);
@@ -520,7 +537,7 @@ const AffiliateResearch = () => {
     console.log('🔄 Subtopics state changed:', subtopics);
     console.log('🔍 Rendering subtopics in UI:', subtopics);
   }, [subtopics]);
-  
+
   // Subtopic management states
   const [editingSubtopics, setEditingSubtopics] = useState(false);
   const [newSubtopic, setNewSubtopic] = useState('');
@@ -539,7 +556,7 @@ const AffiliateResearch = () => {
       const topic = researchTopics.find(t => t.id === selectedTopicId);
       if (topic) {
         setSelectedTopic(topic);
-        
+
         // First check for existing subtopics in Supabase, then generate if none exist
         console.log('🔍 Checking for existing subtopics in Supabase for topic:', topic.title);
         if (user?.id) {
@@ -551,7 +568,7 @@ const AffiliateResearch = () => {
 
   const loadResearchTopics = async () => {
     if (!user?.id) return;
-    
+
     try {
       setLoading(true);
       const response = await supabaseResearchTopicsService.listResearchTopics();
@@ -566,10 +583,10 @@ const AffiliateResearch = () => {
 
   const loadSubtopicsFromDatabase = async (topicId: string) => {
     if (!user?.id || !topicId) return [];
-    
+
     try {
       console.log('Loading subtopics for topic ID:', topicId, 'user:', user.id);
-      
+
       // Query topic_decompositions table directly using Supabase
       const { data, error } = await supabase
         .from('topic_decompositions')
@@ -608,7 +625,7 @@ const AffiliateResearch = () => {
     const topic = researchTopics.find(t => t.id === topicId);
     console.log('Found topic:', topic);
     setSelectedTopic(topic);
-    
+
     // Only clear results if we're actually changing to a different topic
     if (selectedTopicId !== topicId) {
       console.log('Different topic selected, clearing previous results');
@@ -619,14 +636,14 @@ const AffiliateResearch = () => {
     } else {
       console.log('Same topic selected, keeping existing results');
     }
-    
+
     // Load existing subtopics for the selected topic
     if (topic && user?.id) {
       try {
         console.log('Loading subtopics for topic:', topic.title);
         const existingSubtopics = await loadSubtopicsFromDatabase(topic.id);
         console.log('Existing subtopics from database:', existingSubtopics);
-        
+
         if (existingSubtopics && existingSubtopics.length > 0) {
           // Use existing subtopics from database (created in the first page)
           console.log('✅ Found existing subtopics in Supabase, using them');
@@ -646,34 +663,34 @@ const AffiliateResearch = () => {
           setSubtopics([topic.title]);
           console.log('⚠️ Using only main topic as subtopic:', topic.title);
         }
-        
+
         // Load existing affiliate offers for this topic
         console.log('Loading existing affiliate offers for topic:', topic.id);
         const { affiliateResearchService } = await import('./services/affiliateResearchService');
-        
+
         // Debug: Check what's in the database
         await affiliateResearchService.debugStoredOffers(user.id);
-        
+
         // Try to migrate existing temp-session offers to this topic
         await affiliateResearchService.migrateOffersToTopicId(topic.id, user.id);
-        
+
         const existingOffers = await affiliateResearchService.loadExistingOffers(topic.id, user.id);
-        
+
         if (existingOffers && existingOffers.length > 0) {
           console.log('Found existing offers:', existingOffers.length);
-          
+
           // Load offers grouped by subtopic
           const offersBySubtopic = await affiliateResearchService.loadExistingOffersBySubtopics(topic.id, user.id);
-          
+
           // Sort offers by relevance score
-          const sortedOffers = existingOffers.sort((a, b) => 
+          const sortedOffers = existingOffers.sort((a, b) =>
             (b.relevance_score || 0) - (a.relevance_score || 0)
           );
-          
+
           setAffiliateOffers(sortedOffers);
           setOffersBySubtopic(offersBySubtopic);
           setOffersLoadedFromCache(true);
-          
+
           console.log('Loaded existing offers and grouped by subtopic');
         } else {
           console.log('No existing offers found for this topic');
@@ -692,17 +709,17 @@ const AffiliateResearch = () => {
       console.log('Missing selectedTopic or user:', { selectedTopic, user });
       return;
     }
-    
+
     try {
       console.log('Starting affiliate research for topic:', selectedTopic.title);
       setError(null);
       setLoadingSubtopics(true);
       setLoadingOffers(true);
       setIsProcessing(true);
-      
+
       // Use existing subtopics from database (created in first page)
       let searchSubtopics = subtopics;
-      
+
       if (searchSubtopics.length === 0) {
         console.log('⚠️ No existing subtopics found - this should not happen if topic was created properly in Research Topics page');
         console.log('⚠️ Using only main topic for search:', selectedTopic.title);
@@ -711,38 +728,38 @@ const AffiliateResearch = () => {
       } else {
         console.log('✅ Using existing subtopics from database:', searchSubtopics);
       }
-      
+
       // Step 2: Search for affiliate offers for ALL subtopics
       console.log('Searching for offers for all subtopics:', searchSubtopics);
-      
+
       const { affiliateResearchService } = await import('./services/affiliateResearchService');
       const offersBySubtopic = await affiliateResearchService.searchAffiliateProgramsForSubtopics(
         searchSubtopics,
         selectedTopic.title,
         user.id
       );
-      
+
       console.log('Found offers by subtopic:', offersBySubtopic);
-      
+
       // Step 3: Deduplicate and combine offers
-      const { combinedOffers, offersBySubtopic: deduplicatedOffers, duplicateMap } = 
+      const { combinedOffers, offersBySubtopic: deduplicatedOffers, duplicateMap } =
         affiliateResearchService.deduplicateOffersBySubtopics(offersBySubtopic);
-      
+
       console.log('Combined offers:', combinedOffers);
       console.log('Deduplicated offers by subtopic:', deduplicatedOffers);
       console.log('Duplicate map:', duplicateMap);
-      
+
       // Sort combined offers by relevance score (highest first)
-      const sortedOffers = combinedOffers.sort((a, b) => 
+      const sortedOffers = combinedOffers.sort((a, b) =>
         (b.relevance_score || 0) - (a.relevance_score || 0)
       );
-      
+
       setAffiliateOffers(sortedOffers);
-      
+
       // Store the offers by subtopic for display
       setOffersBySubtopic(deduplicatedOffers);
       setOffersLoadedFromCache(false); // New search, not from cache
-      
+
       // Step 4: Store affiliate offers in Supabase (optional)
       try {
         await affiliateResearchService.storeAffiliateOffers(sortedOffers, user.id, selectedTopic.id);
@@ -750,9 +767,9 @@ const AffiliateResearch = () => {
       } catch (err) {
         console.log('Affiliate offers storage failed, continuing...', err);
       }
-      
+
       console.log('Affiliate research completed successfully');
-      
+
     } catch (err) {
       console.error('Affiliate research failed:', err);
       setError(`Failed to search affiliate offers: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -767,12 +784,12 @@ const AffiliateResearch = () => {
   const handleNavigateToTrendAnalysis = () => {
     // Navigate to trend analysis tab with pre-selected topic and subtopics
     if (selectedTopic) {
-      navigate('/trend-validation', { 
-        state: { 
+      navigate('/trend-validation', {
+        state: {
           selectedTopicId: selectedTopic.id,
           selectedTopicTitle: selectedTopic.title,
           subtopics: subtopics // Pass the current subtopics
-        } 
+        }
       });
     } else {
       navigate('/trend-validation');
@@ -794,10 +811,10 @@ const AffiliateResearch = () => {
 
   const saveSubtopics = async () => {
     if (!user?.id || subtopics.length === 0 || !selectedTopic) return;
-    
+
     try {
       const { affiliateResearchService } = await import('./services/affiliateResearchService');
-      
+
       // Save subtopics to database
       await affiliateResearchService.storeSubtopics(
         subtopics.slice(1), // Exclude the main topic (first item)
@@ -805,7 +822,7 @@ const AffiliateResearch = () => {
         selectedTopic.title, // Main topic
         selectedTopic.id // Research topic ID
       );
-      
+
       console.log('Subtopics saved to database:', subtopics);
       setEditingSubtopics(false);
     } catch (error) {
@@ -818,7 +835,7 @@ const AffiliateResearch = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>🔍 Affiliate Research</Typography>
-      
+
       {/* Error Display */}
       {error && (
         <Paper sx={{ p: 2, mb: 3, backgroundColor: '#ffebee', border: '1px solid #f44336' }}>
@@ -827,7 +844,7 @@ const AffiliateResearch = () => {
           </Typography>
         </Paper>
       )}
-      
+
       {/* Research Topic Selection */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Select Research Topic</Typography>
@@ -851,7 +868,7 @@ const AffiliateResearch = () => {
             </Select>
           </FormControl>
         )}
-        
+
         {selectedTopic && (
           <Box sx={{ mt: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
             <Typography variant="subtitle1" gutterBottom>
@@ -861,10 +878,10 @@ const AffiliateResearch = () => {
               {selectedTopic.description}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Chip 
-                label={selectedTopic.status} 
+              <Chip
+                label={selectedTopic.status}
                 color={selectedTopic.status === 'completed' ? 'success' : selectedTopic.status === 'active' ? 'primary' : 'default'}
-                size="small" 
+                size="small"
               />
               <Typography variant="caption" color="text.secondary">
                 Created: {new Date(selectedTopic.created_at).toLocaleDateString()}
@@ -887,7 +904,7 @@ const AffiliateResearch = () => {
               {editingSubtopics ? 'Done Editing' : 'Edit Subtopics'}
             </Button>
           </Box>
-          
+
           {subtopics.length > 0 && (
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle1" gutterBottom>
@@ -912,7 +929,7 @@ const AffiliateResearch = () => {
               )}
             </Box>
           )}
-          
+
           {editingSubtopics && (
             <>
               {/* Add New Subtopic */}
@@ -933,7 +950,7 @@ const AffiliateResearch = () => {
                   Add
                 </Button>
               </Box>
-              
+
               {/* Action Buttons */}
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
@@ -965,11 +982,11 @@ const AffiliateResearch = () => {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>Search Affiliate Offers</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            This will search for affiliate offers related to ALL subtopics from your research topic. 
-            The system will find offers for each subtopic, deduplicate them, and show you both a combined view 
+            This will search for affiliate offers related to ALL subtopics from your research topic.
+            The system will find offers for each subtopic, deduplicate them, and show you both a combined view
             (sorted by relevance) and a grouped view by subtopic.
           </Typography>
-          
+
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <Button
               variant="contained"
@@ -978,7 +995,7 @@ const AffiliateResearch = () => {
             >
               {isProcessing ? 'Processing...' : 'Search Affiliate Offers'}
             </Button>
-            
+
             {isProcessing && (
               <Button
                 variant="outlined"
@@ -1021,10 +1038,10 @@ const AffiliateResearch = () => {
                 Found {affiliateOffers.length} Affiliate Offers
               </Typography>
               {offersLoadedFromCache && (
-                <Chip 
-                  label="Loaded from previous search" 
-                  color="info" 
-                  size="small" 
+                <Chip
+                  label="Loaded from previous search"
+                  color="info"
+                  size="small"
                   icon={<span>💾</span>}
                 />
               )}
@@ -1054,7 +1071,7 @@ const AffiliateResearch = () => {
             Offers are sorted by relevance score (how many subtopics they match). Higher scores indicate more relevant offers.
             {offersLoadedFromCache && " These offers were loaded from your previous search for this topic."}
           </Typography>
-          
+
           {/* Combined View - All Offers */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom color="primary">
@@ -1070,14 +1087,14 @@ const AffiliateResearch = () => {
                           {offer.offer_name}
                         </Typography>
                         {offer.relevance_score && (
-                          <Chip 
-                            label={`${Math.round(offer.relevance_score * 100)}% Match`} 
-                            color="primary" 
-                            size="small" 
+                          <Chip
+                            label={`${Math.round(offer.relevance_score * 100)}% Match`}
+                            color="primary"
+                            size="small"
                           />
                         )}
                       </Box>
-                      
+
                       {offer.subtopics && offer.subtopics.length > 0 && (
                         <Box sx={{ mb: 1 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
@@ -1085,10 +1102,10 @@ const AffiliateResearch = () => {
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {offer.subtopics.map((subtopic: string, idx: number) => (
-                              <Chip 
+                              <Chip
                                 key={idx}
-                                label={subtopic} 
-                                size="small" 
+                                label={subtopic}
+                                size="small"
                                 variant="outlined"
                                 color="secondary"
                               />
@@ -1096,38 +1113,43 @@ const AffiliateResearch = () => {
                           </Box>
                         </Box>
                       )}
-                      
+
                       {offer.offer_description && (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                           {offer.offer_description}
                         </Typography>
                       )}
-                      
+
                       <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
                         {offer.commission_rate && (
-                          <Chip 
-                            label={`${offer.commission_rate} Commission`} 
-                            color="success" 
-                            size="small" 
+                          <Chip
+                            label={`${offer.commission_rate} Commission`}
+                            color="success"
+                            size="small"
                           />
                         )}
-                        <Chip 
-                          label={offer.status} 
+                        <Chip
+                          label={offer.status}
                           color={offer.status === 'active' ? 'success' : 'default'}
-                          size="small" 
+                          size="small"
                         />
-                        {offer.linkup_data?.link && (
-                          <Chip 
-                            label="Visit Program" 
-                            color="primary" 
+                        {offer.offer_link && (
+                          <Chip
+                            label={offer.is_search_link ? "Search Program" : "Visit Program"}
+                            color={offer.is_search_link ? "default" : "primary"}
                             size="small"
                             clickable
-                            onClick={() => window.open(offer.linkup_data.link, '_blank')}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('🔗 Visiting link:', offer.offer_link);
+                              if (offer.offer_link) window.open(offer.offer_link, '_blank');
+                            }}
                             sx={{ cursor: 'pointer' }}
                           />
                         )}
                       </Box>
-                      
+
                       {offer.access_instructions && (
                         <Typography variant="body2" color="text.secondary">
                           <strong>Access:</strong> {offer.access_instructions}
@@ -1148,8 +1170,8 @@ const AffiliateResearch = () => {
               </Typography>
               {Object.entries(offersBySubtopic).map(([subtopic, offers]) => (
                 <Box key={subtopic} sx={{ mb: 3 }}>
-                  <Typography variant="subtitle1" gutterBottom sx={{ 
-                    color: 'primary.main', 
+                  <Typography variant="subtitle1" gutterBottom sx={{
+                    color: 'primary.main',
                     fontWeight: 'bold',
                     borderBottom: '2px solid #e0e0e0',
                     pb: 1
@@ -1171,24 +1193,29 @@ const AffiliateResearch = () => {
                             )}
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                               {offer.commission_rate && (
-                                <Chip 
-                                  label={`${offer.commission_rate} Commission`} 
-                                  color="success" 
-                                  size="small" 
+                                <Chip
+                                  label={`${offer.commission_rate} Commission`}
+                                  color="success"
+                                  size="small"
                                 />
                               )}
-                              <Chip 
-                                label={offer.status} 
+                              <Chip
+                                label={offer.status}
                                 color={offer.status === 'active' ? 'success' : 'default'}
-                                size="small" 
+                                size="small"
                               />
-                              {offer.linkup_data?.link && (
-                                <Chip 
-                                  label="Visit Program" 
-                                  color="primary" 
+                              {offer.offer_link && (
+                                <Chip
+                                  label={offer.is_search_link ? "Search Program" : "Visit Program"}
+                                  color={offer.is_search_link ? "default" : "primary"}
                                   size="small"
                                   clickable
-                                  onClick={() => window.open(offer.linkup_data.link, '_blank')}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log('🔗 Visiting link:', offer.offer_link);
+                                    if (offer.offer_link) window.open(offer.offer_link, '_blank');
+                                  }}
                                   sx={{ cursor: 'pointer' }}
                                 />
                               )}
@@ -1238,7 +1265,7 @@ const AppContent = () => {
   useEffect(() => {
     const validRoutes = ['/', '/affiliate-research', '/trend-validation', '/keywords_armoury', '/idea-burst-generation', '/settings'];
     const currentPath = location.pathname;
-    
+
     if (!validRoutes.includes(currentPath)) {
       console.log('Invalid route detected, redirecting to home:', currentPath);
       navigate('/', { replace: true });
@@ -1257,13 +1284,13 @@ const AppContent = () => {
     const currentPath = location.pathname;
     const tabIndex = routes.indexOf(currentPath);
     console.log('getCurrentTab - currentPath:', currentPath, 'tabIndex:', tabIndex, 'routes:', routes);
-    
+
     // If path not found, default to first tab (Research Topics)
     if (tabIndex === -1) {
       console.log('Path not found in routes, defaulting to tab 0');
       return 0;
     }
-    
+
     return tabIndex;
   };
 
@@ -1293,9 +1320,9 @@ const AppContent = () => {
           <Typography variant="body2" sx={{ mr: 2 }}>
             Welcome, {user?.firstName || user?.email || 'User'}
           </Typography>
-              <Button color="inherit" onClick={handleLogout}>
-                Logout
-              </Button>
+          <Button color="inherit" onClick={handleLogout}>
+            Logout
+          </Button>
         </Toolbar>
       </AppBar>
 
@@ -1303,7 +1330,7 @@ const AppContent = () => {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'white' }}>
         <Tabs
           value={getCurrentTab()}
-          onChange={handleTabChange} 
+          onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"
           sx={{ px: 2 }}
@@ -1320,15 +1347,15 @@ const AppContent = () => {
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: '#f5f5f5' }}>
         <Paper sx={{ p: 3, minHeight: '70vh' }}>
-        <Routes>
-          <Route path="/" element={<ResearchTopics />} />
-          <Route path="/affiliate-research" element={<AffiliateResearch />} />
-          <Route path="/trend-validation" element={<TrendAnalysis />} />
-          <Route path="/keywords_armoury" element={<KeywordsArmoury />} />
-          <Route path="/idea-burst" element={<EnhancedIdeaBurst />} />
-          <Route path="/idea-burst-generation" element={<IdeaBurstGeneration />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
+          <Routes>
+            <Route path="/" element={<ResearchTopics />} />
+            <Route path="/affiliate-research" element={<AffiliateResearch />} />
+            <Route path="/trend-validation" element={<TrendAnalysis />} />
+            <Route path="/keywords_armoury" element={<KeywordsArmoury />} />
+            <Route path="/idea-burst" element={<EnhancedIdeaBurst />} />
+            <Route path="/idea-burst-generation" element={<IdeaBurstGeneration />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
         </Paper>
       </Box>
     </Box>
@@ -1341,6 +1368,7 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/*" element={
           <ProtectedRoute>

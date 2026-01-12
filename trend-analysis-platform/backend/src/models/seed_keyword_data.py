@@ -83,7 +83,7 @@ class SeedKeywordData(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "seed_001",
                 "keyword": "weight loss tips",
@@ -109,7 +109,7 @@ class SeedKeywordDataResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": [

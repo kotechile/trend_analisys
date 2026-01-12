@@ -107,7 +107,7 @@ class TrendData(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "keyword": "weight loss",
                 "location": "United States",
@@ -136,7 +136,7 @@ class TrendDataResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": [
@@ -175,7 +175,7 @@ class TrendComparisonResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": [
@@ -229,7 +229,7 @@ class SubtopicSuggestionsResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "suggestions": [

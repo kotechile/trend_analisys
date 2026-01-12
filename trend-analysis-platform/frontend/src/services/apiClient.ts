@@ -95,6 +95,13 @@ export class ApiClient {
       const response = await this.client.request<T>(config);
       return { success: true, data: response.data };
     } catch (error) {
+      // Log the full error for debugging
+      console.error('🔍 ApiClient - Request error:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError;
+        console.error('🔍 ApiClient - Error response data:', axiosError.response?.data);
+        console.error('🔍 ApiClient - Error response status:', axiosError.response?.status);
+      }
       return {
         success: false,
         error: error as ApiError,

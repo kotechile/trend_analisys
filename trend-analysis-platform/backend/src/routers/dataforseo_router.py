@@ -551,10 +551,16 @@ async def store_keyword_data(
         
         if success:
             logger.info(f"Successfully stored {len(keywords)} keywords in Supabase")
+            # Fetch the updated full list of keywords for this topic
+            all_keywords = await dataforseo_repository.get_keywords_by_topic_and_user(topic_id, user_id)
+            logger.info(f"Retrieved {len(all_keywords)} total keywords for topic {topic_id} after merge")
+            
             return {
                 "success": True,
-                "message": f"Successfully stored {len(keywords)} keywords",
+                "message": f"Successfully stored {len(keywords)} keywords and retrieved {len(all_keywords)} total",
                 "count": len(keywords),
+                "total_count": len(all_keywords),
+                "keywords": all_keywords,
                 "topic_id": topic_id,
                 "user_id": user_id
             }

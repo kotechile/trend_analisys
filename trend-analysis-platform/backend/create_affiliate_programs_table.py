@@ -5,18 +5,23 @@ Create affiliate_programs table in Supabase
 
 import os
 import sys
-from supabase import create_client, Client
+from pathlib import Path
 
 # Add the src directory to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from core.config import settings
+from src.core.supabase_singleton import get_supabase_client
+from src.core.config import validate_supabase_config
 
 def create_affiliate_programs_table():
     """Create the affiliate_programs table in Supabase"""
     
-    # Initialize Supabase client
-    supabase: Client = create_client(settings.supabase_url, settings.supabase_service_key)
+    try:
+        validate_supabase_config()
+        supabase = get_supabase_client()
+    except ValueError as e:
+        print(f"❌ Supabase configuration error: {e}")
+        return False
     
     # SQL to create the affiliate_programs table
     create_table_sql = """

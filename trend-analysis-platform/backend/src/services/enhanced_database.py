@@ -4,8 +4,8 @@ Enhanced database service using Supabase SDK for Ahrefs integration
 
 import logging
 from typing import Dict, List, Any, Optional
-from supabase import create_client, Client
-from ..config import settings
+from supabase import Client
+from ..core.supabase_singleton import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +13,7 @@ class EnhancedDatabaseService:
     """Enhanced database service using Supabase SDK for Ahrefs integration"""
     
     def __init__(self):
-        self.supabase: Client = create_client(
-            settings.supabase_url,
-            settings.supabase_key
-        )
+        self.supabase: Client = get_supabase_client()
     
     async def save_ahrefs_analysis(self, analysis_data: Dict[str, Any]) -> str:
         """Save Ahrefs analysis data to Supabase"""

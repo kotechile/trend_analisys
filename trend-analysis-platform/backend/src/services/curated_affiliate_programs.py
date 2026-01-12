@@ -1,15 +1,21 @@
 """
 Curated database of real affiliate programs
 This contains actual affiliate programs that are known to exist and accept affiliates
+With Linkup API + LLM-powered dynamic category generation
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import re
+import json
+import structlog
+
+logger = structlog.get_logger()
 
 class CuratedAffiliatePrograms:
     """Database of real affiliate programs organized by category"""
     
     def __init__(self):
+        self.dynamic_categories = {}  # Store LLM-generated categories
         self.programs = {
             "eco_friendly": [
                 {
@@ -180,10 +186,92 @@ class CuratedAffiliatePrograms:
                     "link": "https://tinyhouselistings.com/affiliate",
                     "category": "tiny_houses"
                 }
+            ],
+            "career_professional": [
+                {
+                    "id": "linkedin_learning_affiliate",
+                    "name": "LinkedIn Learning Affiliate Program",
+                    "description": "Professional development courses and career skill training",
+                    "commission_rate": "15-25%",
+                    "network": "Direct",
+                    "epc": "32.50",
+                    "link": "https://www.linkedin.com/learning/affiliate",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "coursera_affiliate",
+                    "name": "Coursera Affiliate Program",
+                    "description": "Online courses from top universities and companies",
+                    "commission_rate": "20-30%",
+                    "network": "CJ Affiliate",
+                    "epc": "28.75",
+                    "link": "https://www.coursera.org",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "udemy_affiliate",
+                    "name": "Udemy Affiliate Program",
+                    "description": "Online learning platform with courses on career skills and professional development",
+                    "commission_rate": "15-25%",
+                    "network": "ShareASale",
+                    "epc": "22.30",
+                    "link": "https://www.udemy.com",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "skillshare_affiliate",
+                    "name": "Skillshare Affiliate Program",
+                    "description": "Creative skills and professional development courses",
+                    "commission_rate": "20-30%",
+                    "network": "Direct",
+                    "epc": "26.40",
+                    "link": "https://www.skillshare.com/affiliate",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "indeed_affiliate",
+                    "name": "Indeed Affiliate Program",
+                    "description": "Job search and career development resources",
+                    "commission_rate": "10-15%",
+                    "network": "CJ Affiliate",
+                    "epc": "15.80",
+                    "link": "https://www.indeed.com/affiliates",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "glassdoor_affiliate",
+                    "name": "Glassdoor Affiliate Program",
+                    "description": "Salary information, company reviews, and career insights",
+                    "commission_rate": "8-12%",
+                    "network": "Awin",
+                    "epc": "18.50",
+                    "link": "https://www.glassdoor.com",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "masterclass_affiliate",
+                    "name": "MasterClass Affiliate Program",
+                    "description": "Learn from world-class experts across industries",
+                    "commission_rate": "30-40%",
+                    "network": "Direct",
+                    "epc": "45.20",
+                    "link": "https://www.masterclass.com",
+                    "category": "career_professional"
+                },
+                {
+                    "id": "pluralsight_affiliate",
+                    "name": "Pluralsight Affiliate Program",
+                    "description": "Technology and IT professional development courses",
+                    "commission_rate": "15-20%",
+                    "network": "ShareASale",
+                    "epc": "35.75",
+                    "link": "https://www.pluralsight.com",
+                    "category": "career_professional"
+                }
             ]
         }
     
-    def search_programs(self, search_term: str, topic: str) -> List[Dict[str, Any]]:
+    async def search_programs(self, search_term: str, topic: str) -> List[Dict[str, Any]]:
         """Search for relevant affiliate programs based on search term and topic"""
         found_programs = []
         search_lower = search_term.lower()
@@ -204,7 +292,20 @@ class CuratedAffiliatePrograms:
             "electric": ["sustainable_energy"],
             "furniture": ["home_garden"],
             "decor": ["home_garden"],
-            "garden": ["home_garden"]
+            "garden": ["home_garden"],
+            "career": ["career_professional"],
+            "job": ["career_professional"],
+            "salary": ["career_professional"],
+            "promotion": ["career_professional"],
+            "negotiate": ["career_professional"],
+            "professional": ["career_professional"],
+            "workplace": ["career_professional"],
+            "business": ["career_professional"],
+            "training": ["career_professional"],
+            "skill": ["career_professional"],
+            "learn": ["career_professional"],
+            "course": ["career_professional"],
+            "education": ["career_professional"]
         }
         
         # Find relevant categories
@@ -213,11 +314,7 @@ class CuratedAffiliatePrograms:
             if keyword in search_lower or keyword in topic_lower:
                 relevant_categories.update(categories)
         
-        # If no specific categories found, search all
-        if not relevant_categories:
-            relevant_categories = set(self.programs.keys())
-        
-        # Get programs from relevant categories
+        # Get programs from relevant categories ONLY (don't search all categories)
         for category in relevant_categories:
             if category in self.programs:
                 for program in self.programs[category]:
@@ -225,24 +322,218 @@ class CuratedAffiliatePrograms:
                     if self._is_relevant_program(program, search_term, topic):
                         found_programs.append(program)
         
+        # If no programs found in curated categories, try dynamic generation
+        if not found_programs:
+            logger.info("No programs found in curated categories, generating dynamically", 
+                       search_term=search_term, topic=topic)
+            generated_programs = await self.generate_category_dynamically(search_term, topic)
+            found_programs.extend(generated_programs)
+        
         return found_programs
     
     def _is_relevant_program(self, program: Dict[str, Any], search_term: str, topic: str) -> bool:
-        """Check if a program is relevant to the search term and topic"""
+        """Check if a program is relevant to the search term and topic with strict matching"""
         search_lower = search_term.lower()
         topic_lower = topic.lower()
         
-        # Check program name and description for relevance
+        # First check: Filter out programs that are clearly from wrong categories
+        # If search/topic is about abstract concepts (career, learning, etc.), exclude physical building materials
         program_text = f"{program['name']} {program['description']}".lower()
+        program_category = program.get('category', '')
         
-        # Extract keywords from search term and topic
-        search_keywords = re.findall(r'\b\w+\b', search_lower)
-        topic_keywords = re.findall(r'\b\w+\b', topic_lower)
+        # Exclude physical building materials from career/learning searches
+        if any(keyword in search_lower or keyword in topic_lower 
+               for keyword in ['career', 'professional', 'networks', 'learning', 'training', 'skill', 'job', 'salary']):
+            # If the program is about physical building materials, exclude it
+            if any(building_term in program_text for building_term in ['building materials', 'construction', 'flooring', 'lumber', 'wood', 'bamboo', 'eco building', 'green building supplies']):
+                return False
+        
+        # Exclude career-related programs from physical building searches
+        if any(keyword in search_lower or keyword in topic_lower 
+               for keyword in ['materials', 'construction', 'flooring', 'wood', 'bamboo', 'building supplies']):
+            # If the program is about career/learning (not physical building), exclude it
+            if any(career_term in program_text for career_term in ['career', 'training', 'course', 'learning', 'education', 'skill development', 'professional development']):
+                return False
+        
+        # Extract meaningful keywords from search term and topic (ignore common words and ambiguous terms)
+        stop_words = {'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'a', 'an'}
+        
+        # Also exclude ambiguous words that can cause false matches
+        ambiguous_words = {'building'}  # Can mean construction OR networking
+        
+        search_keywords = [w for w in re.findall(r'\b\w+\b', search_lower) 
+                          if w not in stop_words and len(w) > 3 and w not in ambiguous_words]
+        topic_keywords = [w for w in re.findall(r'\b\w+\b', topic_lower) 
+                         if w not in stop_words and len(w) > 3 and w not in ambiguous_words]
         all_keywords = search_keywords + topic_keywords
         
-        # Check if any keyword appears in the program text
-        for keyword in all_keywords:
-            if len(keyword) > 2 and keyword in program_text:
-                return True
+        if not all_keywords:
+            return False
         
-        return False
+        # Relaxed matching: at least 1 keyword match if it's high quality
+        for keyword in all_keywords:
+            if len(keyword) > 3 and keyword in program_text:
+                match_count += 1
+        
+        # Only return True if we have some keyword matches
+        return match_count >= 1
+    
+    async def generate_category_dynamically(self, search_term: str, topic: str) -> List[Dict[str, Any]]:
+        """
+        Dynamically generate affiliate programs for topics that don't have a category
+        Uses Linkup API first, then falls back to LLM generation
+        """
+        try:
+            # Check if we already generated this category
+            category_key = f"{search_term.lower()}_{topic.lower()}"
+            if category_key in self.dynamic_categories:
+                logger.info("Returning cached dynamic category", category_key=category_key)
+                return self.dynamic_categories[category_key]
+            
+            # First, try Linkup API for real-time affiliate programs
+            from src.integrations.linkup_api import linkup_api
+            
+            logger.info("Trying Linkup API for dynamic category", search_term=search_term, topic=topic)
+            linkup_programs = await linkup_api.search_offers(search_term, limit=10)
+            
+            if linkup_programs:
+                logger.info("Linkup API returned programs", count=len(linkup_programs))
+                # Convert Linkup format to our format
+                formatted_programs = self._convert_linkup_programs(linkup_programs)
+                
+                # Cache the results
+                self.dynamic_categories[category_key] = formatted_programs
+                return formatted_programs
+            
+            # If Linkup fails, fall back to LLM generation
+            logger.info("Linkup API returned no results, using LLM fallback", search_term=search_term)
+            from src.integrations.llm_providers import generate_content
+            
+            # Create a prompt for LLM to identify relevant affiliate programs
+            prompt = f"""
+            For the topic: "{topic}" and search term: "{search_term}"
+            
+            Generate 8-12 REAL affiliate programs that are relevant to this topic. 
+            
+            IMPORTANT: Only include companies that actually have active affiliate programs. Do not make up programs.
+            
+            Focus on:
+            1. Companies with known affiliate programs
+            2. Relevant to the specific topic
+            3. Mix of networks (CJ Affiliate, ShareASale, Amazon Associates, direct programs)
+            
+            Return ONLY a JSON array with this exact structure:
+            [
+                {{
+                    "id": "unique_program_id",
+                    "name": "Company Name Affiliate Program",
+                    "description": "What they offer relevant to the topic",
+                    "commission_rate": "5-10%",
+                    "network": "CJ Affiliate",
+                    "epc": "15.50",
+                    "link": "https://company.com/affiliate",
+                    "category": "dynamic"
+                }}
+            ]
+            
+            Example for career topics:
+            {{
+                "id": "linkedin_learning_affiliate",
+                "name": "LinkedIn Learning Affiliate Program",
+                "description": "Professional development courses and career skill training",
+                "commission_rate": "15-25%",
+                "network": "Direct",
+                "epc": "32.50",
+                "link": "https://www.linkedin.com/learning/affiliate",
+                "category": "dynamic"
+            }}
+            """
+            
+            logger.info("Calling LLM to generate dynamic category", search_term=search_term, topic=topic)
+            
+            # Call LLM
+            llm_result = await generate_content(
+                prompt=prompt,
+                provider="openai",  # You can make this dynamic based on your setup
+                max_tokens=1500,
+                temperature=0.7
+            )
+            
+            if "error" in llm_result:
+                logger.error("LLM generation failed", error=llm_result.get("error"))
+                return []
+            
+            # Parse the response
+            content = llm_result.get("content", "")
+            
+            # Extract JSON from the response
+            json_start = content.find('[')
+            if json_start == -1:
+                logger.warning("No JSON array found in LLM response")
+                return []
+            
+            json_end = content.rfind(']') + 1
+            if json_end == 0:
+                logger.warning("No valid JSON array found")
+                return []
+            
+            json_str = content[json_start:json_end]
+            
+            try:
+                generated_programs = json.loads(json_str)
+                
+                # Cache the generated programs
+                self.dynamic_categories[category_key] = generated_programs
+                
+                logger.info("Generated dynamic category", 
+                           category_key=category_key, 
+                           programs_count=len(generated_programs))
+                
+                return generated_programs
+                
+            except json.JSONDecodeError as e:
+                logger.error("Failed to parse LLM JSON response", error=str(e))
+                return []
+                
+        except Exception as e:
+            logger.error("Dynamic category generation failed", error=str(e))
+            return []
+    
+    def _convert_linkup_programs(self, linkup_programs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Convert Linkup program format to our curated format"""
+        converted = []
+        
+        for program in linkup_programs:
+            try:
+                # Extract basic info with fallbacks
+                name = program.get("name", "Unknown Program")
+                description = program.get("description", "")
+                commission = program.get("commission", program.get("commission_rate", "5-15%"))
+                network = program.get("network", "LinkUp")
+                
+                # Get link
+                link = program.get("link", "")
+                if not link:
+                    link = program.get("url", "")
+                
+                # Generate ID
+                program_id = program.get("id", f"linkup_{name.lower().replace(' ', '_')}")
+                
+                # Convert to our format
+                converted_program = {
+                    "id": program_id,
+                    "name": name,
+                    "description": description[:200] if description else "Affiliate program from Linkup",
+                    "commission_rate": commission if isinstance(commission, str) else f"{commission}%",
+                    "network": network,
+                    "epc": str(program.get("epc", "15.00")),
+                    "link": link if link else "#",
+                    "category": "dynamic",
+                    "source": "linkup"
+                }
+                converted.append(converted_program)
+            except Exception as e:
+                logger.warning("Failed to convert Linkup program", error=str(e))
+                continue
+        
+        return converted

@@ -15,6 +15,8 @@ from ..core.database import get_db
 from ..core.redis import cache
 from ..core.config import get_settings
 from ..models.keyword_data import KeywordData, KeywordStatus, KeywordSource
+from ..core.supabase_singleton import get_supabase_client
+import httpx
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -462,88 +464,301 @@ class KeywordService:
             logger.error("Failed to get keyword analytics", keyword_data_id=keyword_data_id, error=str(e))
             raise
 
-    async def generate_keywords_with_llm(self, subtopics: List[str], topic_title: str, user_id: int) -> List[str]:
+    async def generate_keywords_with_llm(self, subtopics: List[str], topic_title: str, user_id: Any) -> List[str]:
         """Generate keywords using LLM based on subtopics"""
         try:
-            logger.info("Generating keywords with LLM", 
-                       user_id=user_id, 
+            logger.info(f"Generating keywords with LLM for user {user_id}", 
                        topic_title=topic_title,
                        subtopics_count=len(subtopics))
             
-            # Use OpenAI API to generate keywords
-            import openai
-            import os
+            # Fetch active LLM provider and API key from database
+            try:
+                supabase = get_supabase_client()
+            except Exception as e:
+                logger.error(f"Failed to get Supabase client: {e}")
+                raise ValueError(f"Database connection failed: {e}")
             
-            # Get OpenAI API key from environment
-            openai_api_key = os.getenv('OPENAI_API_KEY')
-            if not openai_api_key:
-                raise ValueError("OPENAI_API_KEY environment variable not set")
+            # Get active provider
+            try:
+                provider_response = supabase.table('llm_providers').select('*').eq('is_active', True).execute()
+            except Exception as e:
+                logger.error(f"Failed to query llm_providers: {e}")
+                raise ValueError(f"Failed to fetch LLM settings: {e}")
+
+            if not provider_response.data:
+                logger.error("No active LLM provider found in llm_providers table")
+                raise ValueError("No active LLM provider found. Please configure a provider in settings.")
             
-            # Initialize OpenAI client
-            client = openai.OpenAI(api_key=openai_api_key)
+            active_provider = provider_response.data[0]
+            # Schema correction: provider_type column does not exist
+            # provider_type = active_provider.get('provider_type') 
+            model_name = active_provider.get('model_name') or active_provider.get('name')
             
-            # Create prompt for keyword generation
+            if not model_name:
+                 raise ValueError("Active LLM provider has no model name configured")
+
+            # Infer provider from model name
+            provider_type = 'openai' # Default
+            model_lower = model_name.lower()
+            
+            if 'gpt' in model_lower:
+                provider_type = 'openai'
+            elif 'deepseek' in model_lower:
+                provider_type = 'deepseek'
+            elif 'gemini' in model_lower or 'google' in model_lower:
+                provider_type = 'gemini' 
+            elif 'claude' in model_lower:
+                provider_type = 'anthropic'
+            elif 'kimi' in model_lower or 'moonshoot' in model_lower:
+                provider_type = 'moonshoot'
+                
+            logger.info(f"Inferred provider '{provider_type}' from model '{model_name}'")
+            
+            logger.info(f"Using provider: {provider_type}, model: {model_name}")
+
+            # Try to get API key using Foreign Key (api_keys_id)
+            # User correction: field is api_keys_id
+            api_key_id = active_provider.get('api_keys_id') or active_provider.get('api_key_id')
+            api_key = None
+            
+            if api_key_id:
+                try:
+                    logger.info(f"Attempting to fetch API key using ID: {api_key_id}")
+                    id_response = supabase.table('api_keys').select('key_value').eq('id', api_key_id).execute()
+                    if id_response.data:
+                        api_key = id_response.data[0]['key_value']
+                        logger.info("Successfully fetched API key via Foreign Key")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch API key by ID {api_key_id}: {e}")
+
+            # Fallback: Get API key for the inferred provider type if ID lookup failed
+            if not api_key:
+                logger.info(f"Falling back to provider-based key lookup for: {provider_type}")
+                try:
+                    # Try exact match first
+                    key_response = supabase.table('api_keys').select('key_value').eq('provider', provider_type).eq('is_active', True).execute()
+                    
+                    # If failed and provider is gemini/google, try the other
+                    if not key_response.data and provider_type in ['gemini', 'google', 'Google']:
+                        alt_provider = 'Google' if provider_type == 'gemini' else 'gemini'
+                        logger.info(f"Retrying API key fetch with alternative provider name: {alt_provider}")
+                        key_response = supabase.table('api_keys').select('key_value').eq('provider', alt_provider).eq('is_active', True).execute()
+                    
+                    # Also try capitalized version if lowercase failed
+                    if not key_response.data:
+                         key_response = supabase.table('api_keys').select('key_value').eq('provider', provider_type.capitalize()).eq('is_active', True).execute()
+                    
+                    if key_response.data:
+                        api_key = key_response.data[0]['key_value']
+                         
+                except Exception as e:
+                    logger.error(f"Failed to query api_keys for provider {provider_type}: {e}")
+                    raise ValueError(f"Failed to fetch API key: {e}")
+
+            if not api_key:
+                logger.error(f"No active API key found for provider: {provider_type}")
+                raise ValueError(f"No active API key found for {provider_type}. Please check settings.")
+            
+            # Create prompt
             subtopics_text = "\n".join([f"- {subtopic}" for subtopic in subtopics])
-            
             prompt = f"""
-            Generate high-quality seed keywords for the following subtopics related to "{topic_title}".
+You are an expert SEO keyword researcher. Generate high-quality seed keywords for the topic "{topic_title}" based on the following subtopics:
+
+Subtopics:
+{subtopics_text}
+
+Use the following modifiers to ensure variety and intent targeting:
+| Category | Modifiers to Use | Best For... |
+| :--- | :--- | :--- |
+| **Informational** | How to, What is, Guide, Tutorial, Tips, Ideas, Examples, Case Study, Why, History of | Educational blog posts and "How-to" articles. |
+| **Commercial** | Best, Top, Review, Vs, Comparison, Alternative, Rated, Features, Pros and Cons | Product roundups and decision-making content. |
+| **Transactional** | Buy, Order, Discount, Deal, Price, Cheap, Luxury, Premium, Free Shipping, Coupon | E-commerce descriptions and sales pages. |
+| **Time-Sensitive** | 2026, Latest, New, Updated, Seasonal, Modern, Future of, Trending | News-style articles or yearly "best of" lists. |
+| **Audience-Specific** | For Beginners, For Small Businesses, For Seniors, For Professionals, For Kids | Niche content that speaks to a specific persona. |
+| **Location-Based** | Near me, [City Name], Local, Online, Worldwide | Local SEO and service-based articles. |
+| **Outcome-Based** | Fast, Easy, Simple, Budget-friendly, Sustainable, Advanced, Step-by-step | Emphasizing the benefit or ease of a solution. |
+
+CRITICAL REQUIREMENTS:
+1. Generate approximately 30-40 seed keywords TOTAL (not per subtopic)
+2. Create a BALANCED MIX across all subtopics and INTENTS (using the modifiers above):
+   - ~33% single-word keywords (core terms)
+   - ~33% two-word keywords (phrases)
+   - ~33% three-word keywords (specific searches)
+3. MAXIMUM 3 words per keyword - NO EXCEPTIONS
+4. Generate keywords that capture the main idea of EACH subtopic, not random variations
+5. Focus on foundational seed keywords perfect for further research in DataForSEO
+6. Keywords should be commercial and affiliate-friendly
+7. Use your intelligence to choose the best 1-3 word representation of each subtopic's core concept
+8. Do NOT truncate subtopics mechanically - choose the most powerful keywords naturally. APPLY MODIFIERS where they make sense to increase intent precision.
+
+DO NOT:
+- Generate the same keyword multiple times
+- Create variations just by adding "guide", "tips", "best" - be more strategic
+- Use subtopic names verbatim if they're too long
+- Apply arbitrary truncation rules
+
+DO:
+- Use your knowledge to select the most valuable seed keywords
+- Create a diverse mix of keyword lengths (1, 2, 3 words)
+- Ensure each keyword represents a core concept from the subtopics
+- Think about what searchers would actually type
+- **INTEGRATE MODIFIERS**: Use the modifiers list to create specific, high-intent keywords.
+
+Format: Return ONLY keywords, one per line, no numbering, bullets, or explanations.
+"""
             
-            Requirements:
-            - Maximum 3 words per keyword
-            - Focus on search intent and commercial value
-            - Include both short-tail and long-tail keywords
-            - Avoid generic or overly broad terms
-            - Prioritize keywords that would be useful for content creation
+            content = ""
             
-            Subtopics:
-            {subtopics_text}
+            # Call appropriate LLM provider
+            if provider_type == "openai":
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": model_name,
+                            "messages": [
+                                {"role": "system", "content": "You are a professional SEO keyword researcher."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "max_tokens": 1000,
+                            "temperature": 0.7
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    
+            elif provider_type == "deepseek":
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    response = await client.post(
+                        "https://api.deepseek.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": model_name,
+                            "messages": [
+                                {"role": "system", "content": "You are a professional SEO keyword researcher."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "max_tokens": 1000,
+                            "temperature": 0.7
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+
+            elif provider_type in ["gemini", "google"]:
+                # Google Gemini API
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    # Normalize model name if needed (e.g. ensure 'gemini-pro' not 'google/gemini-pro')
+                    clean_model = model_name.split('/')[-1] if '/' in model_name else model_name
+                    
+                    response = await client.post(
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent",
+                        params={"key": api_key},
+                        headers={"Content-Type": "application/json"},
+                        json={
+                            "contents": [{
+                                "parts": [{"text": f"You are a professional SEO keyword researcher.\n\n{prompt}"}]
+                            }]
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    # Extract text from Gemini response
+                    try:
+                        content = data["candidates"][0]["content"]["parts"][0]["text"]
+                    except (KeyError, IndexError, TypeError):
+                        logger.error(f"Unexpected Gemini response format: {data}")
+                        raise ValueError("Failed to parse Gemini response")
+
+            elif provider_type in ["moonshoot", "kimi"]:
+                # Moonshot / Kimi API (OpenAI compatible)
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    response = await client.post(
+                        "https://api.moonshot.cn/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": model_name,
+                            "messages": [
+                                {"role": "system", "content": "You are a professional SEO keyword researcher."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "max_tokens": 1000,
+                            "temperature": 0.7
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
             
-            Generate 10-15 keywords for each subtopic. Return ONLY a simple list of keywords, one per line, without any explanations, formatting, or subtopic headers.
+            elif provider_type == "anthropic":
+                # Anthropic Claude API
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                     response = await client.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={
+                            "x-api-key": api_key,
+                            "anthropic-version": "2023-06-01",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": model_name,
+                            "messages": [
+                                {"role": "user", "content": f"You are a professional SEO keyword researcher.\n\n{prompt}"}
+                            ],
+                            "max_tokens": 1000,
+                            "temperature": 0.7
+                        }
+                    )
+                     response.raise_for_status()
+                     data = response.json()
+                     content = data["content"][0]["text"]
+                    
+            else:
+                # Fallback implementation or error for unsupported providers
+                raise ValueError(f"Provider {provider_type} not implemented for keyword generation")
             
-            Example format:
-            solar panels
-            renewable energy
-            clean energy
-            solar installation
-            """
-            
-            # Call OpenAI API
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a professional SEO keyword researcher. Generate high-quality, targeted keywords for content marketing."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2000,
-                temperature=0.7
-            )
-            
-            # Parse response
-            keywords_text = response.choices[0].message.content.strip()
-            
-            # Split by lines and clean up
+            # Parse keywords from response
             keywords = []
-            for line in keywords_text.split('\n'):
+            for line in content.strip().split('\n'):
                 line = line.strip()
-                # Skip empty lines and lines that look like headers (contain colons)
-                if line and ':' not in line and not line.startswith('-') and not line.startswith('*'):
-                    # Remove any numbering or bullet points
-                    clean_line = line.lstrip('0123456789.-* ').strip()
-                    if clean_line:
-                        keywords.append(clean_line)
+                if line and not line.startswith('#') and not line.startswith('Example'):
+                    # Clean up the keyword
+                    keyword = line.replace('•', '').replace('-', '').replace('*', '').strip()
+                    # Remove any line numbers, bullets, or other formatting
+                    keyword = keyword.lstrip('0123456789.)').strip()
+                    if keyword and len(keyword) > 1:
+                        # Filter out keywords longer than 3 words
+                        word_count = len(keyword.split())
+                        if word_count <= 3:
+                            keywords.append(keyword)
             
-            # Filter to ensure max 3 words and remove duplicates
-            filtered_keywords = []
+            # Remove duplicates while preserving order and limit to 50
             seen = set()
+            filtered_keywords = []
             for keyword in keywords:
-                if len(keyword.split()) <= 3 and keyword.lower() not in seen:
+                if keyword.lower() not in seen:
                     filtered_keywords.append(keyword)
                     seen.add(keyword.lower())
+            
+            filtered_keywords = filtered_keywords[:50]
             
             logger.info("Keywords generated successfully with LLM", 
                        user_id=user_id, 
                        keywords_count=len(filtered_keywords),
-                       subtopics_processed=len(subtopics))
+                       provider=provider_type,
+                       model=model_name)
             
             return filtered_keywords
             

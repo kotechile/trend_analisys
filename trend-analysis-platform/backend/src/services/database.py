@@ -3,12 +3,12 @@ Database Service
 Service for managing database connections and operations with Supabase.
 """
 
-import os
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime, timedelta
 import json
 import pandas as pd
-from supabase import create_client, Client
+from supabase import Client
+from ..core.supabase_singleton import get_supabase_client
 from ..models.keyword import Keyword
 from ..models.analysis_report import KeywordAnalysisReport
 from ..models.content_opportunity import ContentOpportunity
@@ -19,14 +19,8 @@ from ..models.selection_indicator import SelectionIndicator
 
 class DatabaseService:
     def __init__(self):
-        """Initialize database connection to Supabase."""
-        self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_ANON_KEY")
-        
-        if not self.supabase_url or not self.supabase_key:
-            raise ValueError("Supabase URL and key must be provided")
-        
-        self.client: Client = create_client(self.supabase_url, self.supabase_key)
+        """Initialize database connection to Supabase using singleton."""
+        self.client: Client = get_supabase_client()
     
     # Keyword operations
     async def save_keywords(self, keywords: List[Keyword]) -> bool:

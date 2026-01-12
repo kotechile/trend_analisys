@@ -9,13 +9,13 @@ import hashlib
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import structlog
-from ..core.supabase_database import get_supabase_db
-from ..core.redis import cache
-from ..core.llm_config import LLMConfigManager
+from src.core.supabase_database import get_supabase_db
+from src.core.redis import cache
+from src.core.llm_config import LLMConfigManager
 from .web_search_service import WebSearchService
 # Import LinkUp API directly to avoid relative import issues
 try:
-    from integrations.linkup_api import linkup_api
+    from src.integrations.linkup_api import linkup_api
 except ImportError:
     # Fallback if LinkUp API is not available
     linkup_api = None
@@ -152,88 +152,99 @@ class AffiliateResearchService:
                        db_programs_found=len(programs))
             
             # Analyze search term with LLM
+            print(f"DEBUG: Analyzing search term '{search_term}' with LLM...")
             analysis_result = await self._analyze_search_term(search_term, llm_config)
+            print(f"DEBUG: Analysis result category: {analysis_result.get('category')}")
+            
+            # Extract programs from LLM analysis result and add them to our list
+            analysed_programs = analysis_result.get('affiliate_programs', [])
+            print(f"DEBUG: Found {len(analysed_programs)} programs in LLM analysis")
+            if analysed_programs:
+                # Format them correctly if needed
+                formatted_analysed = []
+                for p in analysed_programs:
+                    formatted_analysed.append({
+                        "id": f"analysed_{hash(p.get('name', ''))}",
+                        "name": p.get('name'),
+                        "description": p.get('description'),
+                        "commission_rate": p.get('commission'),
+                        "network": p.get('network', 'Various'),
+                        "link": p.get('link', ''),
+                        "source": "llm_analysis"
+                    })
+                programs.extend(formatted_analysed)
+                logger.info("Added programs from LLM analysis", count=len(formatted_analysed))
             
             # If we don't have enough relevant programs, search LinkUp.so
             relevant_programs = [p for p in programs if self._is_relevant_program(p, search_term)]
+            print(f"DEBUG: Relevant programs before external search: {len(relevant_programs)}")
             logger.info("Program relevance check", 
                        search_term=search_term, 
-                       total_programs=len(programs),
-                       relevant_programs=len(relevant_programs))
+                       total_programs=len(programs), 
+                       relevant_count=len(relevant_programs))
             
-            # Try LinkUp.so, Real Affiliate Search, and LLM with timeout handling
-            # Always search for additional programs to get the most comprehensive results
-            if True:  # Always search for additional programs
-                logger.info("Searching for additional programs", 
-                           search_term=search_term, found_programs=len(programs))
+            if len(relevant_programs) < 3:
+                print(f"DEBUG: Low relevant programs ({len(relevant_programs)}), starting external searches for '{search_term}'...")
+                # Start searches in parallel
+                tasks = []
                 
-                # Run all searches in parallel with timeout
-                try:
-                    # Create tasks for parallel execution
-                    tasks = []
-                    
-                    # LinkUp.so search task
+                if linkup_api:
+                    print("DEBUG: Creating LinkUp search task...")
                     linkup_task = asyncio.create_task(
                         self._safe_linkup_search(search_term, analysis_result.get('category'))
                     )
-                    tasks.append(('linkup', linkup_task))
-                    
-                    # Real Affiliate Search task (web scraping)
-                    real_search_task = asyncio.create_task(
-                        self._safe_real_affiliate_search(search_term, analysis_result.get('category'))
-                    )
-                    tasks.append(('real_search', real_search_task))
-                    
-                    # LLM search task
-                    llm_task = asyncio.create_task(
-                        self._safe_llm_search(search_term, analysis_result.get('category'))
-                    )
-                    tasks.append(('llm', llm_task))
-                    
-                    # Wait for all tasks with timeout
-                    results = await asyncio.wait_for(
-                        asyncio.gather(*[task for _, task in tasks], return_exceptions=True),
-                        timeout=60.0  # 60 second timeout for all searches
-                    )
-                    
-                    # Process LinkUp.so results
-                    linkup_programs = results[0] if not isinstance(results[0], Exception) else []
-                    if linkup_programs:
-                        quality_programs = [p for p in linkup_programs if self._is_quality_program(p)]
-                        if quality_programs:
-                            programs.extend(quality_programs)
-                            logger.info("LinkUp.so search completed", 
-                                       linkup_programs_found=len(quality_programs), 
-                                       total_programs=len(programs))
-                    
-                    # Process Real Affiliate Search results (web scraping)
-                    real_search_programs = results[1] if not isinstance(results[1], Exception) else []
-                    if real_search_programs:
-                        programs.extend(real_search_programs)
-                        logger.info("Real affiliate search completed", 
-                                   real_search_programs_found=len(real_search_programs), 
-                                   total_programs=len(programs))
-                    
-                    # Process LLM results
-                    llm_programs = results[2] if not isinstance(results[2], Exception) else []
-                    if llm_programs:
-                        programs.extend(llm_programs)
-                        logger.info("LLM search completed", 
-                                   llm_programs_found=len(llm_programs), 
-                                   total_programs=len(programs))
-                    
-                    # Deduplicate and consolidate affiliate programs
+                    tasks.append(linkup_task)
+                else:
+                    print("DEBUG: LinkUp API not available, skipping.")
+                
+                print("DEBUG: Creating Real Affiliate Search task...")
+                real_search_task = asyncio.create_task(
+                    self._safe_real_affiliate_search(search_term, analysis_result.get('category'))
+                )
+                tasks.append(real_search_task)
+                
+                print("DEBUG: Creating LLM search task...")
+                llm_task = asyncio.create_task(
+                    self._safe_llm_search(search_term, analysis_result.get('category'))
+                )
+                tasks.append(llm_task)
+                
+                # Wait for all tasks to finish (or timeout)
+                print("DEBUG: Waiting for external search tasks...")
+                results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=60.0  # 60 second timeout for all searches
+                )
+                print(f"DEBUG: External search tasks completed with {len(results)} results")
+                
+                # Process results
+                for r in results:
+                    if isinstance(r, list):
+                        print(f"DEBUG: Search task returned {len(r)} programs")
+                        programs.extend(r)
+                    elif isinstance(r, Exception):
+                        print(f"DEBUG: Search task failed with error: {r}")
+                        logger.error("Search task failed", error=str(r))
+                
+                # Deduplicate and consolidate affiliate programs
+                print(f"DEBUG: Programs count before deduplication: {len(programs)}")
+                programs = self._deduplicate_programs(programs)
+                logger.info("Programs deduplicated", total_programs=len(programs))
+                
+                # If we still have very few or no programs, try the fallback mechanism
+                if len(programs) < 2:
+                    print(f"DEBUG: Low program count ({len(programs)}), triggering fallback programs for '{search_term}'...")
+                    fallback_programs = self._get_fallback_programs(search_term, analysis_result.get('category'))
+                    print(f"DEBUG: Fallback returned {len(fallback_programs)} programs")
+                    programs.extend(fallback_programs)
                     programs = self._deduplicate_programs(programs)
-                    logger.info("Programs deduplicated", total_programs=len(programs))
-                    
-                    # Prioritize quality programs over generic ones
-                    programs = self._prioritize_quality_programs(programs)
-                    logger.info("Programs prioritized", total_programs=len(programs))
-                    
-                except asyncio.TimeoutError:
-                    logger.warning("Timeout reached for additional program searches")
-                except Exception as e:
-                    logger.warning("Additional program searches failed", error=str(e))
+                
+                print(f"DEBUG: Final programs count: {len(programs)}")
+                
+                # Prioritize quality programs over generic ones
+                programs = self._prioritize_quality_programs(programs)
+                logger.info("Programs prioritized", total_programs=len(programs))
+                
             else:
                 # Update usage statistics for found programs
                 for program in programs:
@@ -327,8 +338,10 @@ class AffiliateResearchService:
             import openai
             import os
             
-            # Get OpenAI API key
-            api_key = os.getenv("OPENAI_API_KEY")
+            from ..core.api_key_manager import api_key_manager
+            
+            # Get OpenAI API key from manager (prefers DB, falls back to ENV)
+            api_key = api_key_manager.get_openai_key()
             if not api_key:
                 logger.warning("No OpenAI API key found, using fallback category detection")
                 return self._fallback_category_detection(topic)
@@ -436,8 +449,10 @@ class AffiliateResearchService:
             import os
             import json
             
-            # Get OpenAI API key
-            api_key = os.getenv("OPENAI_API_KEY")
+            from ..core.api_key_manager import api_key_manager
+            
+            # Get OpenAI API key from manager
+            api_key = api_key_manager.get_openai_key()
             if not api_key:
                 logger.warning("No OpenAI API key found, using fallback content generation")
                 return self._generate_fallback_content(topic, category, max_areas, max_programs)
@@ -586,8 +601,10 @@ class AffiliateResearchService:
             description = program.get('description', '').lower()
             source = program.get('source', '')
             
-            # Skip programs that contain the exact search term in the name (likely generated)
-            search_term_lower = program.get('search_terms', [''])[0].lower() if program.get('search_terms') else ''
+            # Bypass filtering for LLM-analysed programs or verified programs
+            if source in ['llm_analysis', 'llm_identified'] or program.get('is_verified'):
+                filtered_programs.append(program)
+                continue
             if search_term_lower and search_term_lower in name:
                 logger.info("Filtered out generated program", name=program.get('name'), search_term=search_term_lower)
                 continue
@@ -914,30 +931,22 @@ class AffiliateResearchService:
         program_text = f"{program.get('name', '')} {program.get('description', '')} {program.get('category', '')}"
         program_text_lower = program_text.lower()
         
-        # Direct text matching - must contain the search term
-        if search_lower in program_text_lower:
+        # Relaxed matching: check for individual important keywords if search term doesn't match directly
+        important_keywords = [w for w in search_lower.split() if len(w) > 3 and w not in ['the', 'and', 'for', 'with', 'about', 'from']]
+        if important_keywords:
+            match_count = sum(1 for kw in important_keywords if kw in program_text_lower)
+            # If we match at least 1 keyword and it's from a high-quality source, allow it
+            if match_count >= 1 and (program.get('source') in ['llm_analysis', 'llm_identified'] or program.get('is_verified')):
+                return True
+            # If we match at least 2 keywords, allow it regardless of source
+            if match_count >= 2:
+                return True
+
+        # If it's an LLM-identified program, we trust it more
+        if program.get('source') in ['llm_analysis', 'llm_identified']:
+            # Allow LLM programs if they have AT LEAST some overlap or categories are related
             return True
-        
-        # Category-based relevance - much stricter matching
-        program_category = program.get("category", "").lower()
-        
-        # Define strict category mappings
-        if any(word in search_lower for word in ['travel', 'trip', 'vacation', 'tourism', 'flight', 'hotel', 'booking', 'international travel']):
-            return program_category in ['travel', 'tourism', 'hospitality'] or 'travel' in program_text_lower
-        elif any(word in search_lower for word in ['yoga', 'fitness', 'health', 'wellness', 'exercise', 'workout', 'gym']):
-            return program_category in ['health & fitness', 'wellness'] or any(word in program_text_lower for word in ['fitness', 'health', 'yoga', 'workout'])
-        elif any(word in search_lower for word in ['tech', 'software', 'computer', 'gadget', 'digital', 'blockchain', 'ai', 'artificial intelligence']):
-            return program_category in ['technology', 'software'] or any(word in program_text_lower for word in ['tech', 'software', 'digital', 'computer'])
-        elif any(word in search_lower for word in ['car', 'vehicle', 'suv', 'auto', 'automotive', 'tire', 'wheel']):
-            return program_category in ['automotive'] or any(word in program_text_lower for word in ['car', 'auto', 'vehicle', 'automotive'])
-        elif any(word in search_lower for word in ['home', 'garden', 'kitchen', 'furniture', 'decor', 'diy', 'renovation']):
-            return program_category in ['home & garden', 'furniture'] or any(word in program_text_lower for word in ['home', 'garden', 'kitchen', 'furniture'])
-        elif any(word in search_lower for word in ['finance', 'money', 'investment', 'banking', 'credit', 'loan', 'crypto', 'cryptocurrency']):
-            return program_category in ['finance & insurance', 'cryptocurrency'] or any(word in program_text_lower for word in ['finance', 'money', 'investment', 'crypto'])
-        elif any(word in search_lower for word in ['food', 'cooking', 'recipe', 'restaurant', 'dining', 'kitchen']):
-            return program_category in ['food & beverage'] or any(word in program_text_lower for word in ['food', 'cooking', 'recipe', 'kitchen'])
-        
-        # If no specific category match, only return if search term is directly in the program name/description
+            
         return False
     
     def _is_quality_program(self, program: Dict[str, Any]) -> bool:
@@ -1349,7 +1358,7 @@ class AffiliateResearchService:
             "created_at": datetime.utcnow().isoformat()
         }
         
-        result = self.db.client.table("affiliate_researches").insert(research_data).execute()
+        result = self.db.client.table("affiliate_research").insert(research_data).execute()
         
         if result.data:
             logger.info("Research record saved to Supabase", research_id=result.data[0].get('id'))

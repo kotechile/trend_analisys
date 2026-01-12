@@ -10,8 +10,8 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import json
-from supabase import create_client, Client
-
+from supabase import Client
+from ..core.supabase_singleton import get_supabase_client
 from ..core.config import settings
 from ..models.trend_data import TrendData
 from ..models.keyword_data import KeywordData
@@ -24,19 +24,13 @@ class DatabaseManager:
     """Manages database connections and operations for DataForSEO features using Supabase"""
     
     def __init__(self):
-        self.client: Optional[Client] = None
+        self._client: Optional[Client] = None
         
     async def initialize(self):
-        """Initialize Supabase connection"""
+        """Initialize Supabase connection (uses singleton)"""
         try:
-            if not settings.supabase_url or not settings.supabase_service_role_key:
-                raise ValueError("Supabase URL and service role key must be configured")
-            
-            self.client = create_client(
-                settings.supabase_url,
-                settings.supabase_service_role_key
-            )
-            
+            # Use singleton client - no need to create new client
+            self._client = get_supabase_client()
             logger.info("Supabase database connection initialized successfully")
             
         except Exception as e:
@@ -44,10 +38,10 @@ class DatabaseManager:
             raise
     
     def get_client(self) -> Client:
-        """Get Supabase client"""
-        if not self.client:
-            raise RuntimeError("Database not initialized. Call initialize() first.")
-        return self.client
+        """Get Supabase client from singleton"""
+        if not self._client:
+            self._client = get_supabase_client()
+        return self._client
     
     async def close(self):
         """Close database connections"""
@@ -74,7 +68,7 @@ class DataForSEORepository:
         """Get active API credentials for DataForSEO"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -112,7 +106,7 @@ class DataForSEORepository:
         """Get raw API credentials data for DataForSEO (including user_name and password)"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -130,7 +124,7 @@ class DataForSEORepository:
         """Clear previous trend data for a location and time range"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -149,7 +143,7 @@ class DataForSEORepository:
         """Save trend data to database"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -182,7 +176,7 @@ class DataForSEORepository:
         """Get cached trend data from database"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -214,7 +208,7 @@ class DataForSEORepository:
         """Delete existing keyword data for a specific topic and user"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -233,7 +227,7 @@ class DataForSEORepository:
         """Save keyword data to database"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -267,15 +261,14 @@ class DataForSEORepository:
         """Save multiple keyword data objects to database"""
         data_list = []  # Initialize early to avoid reference errors
         try:
-            # Use direct Supabase connection instead of database manager
+            # Use singleton Supabase client
             from ..core.config import settings
-            from supabase import create_client
             
             logger.info(f"DEBUG - Supabase URL: {settings.supabase_url}")
             logger.info(f"DEBUG - Service role key exists: {bool(settings.supabase_service_role_key)}")
             
-            # Create direct Supabase client
-            client = create_client(settings.supabase_url, settings.supabase_service_role_key)
+            # Use singleton client
+            client = get_supabase_client()
             
             logger.info(f"Using direct Supabase connection for {len(keywords)} keywords")
             
@@ -325,209 +318,203 @@ class DataForSEORepository:
             
             # Prepare data for Supabase
             for i, keyword in enumerate(keywords):
+                # ... (existing preparation code) ...
+                
+                # Fetch existing IDs for these keywords to enable proper UPSERT
+                # logic: if we find the keyword for this topic/user, use its ID
+                pass 
+
+            # To do this efficiently, we'll fetch existing keywords first
+            topic_id = keywords[0].get("topic_id")
+            user_id = keywords[0].get("user_id")
+            keyword_texts = [k.get("keyword") for k in keywords if k.get("keyword")]
+            
+            existing_map = {}
+            if topic_id and keyword_texts:
+                try:
+                    # Fetch existing records for these keywords
+                    # Using "in_" filter
+                    # Note: Supabase client in_ expects a list
+                    result = client.table("keyword_research_data") \
+                        .select("id, keyword") \
+                        .eq("topic_id", topic_id) \
+                        .in_("keyword", keyword_texts) \
+                        .execute()
+                        
+                    if result.data:
+                        for row in result.data:
+                            existing_map[row['keyword']] = row['id']
+                    logger.info(f"DEBUG - Found {len(existing_map)} existing keywords to update")
+                except Exception as fetch_err:
+                    logger.warning(f"Failed to fetch existing keywords for merge: {fetch_err}")
+
+            # Now build the full data list with IDs where available
+            data_list = []
+            for i, keyword in enumerate(keywords):
                 if i < 3:  # Debug first 3 keywords
                     logger.info(f"DEBUG - Processing keyword {i}: {keyword.get('keyword', 'unknown')}")
                     logger.info(f"DEBUG - keyword_difficulty: {keyword.get('keyword_difficulty')} (type: {type(keyword.get('keyword_difficulty'))})")
                     logger.info(f"DEBUG - difficulty: {keyword.get('difficulty')} (type: {type(keyword.get('difficulty'))})")
                     logger.info(f"DEBUG - priority_score: {keyword.get('priority_score')} (type: {type(keyword.get('priority_score'))})")
-                # Get competition value, keep as decimal (0.0-1.0 range) for competition field
+                
+                # Get competition value, keep as decimal (0.0-0.99 range) for competition field
                 competition_val = keyword.get("competition")
                 if competition_val is not None and isinstance(competition_val, (int, float)):
-                    # Keep as decimal (0.0-1.0 range) for competition field
-                    competition_val = min(float(competition_val), 1.0)
+                    competition_val = min(float(competition_val), 0.99)
                 else:
-                    competition_val = 0.0  # Default to 0.0 if not provided
-                
-                # Handle competition_value - either provided directly or calculate from competition
+                    competition_val = 0.0
+
                 competition_value_provided = keyword.get("competition_value")
                 if competition_value_provided is not None and isinstance(competition_value_provided, (int, float)):
-                    # Use provided competition_value directly (0-100 range)
                     competition_value_int = int(competition_value_provided)
                 else:
-                    # Convert from competition field to integer (0-100 range) for competition_value field
                     competition_value_int = int(competition_val * 100) if competition_val is not None else 0
-                
-                # Get CPC value and ensure it fits in numeric(3,2) constraint (max 9.99)
+
                 cpc_val = keyword.get("cpc", 0)
                 if cpc_val is not None and isinstance(cpc_val, (int, float)):
-                    # Cap at 9.99 to fit database constraint
                     cpc_val = min(float(cpc_val), 9.99)
                 else:
                     cpc_val = 0
                 
-                # Get bid values as decimals (database expects DECIMAL(10,4))
                 low_bid = keyword.get("low_top_of_page_bid", 0)
                 if low_bid is not None and isinstance(low_bid, (int, float)):
-                    low_bid = float(low_bid)  # Keep as decimal
+                    low_bid = float(low_bid)
                 else:
                     low_bid = 0.0
                     
                 high_bid = keyword.get("high_top_of_page_bid", 0)
                 if high_bid is not None and isinstance(high_bid, (int, float)):
-                    high_bid = float(high_bid)  # Keep as decimal
+                    high_bid = float(high_bid)
                 else:
                     high_bid = 0.0
                 
-                # Get average values and cap them to fit database constraints
                 avg_backlinks = keyword.get("avg_backlinks", 0)
                 if avg_backlinks is not None and isinstance(avg_backlinks, (int, float)):
-                    avg_backlinks = int(min(float(avg_backlinks), 999.99))  # Cap at 999.99 and convert to int
+                    avg_backlinks = int(min(float(avg_backlinks), 999.99))
                 else:
                     avg_backlinks = 0
                     
                 avg_rank = keyword.get("avg_rank", 0)
                 if avg_rank is not None and isinstance(avg_rank, (int, float)):
-                    avg_rank = int(min(float(avg_rank), 999.99))  # Cap at 999.99 and convert to int
+                    avg_rank = int(min(float(avg_rank), 999.99))
                 else:
                     avg_rank = 0
                     
                 avg_main_domain_rank = keyword.get("avg_main_domain_rank", 0)
                 if avg_main_domain_rank is not None and isinstance(avg_main_domain_rank, (int, float)):
-                    avg_main_domain_rank = int(min(float(avg_main_domain_rank), 999.99))  # Cap at 999.99 and convert to int
+                    avg_main_domain_rank = int(min(float(avg_main_domain_rank), 999.99))
                 else:
                     avg_main_domain_rank = 0
                 
-                # Debug logging for first keyword
-                if len(data_list) == 0:
-                    logger.info(f"DEBUG - Processing keyword: {keyword.get('keyword', '')}")
-                    logger.info(f"DEBUG - topic_id: {keyword.get('topic_id')}")
-                    logger.info(f"DEBUG - user_id: {keyword.get('user_id')}")
-                    logger.info(f"DEBUG - source: {keyword.get('source')}")
-                    logger.info(f"DEBUG - keyword_difficulty: {keyword.get('keyword_difficulty')}")
-                    logger.info(f"DEBUG - difficulty: {keyword.get('difficulty')}")
-
                 data = {
-                    # Basic identification
                     "keyword": keyword.get("keyword", ""),
                     "seed_keyword": keyword.get("seed_keyword"),
                     "related_keyword": keyword.get("related_keyword"),
-                    
-                    # Core keyword_info fields
                     "search_volume": int(float(keyword.get("search_volume", 0))) if keyword.get("search_volume") is not None else 0,
-                    "cpc": cpc_val,  # Use cleaned CPC value (capped at 9.99)
-                    "competition": competition_val,  # Use decimal value (0.0-1.0) for competition field
-                    "competition_value": competition_value_int,  # Use integer value (0-100) for competition_value field
+                    "cpc": cpc_val,
+                    "competition": competition_val,
+                    "competition_value": competition_value_int,
                     "competition_level": keyword.get("competition_level"),
-                    "low_top_of_page_bid": low_bid,  # Use decimal value (database expects DECIMAL(10,4))
-                    "high_top_of_page_bid": high_bid,  # Use decimal value (database expects DECIMAL(10,4))
+                    "low_top_of_page_bid": low_bid,
+                    "high_top_of_page_bid": high_bid,
                     "categories": keyword.get("categories", []),
                     "monthly_searches": keyword.get("monthly_searches", []),
                     "last_updated_time": keyword.get("last_updated_time"),
-                    
-                    # keyword_properties fields
                     "core_keyword": keyword.get("core_keyword"),
                     "synonym_clustering_algorithm": keyword.get("synonym_clustering_algorithm"),
                     "difficulty": int(float(keyword.get("difficulty", 0))) if keyword.get("difficulty") is not None else (int(float(keyword.get("keyword_difficulty", 0))) if keyword.get("keyword_difficulty") is not None else 0),
                     "keyword_difficulty": int(float(keyword.get("keyword_difficulty", 0))) if keyword.get("keyword_difficulty") is not None else (int(float(keyword.get("difficulty", 0))) if keyword.get("difficulty") is not None else 0),
                     "detected_language": keyword.get("detected_language"),
                     "is_another_language": keyword.get("is_another_language"),
-                    
-                    # search_intent_info fields
                     "main_intent": keyword.get("main_intent") or "INFORMATIONAL",
                     "intent_type": self._map_intent_type(keyword.get("intent_type") or keyword.get("main_intent") or "INFORMATIONAL"),
                     "foreign_intent": keyword.get("foreign_intent", []),
                     "search_intent_last_updated_time": keyword.get("search_intent_last_updated_time"),
-                    
-                    # search_volume_trend
                     "monthly_trend": int(float(keyword.get("monthly_trend", 0))) if keyword.get("monthly_trend") is not None else 0,
                     "quarterly_trend": int(float(keyword.get("quarterly_trend", 0))) if keyword.get("quarterly_trend") is not None else 0,
                     "yearly_trend": int(float(keyword.get("yearly_trend", 0))) if keyword.get("yearly_trend") is not None else 0,
-                    "search_volume_trend": [],  # Default empty array
-                    
-                    # clickstream_keyword_info
+                    "search_volume_trend": [],
                     "clickstream_search_volume": int(float(keyword.get("clickstream_search_volume", 0))) if keyword.get("clickstream_search_volume") is not None else 0,
                     "clickstream_last_updated_time": keyword.get("clickstream_last_updated_time"),
                     "clickstream_gender_distribution": keyword.get("clickstream_gender_distribution", {}),
                     "clickstream_age_distribution": keyword.get("clickstream_age_distribution", {}),
                     "clickstream_monthly_searches": keyword.get("clickstream_monthly_searches", []),
-                    
-                    # serp_info
                     "serp_se_type": keyword.get("serp_se_type"),
                     "serp_check_url": keyword.get("serp_check_url") or keyword.get("check_url"),
                     "serp_item_types": keyword.get("serp_item_types", []),
                     "se_results_count": int(float(keyword.get("se_results_count", 0))) if keyword.get("se_results_count") is not None else 0,
                     "serp_last_updated_time": keyword.get("serp_last_updated_time"),
                     "serp_previous_updated_time": keyword.get("serp_previous_updated_time"),
-                    
-                    # avg_backlinks_info
-                    "avg_backlinks": avg_backlinks,  # Use capped value
+                    "avg_backlinks": avg_backlinks,
                     "avg_dofollow": int(float(keyword.get("avg_dofollow_links", 0))) if keyword.get("avg_dofollow_links") is not None else 0,
                     "avg_referring_pages": int(float(keyword.get("avg_referring_pages", 0))) if keyword.get("avg_referring_pages") is not None else 0,
                     "avg_referring_domains": int(float(keyword.get("avg_referring_domains", 0))) if keyword.get("avg_referring_domains") is not None else 0,
                     "avg_referring_main_domains": int(float(keyword.get("avg_referring_main_domains", 0))) if keyword.get("avg_referring_main_domains") is not None else 0,
-                    "avg_rank": avg_rank,  # Use capped value
-                    "avg_main_domain_rank": avg_main_domain_rank,  # Use capped value
+                    "avg_rank": avg_rank,
+                    "avg_main_domain_rank": avg_main_domain_rank,
                     "backlinks_last_updated_time": keyword.get("backlinks_last_updated_time"),
-                    
-                    # keyword_info_normalized_with_bing
                     "normalized_bing_search_volume": int(float(keyword.get("normalized_bing_search_volume", 0))) if keyword.get("normalized_bing_search_volume") is not None else 0,
                     "normalized_bing_is_normalized": keyword.get("normalized_bing_is_normalized"),
                     "normalized_bing_last_updated_time": keyword.get("normalized_bing_last_updated_time"),
                     "normalized_bing_monthly_searches": keyword.get("normalized_bing_monthly_searches", []),
-                    
-                    # keyword_info_normalized_with_clickstream
                     "normalized_clickstream_search_volume": int(float(keyword.get("normalized_clickstream_search_volume", 0))) if keyword.get("normalized_clickstream_search_volume") is not None else 0,
                     "normalized_clickstream_is_normalized": keyword.get("normalized_clickstream_is_normalized"),
                     "normalized_clickstream_last_updated_time": keyword.get("normalized_clickstream_last_updated_time"),
                     "normalized_clickstream_monthly_searches": keyword.get("normalized_clickstream_monthly_searches", []),
-                    
-                    # Additional fields
                     "depth": int(float(keyword.get("depth", 0))) if keyword.get("depth") is not None else 0,
                     "related_keywords": keyword.get("related_keywords", []),
-                    "trend_percentage": 0,  # Default value
-                    "priority_score": int(float(keyword.get("priority_score", 0))) if keyword.get("priority_score") is not None else 0,
+                    "trend_percentage": 0,
+                    "priority_score": min(100, max(0, int(float(keyword.get("priority_score", 0))))) if keyword.get("priority_score") is not None else 0,
                     "source": keyword.get("source") or "unknown",
                     "topic_id": keyword.get("topic_id"),
                     "user_id": keyword.get("user_id"),
                     "created_at": keyword.get("created_at", datetime.utcnow().isoformat()),
                     "updated_at": datetime.utcnow().isoformat()
                 }
-                
-                if i < 3:  # Debug first 3 keywords
-                    logger.info(f"DEBUG - Final data for keyword {i}:")
-                    logger.info(f"DEBUG - keyword_difficulty: {data.get('keyword_difficulty')} (type: {type(data.get('keyword_difficulty'))})")
-                    logger.info(f"DEBUG - difficulty: {data.get('difficulty')} (type: {type(data.get('difficulty'))})")
-                    logger.info(f"DEBUG - priority_score: {data.get('priority_score')} (type: {type(data.get('priority_score'))})")
-                
+
                 data_list.append(data)
+
+            # ...
+            # Retaining original preparation loop...
+            # I will target the insertion block instead.
+
+            # Split data into updates (with ID) and inserts (without ID)
+            to_update = []
+            to_insert = []
             
-            # Use insert (let the database handle conflicts)
-            logger.info(f"Attempting to insert {len(data_list)} keywords into keyword_research_data table")
-            logger.info(f"Sample data structure: {data_list[0] if data_list else 'No data'}")
+            if existing_map:
+                for item in data_list:
+                    kw = item.get("keyword")
+                    if kw in existing_map:
+                        item['id'] = existing_map[kw]
+                        to_update.append(item)
+                    else:
+                        to_insert.append(item)
+            else:
+                to_insert = data_list
             
-            # Debug: Check for any string values that should be integers
-            if data_list:
-                sample_data = data_list[0]
-                logger.info(f"DEBUG - Checking for string values in sample data:")
-                for key, value in sample_data.items():
-                    if isinstance(value, str) and value == "0.0":
-                        logger.warning(f"Found string '0.0' in field '{key}': {value} (type: {type(value)})")
-                    elif isinstance(value, str) and value.replace('.', '').isdigit():
-                        logger.warning(f"Found numeric string in field '{key}': {value} (type: {type(value)})")
-                    elif isinstance(value, float) and value == 0.0:
-                        logger.info(f"Found float 0.0 in field '{key}': {value} (type: {type(value)})")
-                    elif isinstance(value, int) and value == 0:
-                        logger.info(f"Found int 0 in field '{key}': {value} (type: {type(value)})")
+            success = True
             
-            # Debug: Log the exact data being sent
-            logger.info(f"DEBUG - About to insert data:")
-            logger.info(f"DEBUG - First record keys: {list(data_list[0].keys()) if data_list else 'No data'}")
-            logger.info(f"DEBUG - First record sample: {data_list[0] if data_list else 'No data'}")
+            # 1. UPSERT existing records (by ID)
+            if to_update:
+                logger.info(f"Updating {len(to_update)} existing keywords...")
+                try:
+                    result = client.table("keyword_research_data").upsert(to_update).execute()
+                except Exception as update_err:
+                    logger.error(f"Update failed: {str(update_err)}")
+                    # Don't fail the whole batch if updates fail, but log it
+                    # success = False 
+
+            # 2. INSERT new records
+            if to_insert:
+                logger.info(f"Inserting {len(to_insert)} new keywords...")
+                try:
+                    result = client.table("keyword_research_data").insert(to_insert).execute()
+                except Exception as insert_err:
+                     logger.error(f"Insert failed: {str(insert_err)}")
+                     success = False
             
-            # Try insert first, if it fails due to unique constraint, use upsert
-            try:
-                result = client.table("keyword_research_data").insert(data_list).execute()
-            except Exception as insert_error:
-                if "duplicate key value violates unique constraint" in str(insert_error):
-                    logger.warning(f"Duplicate key constraint detected, using upsert instead: {insert_error}")
-                    # Use upsert to handle duplicates gracefully
-                    result = client.table("keyword_research_data").upsert(data_list).execute()
-                else:
-                    raise insert_error
-            
-            logger.info(f"Insert result: {result}")
-            logger.info(f"Insert successful: {len(result.data)} records inserted")
-            return len(result.data) > 0
+            return success
                 
         except Exception as e:
             logger.error(f"Error saving keyword data batch: {e}")
@@ -546,7 +533,7 @@ class DataForSEORepository:
         """Get cached keyword data from database"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -582,7 +569,7 @@ class DataForSEORepository:
         """Save subtopic suggestions to database"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()
@@ -616,7 +603,7 @@ class DataForSEORepository:
         """Get all keywords for a specific topic and user"""
         try:
             # Ensure database is initialized
-            if not self.db_manager.client:
+            if not self.db_manager._client:
                 await self.db_manager.initialize()
             
             client = self.db_manager.get_client()

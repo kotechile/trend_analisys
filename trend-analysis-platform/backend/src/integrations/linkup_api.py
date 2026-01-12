@@ -6,10 +6,11 @@ Provides real-time affiliate offers search using LinkUp.so API via direct HTTP c
 import os
 import httpx
 import structlog
+import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from ..core.config import settings
-from ..core.supabase_database import get_supabase_db
+from ..core.api_key_manager import api_key_manager
 
 logger = structlog.get_logger()
 
@@ -23,45 +24,43 @@ class LinkUpAPI:
         self._load_credentials()
     
     def _load_credentials(self):
-        """Load LinkUp credentials from Supabase"""
+        """Load LinkUp credentials from API Key Manager"""
         try:
-            db = get_supabase_db()
-            result = db.client.table("api_keys").select("key_value, base_url").eq("provider", "linkup").eq("is_active", True).execute()
+            self.api_key = api_key_manager.get_linkup_key()
             
-            if result.data and len(result.data) > 0:
-                credentials = result.data[0]
-                self.api_key = credentials.get("key_value")
-                base_url = credentials.get("base_url") or "https://api.linkup.so/v1"
-                # Ensure base_url doesn't end with /search to avoid double /search
-                if base_url.endswith("/search"):
-                    self.base_url = base_url
-                else:
-                    self.base_url = base_url.rstrip("/") + "/search"
-                
-                if self.api_key:
-                    self.headers = {
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
-                    }
-                    logger.info("LinkUp credentials loaded from Supabase", 
-                               base_url=self.base_url, 
-                               api_key_length=len(self.api_key))
-                else:
-                    logger.warning("LinkUp API key not found in Supabase")
+            # Use base_url from environment or default if not in DB
+            # We'll check if it's in settings/env first
+            base_url = os.getenv("LINKUP_BASE_URL", "https://api.linkup.so/v1")
+            
+            # Clean up base_url
+            base_url = base_url.strip()
+            
+            # Ensure base_url ends with /search correctly
+            if base_url.endswith("/search"):
+                self.base_url = base_url
             else:
-                logger.warning("No active LinkUp credentials found in Supabase")
-                
-        except Exception as e:
-            logger.error("Failed to load LinkUp credentials from Supabase", error=str(e))
-            # Fallback to environment variable
-            self.api_key = os.getenv("LINKUP_API_KEY")
-            self.base_url = "https://api.linkup.so/v1"
+                self.base_url = base_url.rstrip("/") + "/search"
+            
             if self.api_key:
                 self.headers = {
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json"
                 }
-                logger.info("Using LinkUp credentials from environment variables")
+                logger.info("LinkUp credentials loaded", 
+                           base_url=self.base_url, 
+                           api_key_length=len(self.api_key))
+            else:
+                logger.warning("LinkUp API key not found")
+                
+        except Exception as e:
+            logger.error("Failed to load LinkUp credentials", error=str(e))
+            self.api_key = os.getenv("LINKUP_API_KEY")
+            self.base_url = "https://api.linkup.so/v1/search"
+            if self.api_key:
+                self.headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
     
     async def search_offers(self, query: str, category: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """

@@ -123,7 +123,7 @@ class APICredentials(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "dataforseo_001",
                 "provider": "dataforseo",
@@ -147,7 +147,7 @@ class APICredentialsResponse(BaseModel):
     
     class Config:
         """Pydantic configuration."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "data": {

@@ -331,7 +331,7 @@ const ContentIdeasPage: React.FC<ContentIdeasPageProps> = ({
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => onNavigate?.('/idea-burst')}
+            onClick={() => onNavigate?.('/idea-burst-generation')}
           >
             Generate New Ideas
           </Button>

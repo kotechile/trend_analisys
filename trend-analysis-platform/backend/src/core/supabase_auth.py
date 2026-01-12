@@ -3,29 +3,32 @@ Supabase Authentication Service
 Handles user authentication using Supabase Auth
 """
 
-import os
 from typing import Dict, Any, Optional
 from supabase import create_client, Client
-from dotenv import load_dotenv
 import structlog
 from fastapi import HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Depends
+from src.core.config import get_settings
 
 logger = structlog.get_logger()
 
-# Load environment variables
-load_dotenv()
+# Get Supabase configuration from Settings
+settings = get_settings()
 
-# Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
+# Validate required auth configuration
+if not settings.supabase_url:
+    raise ValueError("SUPABASE_URL environment variable is required for authentication")
+
+# Note: Auth operations need anon key, not service role key
+# We need to get anon key from environment directly as it's not in Settings
+import os
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+if not SUPABASE_ANON_KEY:
+    raise ValueError("SUPABASE_ANON_KEY environment variable is required for authentication")
 
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    raise ValueError("Missing required Supabase environment variables")
-
-# Create Supabase client for authentication
-supabase_auth: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+# Create Supabase client for authentication (uses anon key)
+supabase_auth: Client = create_client(settings.supabase_url, SUPABASE_ANON_KEY)
 
 # Security scheme
 security = HTTPBearer()

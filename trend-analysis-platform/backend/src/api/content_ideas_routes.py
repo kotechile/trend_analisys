@@ -35,6 +35,14 @@ class ContentIdeaListRequest(BaseModel):
     user_id: str
     content_type: Optional[str] = None  # 'blog', 'software', or None for all
 
+class OptimizedContentIdeaGenerationRequest(BaseModel):
+    topic_id: str
+    topic_title: str
+    subtopics: List[str]
+    user_id: str
+    content_types: Optional[List[str]] = None
+    max_keywords: Optional[int] = 50
+
 # Dependency
 def get_content_idea_generator() -> ContentIdeaGenerator:
     return ContentIdeaGenerator()
@@ -74,6 +82,39 @@ async def generate_content_ideas(
     except Exception as e:
         logger.error(f"Content idea generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Content idea generation failed: {str(e)}")
+
+@router.post("/generate-optimized", response_model=ContentIdeaResponse)
+async def generate_content_ideas_optimized(
+    request: OptimizedContentIdeaGenerationRequest,
+    generator: ContentIdeaGenerator = Depends(get_content_idea_generator)
+):
+    """
+    Generate content ideas using keywords fetched directly from database (optimized for large datasets)
+    """
+    try:
+        logger.info(f"Generating optimized content ideas for topic: {request.topic_title}")
+        
+        result = await generator.generate_content_ideas_optimized(
+            topic_id=request.topic_id,
+            topic_title=request.topic_title,
+            subtopics=request.subtopics,
+            user_id=request.user_id,
+            content_types=request.content_types,
+            max_keywords=request.max_keywords or 50
+        )
+
+        return ContentIdeaResponse(
+            success=result["success"],
+            message=f"Successfully generated {result['total_ideas']} content ideas",
+            total_ideas=result["total_ideas"],
+            blog_ideas=result["blog_ideas"],
+            software_ideas=result["software_ideas"],
+            ideas=result["ideas"]
+        )
+
+    except Exception as e:
+        logger.error(f"Optimized content idea generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Optimized content idea generation failed: {str(e)}")
 
 @router.post("/list", response_model=List[Dict[str, Any]])
 async def list_content_ideas(

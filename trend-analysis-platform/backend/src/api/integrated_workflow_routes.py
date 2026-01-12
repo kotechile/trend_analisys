@@ -174,15 +174,19 @@ async def analyze_trends_real(
             for trend in trends:
                 content_idea = {
                     "id": trend["id"],
-                    "research_id": analysis_id,
+                    "topic_id": user_id if user_id != "demo-user" else None, # Use user_id or a valid UUID if topic_id is required
                     "user_id": user_id if user_id != "demo-user" else None,
                     "title": f"Trend Analysis: {trend['topic']}",
                     "description": f"Trend Score: {trend['trend_score']}, Opportunity: {trend['opportunity_score']}, Search Volume: {trend['search_volume']}",
-                    "baseTopic": trend["topic"],
-                    "trendScore": trend["trend_score"],
-                    "opportunityScore": trend["opportunity_score"],
+                    "subtopic": trend["topic"],
+                    "overall_quality_score": trend["trend_score"],
+                    "traffic_potential_score": trend["opportunity_score"],
                     "created_at": datetime.now().isoformat()
                 }
+                
+                # If topic_id needs to be a valid UUID and we don't have one, we might need a fallback or omit if optional
+                if not content_idea["topic_id"]:
+                    content_idea.pop("topic_id")
                 
                 result = db.client.table("content_ideas").insert(content_idea).execute()
                 logger.info(f"Stored trend analysis item: {trend['topic']}")
@@ -284,15 +288,16 @@ async def get_stored_trend_analysis(user_id: str):
         query_user_id = user_id if user_id != "demo-user" else None
         
         if query_user_id:
-            result = db.client.table("content_ideas").select("*").eq("user_id", query_user_id).like("research_id", "trend_analysis_%").order("created_at", desc=True).execute()
+            result = db.client.table("content_ideas").select("*").eq("user_id", query_user_id).like("title", "Trend Analysis: %").order("created_at", desc=True).execute()
         else:
-            result = db.client.table("content_ideas").select("*").is_("user_id", "null").like("research_id", "trend_analysis_%").order("created_at", desc=True).execute()
+            result = db.client.table("content_ideas").select("*").is_("user_id", "null").like("title", "Trend Analysis: %").order("created_at", desc=True).execute()
         
         if result.data:
             # Group by research_id to organize analyses
             analyses = {}
             for item in result.data:
-                research_id = item.get("research_id", "unknown")
+                # Use creation date as a proxy for research_id since we removed research_id
+                research_id = item.get("created_at", "unknown")[:16] # Group by minute
                 if research_id not in analyses:
                     analyses[research_id] = {
                         "analysis_id": research_id,
@@ -303,9 +308,9 @@ async def get_stored_trend_analysis(user_id: str):
                 # Convert content idea back to trend format
                 trend = {
                     "id": item.get("id"),
-                    "topic": item.get("baseTopic"),
-                    "trend_score": item.get("trendScore"),
-                    "opportunity_score": item.get("opportunityScore"),
+                    "topic": item.get("subtopic"),
+                    "trend_score": item.get("overall_quality_score"),
+                    "opportunity_score": item.get("traffic_potential_score"),
                     "title": item.get("title"),
                     "description": item.get("description")
                 }

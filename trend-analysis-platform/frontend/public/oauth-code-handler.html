@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Redirect Handler</title>
+    <script>
+        // This page handles OAuth redirects when Supabase redirects to its own domain
+        // It extracts the code and redirects to the frontend app
+        
+        (function() {
+            console.log('OAuth Code Handler: Starting...');
+            console.log('Current URL:', window.location.href);
+            
+            // Get code from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+            
+            // Get frontend origin from localStorage (set by GoogleAuth component)
+            const storedAppOrigin = localStorage.getItem('oauth_redirect_url');
+            const defaultOrigin = 'http://localhost:3001';
+            const appOrigin = storedAppOrigin || defaultOrigin;
+            const fullAppOrigin = appOrigin.startsWith('http') ? appOrigin : `http://${appOrigin}`;
+            
+            console.log('OAuth Code Handler: App origin:', fullAppOrigin);
+            console.log('OAuth Code Handler: Code:', code);
+            console.log('OAuth Code Handler: Error:', error);
+            
+            if (error) {
+                // OAuth error occurred
+                console.error('OAuth error:', error, errorDescription);
+                const errorUrl = `${fullAppOrigin}/auth/callback?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`;
+                window.location.replace(errorUrl);
+                return;
+            }
+            
+            if (code) {
+                // We have an OAuth code, redirect to frontend to exchange it
+                const redirectUrl = `${fullAppOrigin}/auth/callback?code=${code}`;
+                console.log('OAuth Code Handler: Redirecting to:', redirectUrl);
+                window.location.replace(redirectUrl);
+            } else {
+                // No code found - show error
+                document.body.innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+                        <div style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <h2>OAuth Redirect Error</h2>
+                            <p>No OAuth code found in URL.</p>
+                            <p style="color: #666; font-size: 0.9em;">URL: ${window.location.href}</p>
+                            <button onclick="window.location.href='${fullAppOrigin}/login'" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Return to Login
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+        <div style="text-align: center;">
+            <h2>Processing OAuth redirect...</h2>
+            <p>Please wait...</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+
+
