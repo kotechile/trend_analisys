@@ -1,6 +1,6 @@
 # Database Usage Documentation
 
-This document outlines the database tables and how they are used by the backend.
+This document outlines the database tables and how they are used by the backend, and which tables and fields are not used by the frontend.
 
 ## Tables and Fields Used by the Frontend
 
@@ -150,13 +150,45 @@ The following fields in tables that are used by the frontend are not used by the
 
 #### `content_ideas`
 
-*   `category`
-*   `estimated_read_time`
-*   `content_angle`
-*   `monetization_potential`
-*   `technical_complexity`
-*   `development_effort`
-*   `market_demand`
+*   `workflow_session_id`
+*   `trend_analysis_id`
+*   `topic_decomposition_id`
+*   `priority`
+*   `key_points`
+*   `content_outline`
+*   `primary_keyword`
+*   `affiliate_offers`
+*   `affiliate_links`
+*   `monetization_strategy`
+*   `expected_revenue`
+*   `generation_prompt`
+*   `generation_model`
+*   `generation_parameters`
+*   `generation_time_ms`
+*   `readability_score`
+*   `seo_score`
+*   `engagement_score`
+*   `quality_notes`
+*   `target_publish_date`
+*   `actual_publish_date`
+*   `publish_url`
+*   `word_count`
+*   `reading_time_minutes`
+*   `tags`
+*   `categories`
+*   `workflow_status`
+*   `content_generated`
+*   `content_brief_generated`
+*   `viral_potential_score`
+*   `competition_score`
+*   `keyword_research_data`
+*   `keyword_research_enhanced`
+*   `affiliate_opportunities`
+*   `estimated_annual_revenue`
+*   `monetization_priority`
+*   `generation_method`
+*   `enhancement_timestamp`
+*   `estimated_word_count`
 
 #### `affiliate_programs`
 
