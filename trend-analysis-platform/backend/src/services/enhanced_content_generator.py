@@ -11,14 +11,13 @@ from datetime import datetime
 import uuid
 
 from ..core.supabase_database import get_supabase_db
-from ..core.llm_config import LLMConfigManager
+from .llm.llm_service import llm_service
 
 logger = structlog.get_logger()
 
 class EnhancedContentGenerator:
     def __init__(self):
         self.db = get_supabase_db()
-        self.llm_manager = LLMConfigManager()
 
     async def generate_enhanced_content(
         self,
@@ -230,11 +229,12 @@ class EnhancedContentGenerator:
         Return only the title, no additional text.
         """
         
-        seo_title = await self.llm_manager.generate_content(
+        response = await llm_service.generate_text(
             prompt=title_prompt,
             max_tokens=100,
             temperature=0.7
         )
+        seo_title = response.content
         
         # Generate meta description
         description_prompt = f"""
@@ -254,11 +254,12 @@ class EnhancedContentGenerator:
         Return only the meta description, no additional text.
         """
         
-        meta_description = await self.llm_manager.generate_content(
+        response = await llm_service.generate_text(
             prompt=description_prompt,
             max_tokens=150,
             temperature=0.7
         )
+        meta_description = response.content
         
         # Get secondary keywords for H2/H3 tags
         secondary_keywords = [k.get('keyword') for k in keywords if k.get('keyword_type') == 'secondary'][:5]
@@ -308,11 +309,12 @@ class EnhancedContentGenerator:
             Format the response as structured content with headings and paragraphs.
             """
             
-            section_content = await self.llm_manager.generate_content(
+            response = await llm_service.generate_text(
                 prompt=section_prompt,
                 max_tokens=section['word_count'] * 2,  # Rough estimate
                 temperature=0.7
             )
+            section_content = response.content
             
             # Extract headings and content
             headings = self._extract_headings(section_content)
@@ -366,11 +368,12 @@ class EnhancedContentGenerator:
             Make it valuable and not overly promotional.
             """
             
-            integration_content = await self.llm_manager.generate_content(
+            response = await llm_service.generate_text(
                 prompt=integration_prompt,
                 max_tokens=300,
                 temperature=0.6
             )
+            integration_content = response.content
             
             integration_points.append({
                 'keyword': keyword.get('keyword'),
@@ -438,11 +441,12 @@ class EnhancedContentGenerator:
             Generate 3-5 frequently asked questions with detailed answers.
             """
             
-            faq_content = await self.llm_manager.generate_content(
+            response = await llm_service.generate_text(
                 prompt=faq_prompt,
                 max_tokens=500,
                 temperature=0.7
             )
+            faq_content = response.content
             
             outline['faq_section'] = self._parse_faq_content(faq_content)
         

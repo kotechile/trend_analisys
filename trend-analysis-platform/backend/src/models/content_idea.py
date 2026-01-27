@@ -75,7 +75,9 @@ class ContentIdeaBase(BaseModel):
     tags: List[str] = Field(default_factory=list, description="Content tags")
     estimated_read_time: Optional[int] = Field(None, ge=1, description="Estimated read time in minutes")
     difficulty_level: Optional[str] = Field(None, max_length=50, description="Content difficulty level")
+    difficulty_level: Optional[str] = Field(None, max_length=50, description="Content difficulty level")
     status: ContentStatus = Field(ContentStatus.DRAFT, description="Content status")
+    markdown_outline: Optional[str] = Field(None, description="Structured content outline (H2/H3)")
     
     @validator('title')
     def validate_title(cls, v):

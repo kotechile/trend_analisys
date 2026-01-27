@@ -32,6 +32,7 @@ class AutocompleteResult(BaseModel):
     processing_time: float = Field(..., ge=0, description="Time taken to fetch suggestions (seconds)")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="When the request was made")
     success: bool = Field(..., description="Whether the request was successful")
+    is_fallback: bool = Field(False, description="Whether the result contains fallback data")
     error_message: Optional[str] = Field(None, description="Error details if request failed")
     
     @validator('query')
@@ -136,6 +137,7 @@ class AutocompleteResult(BaseModel):
             'processing_time': self.processing_time,
             'timestamp': self.timestamp.isoformat(),
             'success': self.success,
+            'is_fallback': self.is_fallback,
             'error_message': self.error_message
         }
     
@@ -149,18 +151,20 @@ class AutocompleteResult(BaseModel):
             processing_time=data['processing_time'],
             timestamp=datetime.fromisoformat(data['timestamp']),
             success=data['success'],
+            is_fallback=data.get('is_fallback', False),
             error_message=data.get('error_message')
         )
     
     @classmethod
-    def create_success(cls, query: str, suggestions: List[str], processing_time: float) -> 'AutocompleteResult':
+    def create_success(cls, query: str, suggestions: List[str], processing_time: float, is_fallback: bool = False) -> 'AutocompleteResult':
         """Create a successful result"""
         return cls(
             query=query,
             suggestions=suggestions,
             total_suggestions=len(suggestions),
             processing_time=processing_time,
-            success=True
+            success=True,
+            is_fallback=is_fallback
         )
     
     @classmethod

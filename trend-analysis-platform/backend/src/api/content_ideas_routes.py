@@ -43,9 +43,45 @@ class OptimizedContentIdeaGenerationRequest(BaseModel):
     content_types: Optional[List[str]] = None
     max_keywords: Optional[int] = 50
 
+class PublishIdeasRequest(BaseModel):
+    idea_ids: List[str]
+    user_id: str
+
 # Dependency
 def get_content_idea_generator() -> ContentIdeaGenerator:
     return ContentIdeaGenerator()
+
+
+
+
+
+
+
+
+@router.post("/publish")
+async def publish_ideas(
+    request: PublishIdeasRequest,
+    generator: ContentIdeaGenerator = Depends(get_content_idea_generator)
+):
+    """
+    Publish content ideas to the Titles table
+    """
+    try:
+        logger.info(f"Publishing {len(request.idea_ids)} content ideas for user: {request.user_id}")
+        
+        result = await generator.publish_ideas_to_titles(
+            idea_ids=request.idea_ids,
+            user_id=request.user_id
+        )
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+            
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to publish content ideas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to publish content ideas: {str(e)}")
 
 @router.post("/generate", response_model=ContentIdeaResponse)
 async def generate_content_ideas(
@@ -147,19 +183,44 @@ async def delete_content_idea(
     generator: ContentIdeaGenerator = Depends(get_content_idea_generator)
 ):
     """
-    Delete a specific content idea
+    Delete a specific content idea (checks all tables)
     """
     try:
         logger.info(f"Deleting content idea: {idea_id}")
-
-        # Delete from database
-        result = generator.supabase.table('content_ideas').delete().eq('id', idea_id).eq('user_id', user_id).execute()
         
+        deleted = False
+
+        # 1. Try deleting from legacy table
+        result = generator.supabase.table('content_ideas').delete().eq('id', idea_id).eq('user_id', user_id).execute()
         if result.data:
+            deleted = True
+            
+        # 2. Try deleting from blog_ideas (if not already found)
+        if not deleted:
+            try:
+                result = generator.supabase.table('blog_ideas').delete().eq('id', idea_id).eq('user_id', user_id).execute()
+                if result.data:
+                    deleted = True
+            except Exception:
+                pass # Table might not exist or other error
+
+        # 3. Try deleting from software_ideas (if not already found)
+        if not deleted:
+            try:
+                result = generator.supabase.table('software_ideas').delete().eq('id', idea_id).eq('user_id', user_id).execute()
+                if result.data:
+                    deleted = True
+            except Exception:
+                pass
+
+        if deleted:
             return {"success": True, "message": "Content idea deleted successfully"}
         else:
+            # If we couldn't find it in any table
             raise HTTPException(status_code=404, detail="Content idea not found")
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to delete content idea: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete content idea: {str(e)}")

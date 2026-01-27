@@ -9,7 +9,7 @@ Represents a topic subdivision enhanced with autocomplete validation and relevan
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
@@ -37,9 +37,17 @@ class EnhancedSubtopic(BaseModel):
     id: str = Field(..., description="Unique identifier for the subtopic")
     title: str = Field(..., min_length=3, max_length=100, description="The subtopic title/name")
     search_volume_indicators: List[str] = Field(..., description="Metrics indicating search popularity")
-    autocomplete_suggestions: List[str] = Field(..., description="Related search suggestions from Google")
+    autocomplete_suggestions: List[Union[str, Dict[str, Any]]] = Field(..., description="Related search suggestions from Google")
     relevance_score: float = Field(..., ge=0.0, le=1.0, description="Calculated relevance score (0.0-1.0)")
     source: SubtopicSource = Field(..., description="Data source: 'llm', 'autocomplete', or 'hybrid'")
+    rationale: Optional[str] = Field(None, description="Why this subtopic is profitable")
+    seed_keywords: List[Union[str, Dict[str, Any]]] = Field(default_factory=list, description="Seed keywords for this subtopic")
+    target_audience: Optional[str] = Field(None, description="Target audience for this subtopic")
+    search_volume: Optional[int] = Field(None, description="Estimated monthly search volume")
+    cpc: Optional[float] = Field(None, description="Estimated CPC")
+    keyword_difficulty: Optional[int] = Field(None, description="SEO Difficulty")
+    trend_analysis: Optional[Dict[str, Any]] = Field(None, description="Structured trend analysis data")
+    monetization_data: Optional[Dict[str, Any]] = Field(None, description="Structured monetization/offers data")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     
@@ -59,10 +67,20 @@ class EnhancedSubtopic(BaseModel):
     
     @validator('autocomplete_suggestions')
     def validate_autocomplete_suggestions(cls, v):
-        """Validate autocomplete suggestions are non-empty strings"""
+        """Validate autocomplete suggestions are non-empty strings or valid dicts"""
         if not v:
             return []
-        return [suggestion.strip() for suggestion in v if suggestion and suggestion.strip()]
+        
+        cleaned = []
+        for suggestion in v:
+            if isinstance(suggestion, str):
+                if suggestion and suggestion.strip():
+                    cleaned.append(suggestion.strip())
+            elif isinstance(suggestion, dict):
+                # Check if it has a keyword field
+                if suggestion.get('keyword'):
+                    cleaned.append(suggestion)
+        return cleaned
     
     @validator('relevance_score')
     def validate_relevance_score(cls, v):
@@ -123,6 +141,14 @@ class EnhancedSubtopic(BaseModel):
             'autocomplete_suggestions': self.autocomplete_suggestions,
             'relevance_score': self.relevance_score,
             'source': self.source.value,
+            'rationale': self.rationale,
+            'seed_keywords': self.seed_keywords,
+            'target_audience': self.target_audience,
+            'search_volume': self.search_volume,
+            'cpc': self.cpc,
+            'keyword_difficulty': self.keyword_difficulty,
+            'trend_analysis': self.trend_analysis,
+            'monetization_data': self.monetization_data,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
@@ -137,6 +163,14 @@ class EnhancedSubtopic(BaseModel):
             autocomplete_suggestions=data['autocomplete_suggestions'],
             relevance_score=data['relevance_score'],
             source=SubtopicSource(data['source']),
+            rationale=data.get('rationale'),
+            seed_keywords=data.get('seed_keywords', []),
+            target_audience=data.get('target_audience'),
+            search_volume=data.get('search_volume'),
+            cpc=data.get('cpc'),
+            keyword_difficulty=data.get('keyword_difficulty'),
+            trend_analysis=data.get('trend_analysis'),
+            monetization_data=data.get('monetization_data'),
             created_at=datetime.fromisoformat(data['created_at']),
             updated_at=datetime.fromisoformat(data['updated_at'])
         )

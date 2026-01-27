@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     
+    # Aliases for compatibility
+    SECRET_KEY: str = Field(default="your-secret-key-change-in-production", env="SECRET_KEY")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    jwt_expiration_minutes: int = 30
+    DEBUG_MODE: bool = False
+    
     # CORS
     allowed_origins: List[str] = Field(
         default=["http://localhost:3000", "https://idea-burst.com"],
@@ -81,6 +88,14 @@ class Settings(BaseSettings):
     thewriter_supabase_url: Optional[str] = Field(default=None, env="THEWRITER_SUPABASE_URL")
     thewriter_supabase_key: Optional[str] = Field(default=None, env="THEWRITER_SUPABASE_KEY")
     
+    # DataForSEO
+    dataforseo_api_login: str = Field(default="demo", env="DATAFORSEO_API_LOGIN")
+    dataforseo_api_password: str = Field(default="demo", env="DATAFORSEO_API_PASSWORD")
+    
+    # Add aliases for compatibility if needed
+    DATAFORSEO_API_LOGIN: str = Field(default="demo", env="DATAFORSEO_API_LOGIN")
+    DATAFORSEO_API_PASSWORD: str = Field(default="demo", env="DATAFORSEO_API_PASSWORD")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

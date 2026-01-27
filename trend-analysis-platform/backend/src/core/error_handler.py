@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from enum import Enum
 
-from supabase import PostgrestAPIError, SupabaseException
+from supabase import PostgrestAPIError
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -83,8 +83,6 @@ class ErrorHandler:
         """
         if isinstance(error, PostgrestAPIError):
             return self._handle_api_error(error, operation_id)
-        elif isinstance(error, SupabaseException):
-            return self._handle_client_error(error, operation_id)
         else:
             logger.error(
                 "Unexpected error in database operation",
@@ -156,17 +154,6 @@ class ErrorHandler:
                 ErrorType.UNKNOWN,
                 status_code
             )
-    
-    def _handle_client_error(self, error: SupabaseException, operation_id: str) -> SupabaseError:
-        """Handle Supabase client errors."""
-        logger.error(
-            "Client error",
-            operation_id=operation_id,
-            error_type="connection",
-            error_message=str(error),
-            timestamp=datetime.utcnow().isoformat()
-        )
-        return DatabaseConnectionError()
 
 def timeout_handler(timeout_seconds: int = 60):
     """

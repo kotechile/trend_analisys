@@ -663,6 +663,7 @@ class DataForSEOService:
                 "limit": limit,
                 "include_serp_info": True,  # Enable SERP info for more data
                 "include_clickstream_data": True,  # Enable clickstream data for demographics
+                "include_keyword_properties": True,  # Enable keyword properties (Difficulty)
                 "closely_variants": False,
                 "ignore_synonyms": False,
                 "tag": f"keyword-ideas-{int(time.time())}"
@@ -876,6 +877,198 @@ class DataForSEOService:
             # Re-raise the exception to get proper error details
             raise
 
+
+    async def get_google_trends_explore(
+        self,
+        keywords: List[str],
+        location_name: str = "United States",
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        type: str = "web",
+        category_code: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Get Google Trends "Interest over time" data using the task-based approach
+        
+        Args:
+            keywords: List of keywords (up to 5 for comparison)
+            location_name: Full location name (e.g. "United States")
+            date_from: Start date (YYYY-MM-DD or relative like "now 7-d")
+            date_to: End date (YYYY-MM-DD)
+            type: Search type (web, news, images, froogle, youtube)
+            category_code: Google Trends category code
+            
+        Returns:
+            Dictionary mapping keywords to their interest scores over time
+        """
+        try:
+            if not self.client:
+                await self.initialize()
+            
+            # Use current date as default to if not provided
+            if not date_to:
+                date_to = datetime.utcnow().strftime("%Y-%m-%d")
+            # Use 12 months ago as default from if not provided
+            if not date_from:
+                # Naive 12 months back
+                from datetime import timedelta
+                date_from = (datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%d")
+            
+            payload = [{
+                "keywords": keywords,
+                "location_name": location_name,
+                "type": type,
+                "date_from": date_from,
+                "date_to": date_to,
+                "category_code": category_code,
+                "item_types": ["google_trends_graph"]
+            }]
+            
+            # Post task
+            post_url = "/keywords_data/google_trends/explore/task_post"
+            logger.info(f"Posting Google Trends task for {keywords} to {post_url}")
+            
+            response = await self.client.post(post_url, json=payload)
+            response.raise_for_status()
+            post_result = response.json()
+            
+            if post_result.get("status_code") != 20000:
+                raise RuntimeError(f"DataForSEO error (POST): {post_result.get('status_message')}")
+            
+            task = post_result.get("tasks", [])[0]
+            task_id = task.get("id")
+            
+            # Immediate check: if task is already completed (unlikely but possible)
+            if task.get("status_code") == 20000:
+                return self._parse_trends_explore_result(post_result)
+            
+            # Poll for result
+            return await self._get_trends_explore_result(task_id)
+            
+        except Exception as e:
+            logger.error(f"Error in get_google_trends_explore: {e}")
+            raise
+
+    async def _get_trends_explore_result(self, task_id: str, timeout: int = 120) -> Dict[str, Any]:
+        """Poll for Google Trends explore results"""
+        url = f"/keywords_data/google_trends/explore/task_get/{task_id}"
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            response = await self.client.get(url)
+            response.raise_for_status()
+            result = response.json()
+            
+            task = result.get("tasks", [])[0]
+            status_code = task.get("status_code")
+            
+            if status_code == 20000:
+                return self._parse_trends_explore_result(result)
+            elif status_code not in [20000, 20100, 40601]: # 40601 is "Task Handed"
+                raise RuntimeError(f"Task {task_id} failed: {task.get('status_message')}")
+            
+            await asyncio.sleep(5) # Google Trends is slow, poll every 5s
+            
+        raise TimeoutError(f"Task {task_id} timed out after {timeout} seconds")
+
+    def _parse_trends_explore_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse Google Trends explore task result"""
+        trends_data = {}
+        for task in result.get("tasks", []):
+            for task_result in task.get("result", []):
+                for item in task_result.get("items", []):
+                    if item.get("type") == "google_trends_graph" and "data" in item:
+                        # Map back to keywords
+                        keywords = task_result.get("keywords", [])
+                        for i, keyword in enumerate(keywords):
+                            points = []
+                            for data_point in item["data"]:
+                                if not data_point.get("missing_data", False):
+                                    timestamp = data_point.get("timestamp")
+                                    # values is a list corresponding to the keyword index
+                                    val = data_point.get("values", [0])[i] if i < len(data_point.get("values", [])) else 0
+                                    points.append({
+                                        "timestamp": timestamp,
+                                        "date": datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d") if timestamp else None,
+                                        "value": val
+                                    })
+                            trends_data[keyword] = points
+        return trends_data
+
+    async def get_search_volume_history(
+        self,
+        keywords: List[str],
+        location_code: int = 2840,
+        language_code: str = "en"
+    ) -> Dict[str, Any]:
+        """
+        Get 12-month search volume history for a list of keywords
+        
+        Args:
+            keywords: List of keywords (up to 700)
+            location_code: Location code (2840 = US)
+            language_code: Language code (en = English)
+            
+        Returns:
+            Dictionary mapping keywords to their historical search volume data
+        """
+        try:
+            if not self.client:
+                await self.initialize()
+            
+            # DataForSEO search_volume/live expects "keywords" as an array
+            payload = [{
+                "keywords": keywords,
+                "location_code": location_code,
+                "language_code": language_code,
+                "include_search_volume_trend": True
+            }]
+            
+            url = "/dataforseo_labs/google/historical_search_volume/live"
+            logger.info(f"Fetching search volume history for {len(keywords)} keywords")
+            
+            response = await self.client.post(url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("status_code") != 20000:
+                raise RuntimeError(f"DataForSEO error: {result.get('status_message')}")
+            
+            # Parse results
+            history_data = {}
+            tasks = result.get("tasks") or []
+            if not tasks:
+                 logger.warning(f"DataForSEO returned no tasks in result: {result.keys()}")
+            
+            for task in tasks:
+                results = task.get("result") or []
+                if not results:
+                     logger.warning(f"DataForSEO task has no result: {task.keys()}")
+                
+                for task_result in results:
+                    # In some endpoints it is "items", in others it might be slightly different
+                    # For search_volume/live it is usually items
+                    items = task_result.get("items") or []
+                    if items is None:
+                        logger.warning("DataForSEO items is None")
+                        items = []
+                        
+                    for item in items:
+                        keyword = item.get("keyword")
+                        if keyword:
+                            history_data[keyword] = {
+                                "search_volume": item.get("search_volume"),
+                                "monthly_searches": item.get("monthly_searches", []),
+                                "search_volume_trend": item.get("search_volume_trend"),
+                                "competition": item.get("competition"),
+                                "cpc": item.get("cpc")
+                            }
+            
+            return history_data
+            
+        except Exception as e:
+            logger.error(f"Error getting search volume history: {e}")
+            raise
 
 # Global service instance
 dataforseo_service = DataForSEOService()

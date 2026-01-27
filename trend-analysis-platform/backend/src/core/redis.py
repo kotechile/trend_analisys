@@ -291,6 +291,16 @@ def get_redis_client() -> redis.Redis:
     """Get Redis client instance"""
     return redis_client
 
+from contextlib import contextmanager
+
+@contextmanager
+def get_redis_context():
+    """Get Redis client as context manager"""
+    try:
+        yield redis_client
+    finally:
+        pass
+
 def check_redis_connection() -> bool:
     """Check if Redis connection is healthy"""
     try:
@@ -300,6 +310,10 @@ def check_redis_connection() -> bool:
     except Exception as e:
         logger.error("Redis connection failed", error=str(e))
         return False
+
+def test_redis_connection() -> bool:
+    """Alias for check_redis_connection"""
+    return check_redis_connection()
 
 def get_redis_info() -> dict:
     """Get Redis server information"""

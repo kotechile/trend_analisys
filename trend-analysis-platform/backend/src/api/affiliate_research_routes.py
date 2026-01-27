@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from typing import List, Optional
 import structlog
 
-from ..services.affiliate_research_service import AffiliateResearchService
+from ..services.enhanced_affiliate_research_service import EnhancedAffiliateResearchService
 from ..schemas.affiliate_schemas import (
     AffiliateSearchRequest,
     AffiliateSearchResponse,
@@ -24,26 +24,50 @@ async def search_affiliate_programs(
     request: AffiliateSearchRequest
 ):
     """
-    Search for affiliate programs based on search criteria
+    Search for affiliate programs using Enhanced Intelligent Discovery
     """
     try:
-        logger.info("Affiliate search request", 
+        logger.info("Enhanced Affiliate search request", 
                    search_term=request.search_term, 
                    niche=request.niche,
                    budget_range=request.budget_range)
         
-        service = AffiliateResearchService()
-        result = await service.search_affiliate_programs(
-            search_term=request.search_term,
-            niche=request.niche,
-            budget_range=request.budget_range,
-            user_id=request.user_id
+        service = EnhancedAffiliateResearchService()
+        
+        # Use intelligent discovery
+        # Map request parameters to expected args
+        search_terms = [request.search_term]
+        if request.niche:
+            search_terms.append(request.niche)
+            
+        result = await service.intelligent_offer_discovery(
+            search_terms=search_terms,
+            user_id=request.user_id,
+            research_scope="comprehensive", # Default to comprehensive
+            ignore_cache=True # Always fresh for manual search
         )
+        
+        # Transform result to match AffiliateSearchResponse structure if needed
+        # The service returns {session_id, discovered_programs, recommended_offers...}
+        # The frontend expects a specific structure. 
+        # Checking AffiliateSearchResponse model... assumed generic data field or similar.
+        # Ideally we map 'recommended_offers' to the list the UI expects.
         
         return AffiliateSearchResponse(
             success=True,
             message="Affiliate programs found successfully",
-            data=result
+            data={
+                "programs": result["recommended_offers"],
+                "count": len(result["recommended_offers"]),
+                "session_id": result.get("session_id")
+            }
+        )
+        
+    except Exception as e:
+        logger.error("Affiliate search failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Search failed: {str(e)}"
         )
         
     except Exception as e:

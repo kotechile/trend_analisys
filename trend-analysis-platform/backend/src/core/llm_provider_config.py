@@ -22,8 +22,8 @@ class LLMProviderConfig:
     def _initialize_supabase_client(self):
         """Initialize Supabase client"""
         try:
-            from .supabase_database_service import supabase
-            self.supabase_client = supabase
+            from .supabase_singleton import get_supabase_client
+            self.supabase_client = get_supabase_client()
             logger.info("LLM Provider Config initialized with Supabase")
         except Exception as e:
             logger.warning("Failed to initialize Supabase client", error=str(e))

@@ -430,7 +430,8 @@ class LinkUpAPI:
                 
                 # Create formatted offer
                 formatted_offer = {
-                    "name": name,
+                    "program_name": name,
+                    "company_name": name.replace(" Affiliate Program", ""),
                     "description": description,
                     "commission": commission,
                     "category": category,

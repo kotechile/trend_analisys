@@ -138,3 +138,83 @@ async def get_settings_status():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get settings status: {str(e)}"
         )
+
+# ProfitPath Settings Models
+class ProfitResearchSettings(BaseModel):
+    min_volume: int = Field(50, description="Minimum search volume to keep a keyword")
+    max_difficulty: int = Field(50, description="Maximum keyword difficulty (KD) to keep")
+    min_cpc: float = Field(0.5, description="Minimum CPC value")
+    strict_mode: bool = Field(True, description="If True, filters are Ruthless (Kill). If False, warn only.")
+
+@router.get("/research", response_model=SettingsResponse)
+async def get_research_settings():
+    """Get ProfitPath research settings"""
+    try:
+        # Fetch from Supabase
+        from ..core.supabase_singleton import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Get the first settings row (assuming single user/global settings for now)
+        response = supabase.table('application_settings').select('research_settings').limit(1).execute()
+        
+        if not response.data:
+            # Return defaults if no settings found
+            return SettingsResponse(
+                success=True,
+                message="Default settings returned (no config found)",
+                data=ProfitResearchSettings().dict()
+            )
+            
+        settings_data = response.data[0].get('research_settings') or {}
+        # Merge with defaults to ensure all fields exist
+        default_settings = ProfitResearchSettings().dict()
+        default_settings.update(settings_data)
+        
+        return SettingsResponse(
+            success=True,
+            message="Research settings retrieved",
+            data=default_settings
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting research settings: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get research settings: {str(e)}"
+        )
+
+@router.post("/research", response_model=SettingsResponse)
+async def update_research_settings(settings: ProfitResearchSettings):
+    """Update ProfitPath research settings"""
+    try:
+        from ..core.supabase_singleton import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Check if row exists, if not create one, else update
+        check = supabase.table('application_settings').select('id').limit(1).execute()
+        
+        if not check.data:
+            # Insert new row
+            supabase.table('application_settings').insert({
+                'research_settings': settings.dict()
+            }).execute()
+        else:
+            # Update existing row
+            # Note: Ideally we update the specific user's row, but simplistic for now
+            row_id = check.data[0]['id']
+            supabase.table('application_settings').update({
+                'research_settings': settings.dict()
+            }).eq('id', row_id).execute()
+            
+        return SettingsResponse(
+            success=True,
+            message="Research settings updated",
+            data=settings.dict()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error updating research settings: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update research settings: {str(e)}"
+        )

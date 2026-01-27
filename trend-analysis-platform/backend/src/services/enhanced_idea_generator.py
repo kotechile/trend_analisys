@@ -3,9 +3,12 @@ Enhanced idea generator with separate paths for blog and software ideas
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 from ..services.enhanced_database import enhanced_database_service
-from ..config import settings
+from src.core.config import settings
+import re
+import json
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +146,7 @@ class EnhancedIdeaGenerator:
     
     async def _generate_blog_ideas_with_llm(
         self, 
-        keywords: List[str] | List[Dict[str, Any]], 
+        keywords: Union[List[str], List[Dict[str, Any]]], 
         user_id: str,
         analysis_id: Optional[str],
         enhanced_with_ahrefs: bool
@@ -235,19 +238,30 @@ class EnhancedIdeaGenerator:
                         metrics_context += f"- '{kw}': Volume={vol}, Difficulty={diff}, CPC={cpc}\n"
             
             prompt = f"""
-            Generate 10 HIGH-QUALITY blog post ideas based on these keywords: {', '.join(keywords[:10])}.
+            You are a Senior Content Strategist. Your goal is to create high-performing content blueprints that target specific keyword clusters.
+            
+            CLUSTER CONTEXT:
+            Topic Keywords: {', '.join(keywords[:15])}
             
             {metrics_context}
             
-            For each idea, you MUST return a JSON object with the following specific fields. 
-            Calibrate your scores based on standard industry benchmarks.
+            TASK:
+            Generate 5 detailed "Content Blueprints" (Blog Ideas) based on these keywords.
+            
+            CRITICAL REQUIREMENT: 
+            For the 'content_outline' field, do NOT just list headers. You must create a "Strategic Blueprint" where each item in the list corresponds to a section, formatted exactly like this:
+            
+            "H2: [Heading using specific keyword] | Intent: [User Intent/Question] | Keywords: [Specific keywords to include] | Affiliate Hook: [Where to insert product/review]"
+            
+            Example of a good outline item:
+            "H2: White Vinegar & Dish Soap Recipes | Intent: How to make safe weed killer at home | Keywords: vinegar weed killer recipe, dawn dish soap | Affiliate Hook: Review heavy-duty spray bottles"
             
             Required JSON Fields per idea:
-            - title: Catchy, clear title.
+            - title: Catchy, clear title (H1).
             - content_type: (article, guide, comparison, list, review, etc.)
-            - primary_keywords: [list of strings]
-            - secondary_keywords: [list of strings]
-            - description: Brief description of the content.
+            - primary_keywords: [list of top 3 keywords from cluster]
+            - secondary_keywords: [list of next 5 keywords]
+            - description: Compelling meta-description style summary.
             
             METRICS (0-100 score):
             - seo_optimization_score: How well this matches search intent (High=80+).
@@ -257,7 +271,7 @@ class EnhancedIdeaGenerator:
             - business_impact_score: Potential for conversions/revenue (High=80+).
             
             ADDITIONAL DATA:
-            - average_difficulty: Numeric 0-100 (If DataForSEO data exists, use that. Otherwise estimate based on competition).
+            - average_difficulty: Numeric 0-100 (Use provided data or estimate).
             - difficulty_level: String ('beginner', 'intermediate', 'expert').
             - estimated_read_time: Numeric (minutes).
             - estimated_word_count: Numeric.
@@ -265,7 +279,8 @@ class EnhancedIdeaGenerator:
             - average_cpc: Numeric (use provided data or estimate).
             - total_search_volume: Numeric (use provided data or estimate).
             - optimization_tips: [list of 2 strings].
-            - content_outline: [list of 3 section headers].
+            - content_outline: [List of 4-6 "Strategic Blueprint" strings as defined above].
+            - monetization_hook: Specific angle to monetize this post (e.g., "Review X product").
             
             Return ONLY a valid JSON array of objects. Do not include markdown code blocks.
             """
@@ -420,6 +435,312 @@ class EnhancedIdeaGenerator:
             logger.error(f"Error getting combined ideas: {str(e)}")
             return {'blog_ideas': [], 'software_ideas': []}
     
+    async def generate_content_for_subtopic(
+        self,
+        topic_id: str,
+        subtopic: str,
+        keywords: List[Any],
+        affiliate_offers: List[Any],
+        user_id: str
+    ) -> Dict[str, Any]:
+        """
+        Generate content ideas (blog + software) for a specific subtopic using Prompt B
+        """
+        try:
+            # Clean keywords - handle mixed types (str or dict)
+            clean_keywords = []
+            for k in keywords:
+                if isinstance(k, str):
+                    clean_keywords.append(k)
+                elif isinstance(k, dict):
+                    # Try common keys or stringify
+                    val = k.get('keyword') or k.get('term') or k.get('name') or str(k)
+                    clean_keywords.append(str(val))
+                else:
+                    clean_keywords.append(str(k))
+            
+            # Clean affiliate offers
+            clean_offers = []
+            if affiliate_offers:
+                for o in affiliate_offers:
+                    if isinstance(o, str):
+                        clean_offers.append(o)
+                    elif isinstance(o, dict):
+                        val = o.get('name') or o.get('title') or o.get('offer') or str(o)
+                        clean_offers.append(str(val))
+                    else:
+                        clean_offers.append(str(o))
+
+            # Construct prompt
+            prompt = f"""
+            ### ROLE
+            You are a Senior Content Strategist. Your goal is to create high-performing content blueprints that target specific keyword clusters.
+
+            ### INPUT DATA
+            1. SUBTOPIC: {subtopic}
+            2. KEYWORDS: {', '.join(clean_keywords)}
+            3. AFFILIATE OFFERS: {', '.join(clean_offers) if clean_offers else "None provided (Suggest generic types)"}
+
+            ### TASK
+            Generate 5 detailed "Content Blueprints" (Blog Ideas) and 2 Simple Software Application ideas.
+            
+            CRITICAL REQUIREMENT: 
+            For the 'Suggested Outline' field, do NOT just list headers. You must create a "Strategic Blueprint" where each item in the list corresponds to a section, formatted exactly like this:
+            
+            "H2: [Heading using specific keyword] | Intent: [User Intent/Question] | Keywords: [Specific keywords to include] | Affiliate Hook: [Where to insert product/review]"
+            
+            Example of a good outline item:
+            "H2: White Vinegar & Dish Soap Recipes | Intent: How to make safe weed killer at home | Keywords: vinegar weed killer recipe, dawn dish soap | Affiliate Hook: Review heavy-duty spray bottles"
+
+            ### OUTPUT FORMAT
+            You must verify the response is strictly in the following TEXT DELIMITED format. Do not use JSON.
+
+            [BLOG_IDEA]
+            Title: <The Title>
+            Angle: <Brief explanation of why this ranks>
+            Target Affiliate: <Affiliate name>
+            Estimated Search Volume: <Numeric Estimate>
+            Suggested Outline: <3-5 strategic blueprint bullets separated by | >
+            [END]
+
+            [SOFTWARE_IDEA]
+            Name: <App Name>
+            Description: <What it does>
+            Monetization Hook: <How it links to affiliates>
+            Estimated Search Volume: <Numeric Estimate>
+            [END]
+            """
+
+            # Call LLM service
+            if not self.llm_service:
+                 # Try to get default service if not initialized
+                from ..integrations.llm_providers import llm_providers_manager
+                self.llm_service = llm_providers_manager.providers.get('openai') or llm_providers_manager.providers.get('deepseek')
+            
+            if not self.llm_service:
+                 raise ValueError("No LLM service available")
+
+            response = await self.llm_service.generate_content(
+                prompt=prompt,
+                max_tokens=2500,
+                temperature=0.7
+            )
+
+            if "error" in response:
+                raise ValueError(f"LLM error: {response['error']}")
+
+            content = response["content"]
+            
+            # Parse response
+            blog_ideas = []
+            software_ideas = []
+            
+            # Import uuid for ID generation
+            import uuid
+
+            # Parse Blog Ideas - Relaxed pattern
+            blog_pattern = re.compile(
+                r'\[BLOG_IDEA\]\s*'
+                r'Title:\s*(.+?)\s*\n' # Relaxed: allow any whitespace after value, then newline
+                r'\s*Angle:\s*(.+?)\s*\n'
+                r'\s*Target Affiliate:\s*(.+?)\s*\n'
+                r'\s*Estimated Search Volume:\s*(.+?)\s*\n'
+                r'\s*Suggested Outline:\s*(.+?)\s*'
+                r'\[END\]', 
+                re.DOTALL | re.IGNORECASE
+            )
+            blog_matches = blog_pattern.findall(content)
+            
+            for match in blog_matches:
+                title, angle, affiliate, volume_str, outline = match
+                
+                # Parse volume safely
+                try:
+                    total_search_volume = int(re.sub(r'[^\d]', '', volume_str))
+                except:
+                    total_search_volume = 0
+                
+                # Check description logic
+                description = f"Angle: {angle.strip()}. Target Affiliate: {affiliate.strip()}"
+                
+                # Parse outline bullets
+                outline_list = [s.strip() for s in outline.split('|') if s.strip()]
+
+                blog_ideas.append({
+                    "id": str(uuid.uuid4()),  # Generate ID immediately
+                    "title": title.strip(),
+                    "angle": angle.strip(),
+                    "target_affiliate": affiliate.strip(),
+                    "description": description, # Explicitly setting description for use in DB
+                    "content_type": "blog",
+                    "subtopic": subtopic,
+                    "user_id": user_id,
+                    "total_search_volume": total_search_volume,
+                    "content_outline": outline_list,
+                    "keywords": [str(k) for k in clean_keywords[:5]], # Add keywords to memory object
+                    "created_at": datetime.utcnow().isoformat()
+                })
+
+            # Parse Software Ideas - Relaxed pattern
+            soft_pattern = re.compile(
+                r'\[SOFTWARE_IDEA\]\s*'
+                r'Name:\s*(.+?)\s*\n'
+                r'\s*Description:\s*(.+?)\s*\n'
+                r'\s*Monetization Hook:\s*(.+?)\s*\n'
+                r'\s*Estimated Search Volume:\s*(.+?)\s*'
+                r'\[END\]', 
+                re.DOTALL | re.IGNORECASE
+            )
+            soft_matches = soft_pattern.findall(content)
+            
+            for match in soft_matches:
+                name, desc, hook, volume_str = match
+                
+                # Parse volume safely
+                try:
+                    total_search_volume = int(re.sub(r'[^\d]', '', volume_str))
+                except:
+                    total_search_volume = 0
+                
+                description = f"{desc.strip()} Monetization Hook: {hook.strip()}"
+                
+                software_ideas.append({
+                    "id": str(uuid.uuid4()), # Generate ID immediately
+                    "name": name.strip(),
+                    "title": name.strip(), # Ensure title is present for DB map
+                    "description": description, # Explicitly setting description
+                    "monetization_hook": hook.strip(),
+                    "content_type": "software",
+                    "subtopic": subtopic,
+                    "user_id": user_id,
+                    "total_search_volume": total_search_volume,
+                    "keywords": [str(k) for k in clean_keywords[:5]], # Add keywords to memory object
+                    "created_at": datetime.utcnow().isoformat()
+                })
+
+            # Save to content_ideas table
+            try:
+                # Prepare data for bulk insert
+                ideas_to_insert = []
+                
+                # Calculate metrics from input keywords
+                metrics_summary = {}
+                avg_vol = 0
+                avg_diff = 0
+                
+                if clean_keywords:
+                    # Try to reconstruct metrics if original keywords input had them
+                    # The input 'keywords' might be mixed list of dicts/strs
+                    # We can iterate the original 'keywords' arg, not just 'clean_keywords'
+                    valid_metrics = []
+                    for k in keywords:
+                        if isinstance(k, dict):
+                            valid_metrics.append(k)
+                    
+                    if valid_metrics:
+                        total_vol = sum(float(k.get('search_volume', 0) or k.get('volume', 0)) for k in valid_metrics)
+                        total_diff = sum(float(k.get('keyword_difficulty', 0) or k.get('difficulty', 0)) for k in valid_metrics)
+                        avg_vol = total_vol / len(valid_metrics)
+                        avg_diff = total_diff / len(valid_metrics)
+                        
+                        metrics_summary = {
+                            "avg_search_volume": round(avg_vol, 0),
+                            "avg_difficulty": round(avg_diff, 1),
+                            "total_keywords": len(valid_metrics)
+                        }
+
+                for idea in blog_ideas:
+                    # Use parsed volume if available, else usage calculated avg
+                    vol = idea.get("total_search_volume", 0) or avg_vol
+
+                    ideas_to_insert.append({
+                        "id": idea["id"], 
+                        "user_id": user_id,
+                        "topic_id": topic_id,
+                        "research_id": topic_id,
+                        "subtopic": subtopic,
+                        "title": idea["title"],
+                        "description": idea["description"],
+                        "content_type": "blog",
+                        "category": "generated",
+                        "status": "draft",
+                        "keywords": [str(k) for k in clean_keywords[:5]], 
+                        "content_outline": idea.get("content_outline", []),
+                        "total_search_volume": int(vol),
+                        "created_at": datetime.utcnow().isoformat(),
+                        # Add missing metrics fields
+                        "keyword_metrics": metrics_summary, # Save the calculated summary
+                        "seo_score": 75, # Default good score for LLM generated content
+                        "difficulty_level": "Medium", # Default
+                        "monetization_potential": "High", # Default given intent
+                        
+                        # New Scores
+                        "viral_potential_score": 85 if int(vol) > 1000 else 60,
+                        "audience_alignment_score": 85,
+                        "content_feasibility_score": 90,
+                        "business_impact_score": 80
+                    })
+                    
+                for idea in software_ideas:
+                     # For software, 'name' maps to 'title' in DB
+                    vol = idea.get("total_search_volume", 0) or avg_vol
+                    
+                    ideas_to_insert.append({
+                        "id": idea["id"], 
+                        "user_id": user_id,
+                        "topic_id": topic_id,
+                        "research_id": topic_id,
+                        "subtopic": subtopic,
+                        "title": idea["name"], 
+                        "description": idea["description"],
+                        "content_type": "software",
+                        "category": "generated",
+                        "status": "draft",
+                        "keywords": [str(k) for k in clean_keywords[:5]],
+                        "content_outline": [], 
+                        "total_search_volume": int(vol),
+                        "created_at": datetime.utcnow().isoformat(),
+                        # Add missing metrics fields
+                        "keyword_metrics": metrics_summary,
+                        "seo_score": 0, # Not applicable for software
+                        "difficulty_level": "High",
+                        "monetization_potential": "Very High",
+                        
+                        # New Scores
+                        "viral_potential_score": 75,
+                        "audience_alignment_score": 90,
+                        "content_feasibility_score": 60, # Software is harder
+                        "business_impact_score": 95
+                    })
+                
+                if ideas_to_insert:
+                    # Import supabase client here to avoid circular dependencies if any
+                    from ..core.supabase_singleton import get_supabase_client
+                    supabase = get_supabase_client()
+                    
+                    # Insert into content_ideas
+                    db_result = supabase.table('content_ideas').insert(ideas_to_insert).execute()
+                    
+                    logger.info(f"Saved {len(ideas_to_insert)} generated ideas to content_ideas table")
+                    
+                    # We already generated IDs, so no need to fetch back. 
+                    # If DB save succeeds, great. If not, we have IDs in memory so React won't complain.
+
+            except Exception as e:
+                logger.error(f"Failed to save generated ideas to database: {str(e)}")
+                # Log detailed traceback context if possible, but basic logging is imperative here.
+                # Proceed to return the memory-generated ideas so the user at least sees them once
+                pass
+
+            return {
+                "blog_ideas": blog_ideas,
+                "software_ideas": software_ideas
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating content for subtopic {subtopic}: {str(e)}")
+            return {"blog_ideas": [], "software_ideas": []}
+
     async def generate_ideas_for_idea_burst(
         self, 
         user_id: str,

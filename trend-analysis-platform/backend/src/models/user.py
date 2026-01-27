@@ -13,6 +13,7 @@ from ..core.database import Base
 class UserRole(PyEnum):
     """User role enumeration"""
     USER = "user"
+    PREMIUM_USER = "premium_user"
     ADMIN = "admin"
     MODERATOR = "moderator"
 

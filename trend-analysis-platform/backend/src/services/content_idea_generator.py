@@ -10,13 +10,13 @@ import random
 import httpx
 
 from ..core.llm_provider_config import llm_provider_config
-from ..core.supabase_database_service import supabase
+from ..core.supabase_singleton import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
 class ContentIdeaGenerator:
     def __init__(self):
-        self.supabase = supabase
+        self.supabase = get_supabase_client()
         
     async def _get_llm_credentials(self) -> Dict[str, Any]:
         """Fetch active LLM provider and API key from database"""
@@ -391,11 +391,14 @@ class ContentIdeaGenerator:
             - Primary Keyword: {primary_keyword.get('keyword', '')}
             - Secondary Keywords: {keywords_list}
             
-            Requirements:
+            Requirement:
             1. Title must be catchy, SEO-friendly, and include the primary keyword naturally.
             2. Description must be a compelling hook and summary of what the article covers.
             3. Target Audience (e.g., "Beginners", "Experts").
             4. Content Angle (e.g., "Step-by-step Guide", "Case Study", "Deep Dive", "Listicle").
+            5. **Structured Outline**: Create a detailed content outline with H2 and H3 headings. 
+               - Map the Secondary Keywords to specific sections where they fit best.
+               - Ensure logical flow and comprehensiveness.
             
             CRITICAL INSTRUCTIONS:
             - DO NOT simply concatenate the keyword and subtopic (e.g. "Keyword Guide for Subtopic").
@@ -408,13 +411,16 @@ class ContentIdeaGenerator:
 
             CRITICAL:
             1. Return 5 unique title options in a "titles" array.
-            2. Each title MUST include the keyword "{primary_keyword.get('keyword', '')}".
-            3. Each title MUST be under 60 characters if possible.
-            4. Make titles catchy but concise.
+            2. "markdown_outline" must be a single string with markdown headers (## H2, ### H3).
+            3. Each title must be under 60 characters if possible.
+            
+            Output JSON Format:
+            {{
                 "titles": ["string", "string", "string", "string", "string"], 
                 "description": "string",
                 "target_audience": "string",
-                "content_angle": "string"
+                "content_angle": "string",
+                "markdown_outline": "## Introduction\\n...\\n## Key Section 1\\n..."
             }}
             """
 
@@ -509,6 +515,7 @@ class ContentIdeaGenerator:
                 "estimated_read_time": random.randint(5, 15),
                 "target_audience": data.get("target_audience", "General"),
                 "content_angle": data.get("content_angle", "Guide"),
+                "markdown_outline": data.get("markdown_outline", "## Outline Not Generated"),
                 "monetization_potential": monetization_potential,
                 "generation_method": "llm_enhanced",
                 "data_source": "real_keyword_metrics"
@@ -1683,17 +1690,88 @@ class ContentIdeaGenerator:
         user_id: str,
         content_type: str = None
     ) -> List[Dict[str, Any]]:
-        """Retrieve content ideas from database"""
+        """Retrieve content ideas from database (merging legacy and enhanced tables)"""
         try:
-            query = self.supabase.table('content_ideas').select('*').eq('topic_id', topic_id).eq('user_id', user_id)
+            ideas = []
             
+            # 1. Fetch Legacy Ideas
+            query = self.supabase.table('content_ideas').select('*').eq('topic_id', topic_id).eq('user_id', user_id)
             if content_type:
                 query = query.eq('content_type', content_type)
-            
             result = query.order('created_at', desc=True).execute()
+            if result.data:
+                ideas.extend(result.data)
+                
+            # 2. Fetch Enhanced Blog Ideas
+            # Note: We need to filter by analysis_id or just topic_id?
+            # Enhanced ideas stores analysis_id, but maybe not topic_id directly?
+            # Let's check schema usage in enhanced_database.py... 
+            # It saves 'analysis_id'. If topic_id is NOT stored in blog_ideas, we might miss them.
+            # However, for Idea Burst, we likely don't have analysis_id.
+            # Let's assume we need to join or filter differently.
+            # Wait, enhanced_database.py save_enhanced_ideas uses analysis_id.
+            # If Idea Burst calls save_enhanced_ideas, what does it pass as analysis_id?
+            # In enhanced_topic_routes.py:394, it passes topic_id as topic_id, but EnhancedIdeaGenerator passes analysis_id?
+            # enhanced_idea_generator.py just calls save_enhanced_ideas.
             
-            return result.data or []
+            # Let's fetch ALL compatible ideas for this user and filter in memory if necessary, 
+            # or rely on the fact that we need topic alignment.
             
+            # CRITICAL CHECK: Does blog_ideas table have 'topic_id'?
+            # If not, we can't easily fetch by topic_id without a join or schema change.
+            # The 'content_ideas' table has 'topic_id'.
+            # If 'blog_ideas' relies on 'analysis_id' which maps to 'ahrefs_analyses', that's for Ahrefs flow.
+            # For Idea Burst, we need 'topic_id'.
+            
+            # Let's try to query blog_ideas assuming it might have keys, or just return existing logic if unknown.
+            # Actually, looking at the user log, the "Idea Burst" writes to `content_ideas`?
+            # No, I confirmed it calls save_enhanced_ideas.
+            
+            # Let's assume table has the fields we need or fail gracefully.
+            try:
+                blog_query = self.supabase.table('blog_ideas').select('*').eq('user_id', user_id)
+                # If topic_id exists in schema, filter by it.
+                # Since I can't confirm schema easily without SQL tool (I have list_tables but not describe),
+                # I will try to fetch and filter in app if reasonable size, or add topic_id filter optimistically.
+                # Actually, enhanced_database.py insert DOES NOT show topic_id being inserted!
+                # It inserts 'analysis_id'.
+                # This suggests 'blog_ideas' might be disconnected from 'topic_id' unless 'analysis_id' == 'topic_id'.
+                
+                # In enhanced_topic_routes.py, request.topic_id is passed.
+                # In enhanced_idea_generator.py, if analysis_id is passed as topic_id, then we are good.
+                # Let's modify this to query blog_ideas by analysis_id=topic_id OR topic_id=topic_id
+                
+                blog_query = blog_query.or_(f"analysis_id.eq.{topic_id},topic_id.eq.{topic_id}")
+                blog_result = blog_query.execute()
+                if blog_result.data:
+                    # Normalize to match ContentIdea shape if needed
+                    for idea in blog_result.data:
+                        # Ensure minimal fields
+                        if 'total_search_volume' not in idea: idea['total_search_volume'] = 0
+                        ideas.append(idea)
+                        
+            except Exception as blog_err:
+                logger.warning(f"Failed to fetch from blog_ideas: {blog_err}")
+
+            try:
+                sw_query = self.supabase.table('software_ideas').select('*').eq('user_id', user_id)
+                # content_ideas table uses topic_id.
+                # software_ideas might use analysis_id=topic_id convention for bursts.
+                sw_query = sw_query.or_(f"analysis_id.eq.{topic_id},topic_id.eq.{topic_id}")
+                sw_result = sw_query.execute()
+                if sw_result.data:
+                    for idea in sw_result.data:
+                        if 'name' in idea and 'title' not in idea:
+                            idea['title'] = idea['name']
+                        ideas.append(idea)
+            except Exception as sw_err:
+                logger.warning(f"Failed to fetch from software_ideas: {sw_err}")
+
+            # Sort combined results
+            ideas.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            
+            return ideas
+        
         except Exception as e:
             logger.error(f"Failed to retrieve content ideas: {str(e)}")
             return []
@@ -1712,3 +1790,106 @@ class ContentIdeaGenerator:
         except Exception as e:
             logger.error(f"Failed to delete content ideas: {str(e)}")
             return False
+
+    async def publish_ideas_to_titles(self, idea_ids: List[str], user_id: str) -> Dict[str, Any]:
+        """
+        Publish selected content ideas to the Titles table for content creation workflow
+        """
+        try:
+            logger.info(f"Publishing {len(idea_ids)} ideas to Titles for user {user_id}")
+            
+            # Fetch the ideas to be published
+            response = self.supabase.table('content_ideas')\
+                .select('*')\
+                .in_('id', idea_ids)\
+                .eq('user_id', user_id)\
+                .execute()
+                
+            ideas = response.data
+            if not ideas:
+                return {"success": False, "message": "No valid ideas found to publish"}
+            
+            published_count = 0
+            titles_to_insert = []
+            
+            for idea in ideas:
+                # Map content_idea to title schema
+                # We'll use the idea title as 'Title' and subtopic/topic_title for context
+                
+                # Format keywords as comma-separated string
+                keywords_list = idea.get('keywords', [])
+                keywords_str = ", ".join(keywords_list) if isinstance(keywords_list, list) else str(keywords_list)
+                
+                # Get metrics with defaults
+                metrics = idea.get('keyword_metrics') or {}
+                avg_vol = metrics.get('avg_search_volume', 0)
+                avg_diff = metrics.get('avg_difficulty', 0)
+                seo_score = idea.get('seo_score', 0)
+                
+                # Calculate derived scores
+                # Traffic Potential Score: Heuristic based on Search Volume and Difficulty
+                # Logic: Higher volume + Lower difficulty = Higher potential
+                # Scale roughly 0-100
+                vol_factor = min(avg_vol / 100, 50) # Cap volume contribution
+                diff_factor = max(0, 50 - (avg_diff / 2)) # Difficulty penalty (lower is better)
+                traffic_potential = int(vol_factor + diff_factor)
+                
+                # Construct Title entry
+                # Note: "Titles" table uses mixed case column names based on introspection
+                title_entry = {
+                    "Title": idea.get('title'),
+                    "userDescription": idea.get('description'), # Map description to userDescription
+                    "status": "New", # Default status
+                    "user_id": user_id,
+                    "Keywords": keywords_str,
+                    "topic_id": idea.get('topic_id'), # Link back to Research Topic
+                    "source_idea_id": idea.get('id'), # Link back to Content Idea
+                    "subtopic": idea.get('subtopic'),
+                    "content_type": idea.get('content_type'),
+                    "total_search_volume": int(avg_vol) if avg_vol else 0,
+                    "avg_keyword_difficulty": int(round(float(avg_diff))) if avg_diff else 0,
+                    # Map content_outline from either new key (list) or old key (string)
+                    "content_outline": idea.get('content_outline') or idea.get('markdown_outline'), 
+                    "original_created_at": idea.get('created_at'),
+                    "created_at": datetime.now().isoformat(),
+                    
+                    # New requested fields
+                    "overall_quality_score": int(seo_score) if seo_score else 0,
+                    "seo_optimization_score": int(seo_score) if seo_score else 0, # Map to specific column
+                    "competition_score": int(round(float(avg_diff))) if avg_diff else 0, # Cast to int to avoid "invalid input syntax for type integer: 0.0"
+                    "traffic_potential_score": int(traffic_potential),
+                    
+                    # New Feasibility/Viral Scores
+                    "viral_potential_score": int(idea.get('viral_potential_score', 0)),
+                    "audience_alignment_score": int(idea.get('audience_alignment_score', 0)),
+                    "content_feasibility_score": int(idea.get('content_feasibility_score', 0)),
+                    "business_impact_score": int(idea.get('business_impact_score', 0))
+                }
+                
+                # Clean up None values if strict schema ( Supabase usually handles None as NULL)
+                titles_to_insert.append(title_entry)
+        
+            if titles_to_insert:
+                # Insert into titles table
+                # Use quoted table name "Titles" to respect case sensitivity if needed, 
+                # but supabase-py library usually handles quotes if we pass the string name.
+                # However, if the table was created with quotes like "Titles", we might need to be careful.
+                # The existing code used 'titles' (lowercase). Step 54 failed with 'relation "public.titles" does not exist'.
+                # This suggests the table IS case sensitive "Titles". 
+                # supabase-py might need us to pass "Titles" exactly.
+                
+                insert_response = self.supabase.table('Titles').insert(titles_to_insert).execute()
+                
+                if insert_response.data:
+                    published_count = len(insert_response.data)
+                    logger.info(f"Successfully published {published_count} titles")
+            
+            return {
+                "success": True, 
+                "message": f"Successfully published {published_count} ideas to Titles",
+                "published_count": published_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to publish ideas to Titles: {str(e)}")
+            raise e

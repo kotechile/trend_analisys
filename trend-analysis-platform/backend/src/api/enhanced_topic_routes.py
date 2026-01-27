@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
 
 from ..services.enhanced_topic_decomposition_service import EnhancedTopicDecompositionService
+from ..services.enhanced_idea_generator import enhanced_idea_generator
 from ..integrations.google_autocomplete import GoogleAutocompleteService
 from ..models.enhanced_subtopic import EnhancedSubtopic, SubtopicSource
 from ..models.autocomplete_result import AutocompleteResult
@@ -39,8 +40,7 @@ def get_default_llm_provider():
 google_autocomplete_service = GoogleAutocompleteService()
 # Initialize with both autocomplete and LLM for hybrid approach
 enhanced_topic_service = EnhancedTopicDecompositionService(
-    google_autocomplete_service=google_autocomplete_service,
-    llm_provider=get_default_llm_provider()  # Use dynamic default LLM provider
+    google_autocomplete_service=google_autocomplete_service
 )
 
 # Request/Response Models
@@ -169,11 +169,29 @@ class SimpleTopicAnalysisRequest(BaseModel):
             raise ValueError('Topic cannot be empty')
         return v.strip()
 
-class SimpleTopicAnalysisResponse(BaseModel):
-    """Simple response model for topic analysis (frontend compatibility)"""
-    subtopics: list = Field(..., description="List of subtopics")
     success: bool = Field(default=True, description="Whether the operation was successful")
     message: str = Field(default="Analysis completed", description="Human-readable message")
+
+class SimpleTopicAnalysisResponse(BaseModel):
+    """Simple response model for topic analysis"""
+    subtopics: list = Field(..., description="List of subtopics")
+    success: bool = Field(..., description="Whether the operation was successful")
+    message: str = Field(..., description="Human-readable message")
+
+class IdeaBurstRequest(BaseModel):
+    """Request model for Idea Burst generation"""
+    user_id: str = Field(..., description="User identifier")
+    topic_id: str = Field(..., description="Topic identifier")
+    subtopic: str = Field(..., description="Subtopic name")
+    keywords: list = Field(default=[], description="List of keywords")
+    affiliate_offers: list = Field(default=[], description="List of affiliate offers")
+
+class IdeaBurstResponse(BaseModel):
+    """Response model for Idea Burst generation"""
+    success: bool
+    blog_ideas: list
+    software_ideas: list
+    message: str
 
 # API Routes
 @router.post("/analyze-topic", response_model=SimpleTopicAnalysisResponse)
@@ -350,6 +368,50 @@ async def compare_decomposition_methods(request: MethodComparisonRequest):
         raise
     except Exception as e:
         logger.error(f"Error in method comparison: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+
+@router.post("/idea-burst", response_model=IdeaBurstResponse)
+async def generate_idea_burst(request: IdeaBurstRequest):
+    """
+    Generate Idea Burst content (Step 5)
+    
+    Generates blog titles and software ideas for a specific subtopic
+    """
+    try:
+        # Rate limiting check
+        if rate_limiter.is_rate_limited(request.user_id):
+             raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded. Please try again later."
+            )
+            
+        result = await enhanced_idea_generator.generate_content_for_subtopic(
+            topic_id=request.topic_id,
+            subtopic=request.subtopic,
+            keywords=request.keywords,
+            affiliate_offers=request.affiliate_offers,
+            user_id=request.user_id
+        )
+        
+        success = len(result["blog_ideas"]) > 0 or len(result["software_ideas"]) > 0
+        message = "Content generated successfully" if success else "Failed to generate content"
+        
+        return IdeaBurstResponse(
+            success=success,
+            blog_ideas=result["blog_ideas"],
+            software_ideas=result["software_ideas"],
+            message=message
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in idea burst generation: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"

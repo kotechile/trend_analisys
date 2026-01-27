@@ -1108,7 +1108,37 @@ class ContentIdeaListRequest(BaseModel):
     user_id: str
     content_type: Optional[str] = None
 
+class PublishIdeasRequest(BaseModel):
+    idea_ids: List[str]
+    user_id: str
+
 # Content Ideas Endpoints
+@app.post("/api/content-ideas/publish")
+async def publish_ideas(request: PublishIdeasRequest):
+    """
+    Publish content ideas to the Titles table
+    """
+    try:
+        from .services.content_idea_generator import ContentIdeaGenerator
+        
+        generator = ContentIdeaGenerator()
+        
+        logger.info(f"Publishing {len(request.idea_ids)} content ideas for user: {request.user_id}")
+        
+        result = await generator.publish_ideas_to_titles(
+            idea_ids=request.idea_ids,
+            user_id=request.user_id
+        )
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+            
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to publish content ideas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to publish content ideas: {str(e)}")
+
 @app.post("/api/content-ideas/generate", response_model=ContentIdeaResponse)
 async def generate_content_ideas(request: ContentIdeaGenerationRequest):
     """
@@ -1431,7 +1461,7 @@ async def store_ahrefs_keywords(db, file_id: str, topic_id: str, user_id: str, k
 
 if __name__ == "__main__":
     import uvicorn
-from src.core.supabase_database_service import SupabaseDatabaseService
+    from src.core.supabase_database_service import SupabaseDatabaseService
     uvicorn.run(
         "simple_supabase_main:app",
         host="0.0.0.0",

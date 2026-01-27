@@ -16,8 +16,8 @@ httpx==0.24.1
 aiohttp==3.9.1
 
 # Data processing
-pandas==2.1.4
-numpy==1.25.2
+pandas>=2.1.4
+numpy>=1.25.2
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
@@ -53,4 +53,4 @@ aiofiles==23.2.1
 # Missing dependencies for testing and development
 email-validator==2.1.0
 python-dateutil==2.8.2
-psutil==5.9.6httpx
+psutil==5.9.6

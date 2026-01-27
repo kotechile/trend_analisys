@@ -106,7 +106,7 @@ class GoogleAutocompleteService:
                 'User-Agent': random.choice(self.user_agents),
                 'Accept': 'application/json',
                 'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Encoding': 'gzip, deflate',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1'
             }
@@ -185,7 +185,8 @@ class GoogleAutocompleteService:
         return AutocompleteResult.create_success(
             query=query,
             suggestions=fallback_suggestions,
-            processing_time=time.time() - start_time
+            processing_time=time.time() - start_time,
+            is_fallback=True
         )
     
     async def _make_request(self, query: str, start_time: float) -> AutocompleteResult:

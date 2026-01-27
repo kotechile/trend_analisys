@@ -13,6 +13,7 @@ from ..core.redis import cache
 from ..core.config import get_settings
 from ..models.trend_analysis import TrendAnalysis, AnalysisStatus
 from ..models.affiliate_research import AffiliateResearch
+from .dataforseo_service import DataForSEOService
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -158,29 +159,158 @@ class TrendService:
                 pass
     
     async def _get_google_trends_data(self, topics: List[str]) -> Dict[str, Any]:
-        """Get Google Trends data"""
+        """Get trend data, with DataForSEO as primary source and Google Trends as fallback"""
+        logger.info(f"DEBUG: _get_google_trends_data STARTED for {topics} - NEW VERSION")
         try:
-            if not self.google_trends_api_key:
-                # Return mock data if no API key
-                return self._get_mock_google_trends_data(topics)
-            
             # Check cache first
-            cache_key = f"google_trends:{':'.join(topics)}"
-            cached_data = await cache.get(cache_key)
+            cache_key = f"trends:{':'.join(topics)}"
+            cached_data = cache.get(cache_key)
             if cached_data:
                 return cached_data
             
-            # Make API call to Google Trends
-            trends_data = await self._call_google_trends_api(topics)
+            # 1. Try DataForSEO (Primary)
+            try:
+                dataforseo_data = await self._get_dataforseo_trends(topics)
+                if dataforseo_data:
+                    cache.set(cache_key, dataforseo_data, expire=3600)
+                    return dataforseo_data
+            except Exception as e:
+                logger.warning("DataForSEO trend fetching failed, falling back to Google Trends", error=str(e))
+
+            # 2. Try Google Trends (Secondary)
+            if self.google_trends_api_key:
+                trends_data = await self._call_google_trends_api(topics)
+                cache.set(cache_key, trends_data, expire=3600)
+                return trends_data
             
-            # Cache for 1 hour
-            await cache.set(cache_key, trends_data, expire=3600)
-            
-            return trends_data
+            # 3. No fallback to mock as per strict requirements
+            logger.warning("Trend data fetching failed, and mock fallbacks are disabled", topics=topics)
+            return None
             
         except Exception as e:
-            logger.error("Failed to get Google Trends data", error=str(e))
-            return self._get_mock_google_trends_data(topics)
+            logger.error("Failed to get trend data", topics=topics, error=str(e))
+            return None
+
+    async def _get_dataforseo_trends(self, topics: List[str]) -> Optional[Dict[str, Any]]:
+        """Fetch and map DataForSEO historical data to unified trend format with rich Google Trends Explore data"""
+        df_service = DataForSEOService()
+        
+        try:
+            # 1. Fetch Search Volume History (for absolute metrics)
+            # 2. Fetch Google Trends Explore (for authentic 0-100 interest scores)
+            # We run these in parallel for speed
+            logger.info("DEBUG: fetching DataForSEO trends", topics=topics)
+            
+            search_history_task = df_service.get_search_volume_history(topics)
+            trends_explore_task = df_service.get_google_trends_explore(topics)
+            
+            results = await asyncio.gather(search_history_task, trends_explore_task, return_exceptions=True)
+            
+            history = results[0] if not isinstance(results[0], Exception) else None
+            explore_data = results[1] if not isinstance(results[1], Exception) else None
+            
+            if isinstance(results[0], Exception):
+                logger.warning(f"DataForSEO search volume history failed: {results[0]}")
+            else:
+                logger.info(f"DEBUG: DataForSEO History Response: Keys={list(history.keys()) if history else 'None'}")
+
+            if isinstance(results[1], Exception):
+                logger.warning(f"DataForSEO trends explore failed: {results[1]}")
+            else:
+                logger.info(f"DEBUG: DataForSEO Explore Response: Keys={list(explore_data.keys()) if explore_data else 'None'}")
+            
+            if not history and not explore_data:
+                logger.warning("DEBUG: Both DataForSEO calls returned empty or failed.")
+                return None
+                
+            primary_topic = topics[0]
+            # Handle case where keys might be lowercased by DataForSEO
+            # Try exact match first, then lowercase
+            topic_history = {}
+            if history:
+                topic_history = history.get(primary_topic) or history.get(primary_topic.lower()) or {}
+                if topic_history:
+                     logger.info(f"DEBUG: Found history for {primary_topic}. Monthly searches count: {len(topic_history.get('monthly_searches', []))}")
+                else:
+                     logger.warning(f"DEBUG: No history found for {primary_topic} (or lower). Available keys: {list(history.keys())}")
+
+            
+            topic_explore = []
+            if explore_data:
+                topic_explore = explore_data.get(primary_topic) or explore_data.get(primary_topic.lower()) or []
+            
+            # Combine the data
+            # We'll use explore_data (0-100) as the primary interest source if available
+            # because it's authentic Google Trends data. 
+            # We'll augment it with search_volume from history.
+            
+            combined_historical = []
+            
+            # Map search volume history for lookups
+            vol_map = {}
+            for m in topic_history.get("monthly_searches", []):
+                year = m.get("year_year") or m.get("year")
+                month = m.get("month")
+                date_key = f"{year}-{month:02d}-01"
+                vol_map[date_key] = m.get("search_volume", 0)
+            
+            if topic_explore:
+                logger.info(f"DEBUG: DataForSEO Topic Explore Data Points: {len(topic_explore)}")
+                if len(topic_explore) > 0:
+                    logger.info(f"DEBUG: First Data Point Sample: {topic_explore[0]}")
+                # Use Explore data as the base
+                for point in topic_explore:
+                    date = point.get("date")
+                    interest = point.get("value", 0)
+                    
+                    # Try to find matching absolute volume
+                    # Note: explore dates might be weekly or monthly. 
+                    # We'll try to match the month.
+                    vol = 0
+                    if date:
+                        month_key = date[:7] + "-01"
+                        vol = vol_map.get(month_key, 0)
+                    
+                    combined_historical.append({
+                        "date": date,
+                        "interest": interest,
+                        "absolute_volume": vol
+                    })
+            else:
+                # Fallback to pure search volume history if Explore failed
+                searches = topic_history.get("monthly_searches", [])
+                max_vol = max([m.get("search_volume", 0) for m in searches], default=1) if searches else 1
+                for date_key, vol in vol_map.items():
+                    combined_historical.append({
+                        "date": date_key,
+                        "interest": int((vol / max_vol) * 100),
+                        "absolute_volume": vol
+                    })
+
+
+            
+            # Sort by date
+            combined_historical.sort(key=lambda x: x["date"])
+            
+            # Calculate trend direction
+            if len(combined_historical) >= 2:
+                direction = "upward" if combined_historical[-1]["interest"] > combined_historical[0]["interest"] else "downward"
+            else:
+                direction = "stable"
+                
+            return {
+                "historical": combined_historical,
+                "search_volume": topic_history.get("search_volume"),
+                "competition": topic_history.get("competition"),
+                "cpc": topic_history.get("cpc"),
+                "trend_direction": direction,
+                "source": "dataforseo_rich"
+            }
+        except Exception as e:
+            logger.error("DataForSEO rich trend fetching failed", topics=topics, error=str(e))
+            return None
+        finally:
+            await df_service.close()
     
     async def _call_google_trends_api(self, topics: List[str]) -> Dict[str, Any]:
         """Call Google Trends API"""
@@ -201,14 +331,15 @@ class TrendService:
         """Get mock Google Trends data"""
         return {
             "historical": [
-                {"date": "2025-01-01", "interest": 60 + (hash(topic) % 20)},
-                {"date": "2025-06-01", "interest": 70 + (hash(topic) % 20)},
-                {"date": "2025-10-01", "interest": 75 + (hash(topic) % 20)}
+                {"date": "2025-01-01", "interest": 60 + (hash(topics[0]) % 20)},
+                {"date": "2025-06-01", "interest": 70 + (hash(topics[0]) % 20)},
+                {"date": "2025-10-01", "interest": 75 + (hash(topics[0]) % 20)}
             ],
             "seasonality": "increasing",
             "peak_months": ["October", "November", "December"],
             "trend_direction": "upward",
-            "volatility": "medium"
+            "volatility": "medium",
+            "search_volume": 1000 + (abs(hash(topics[0])) % 9000)  # Random volume 1000-10000
         }
     
     async def _generate_llm_forecast(self, topics: List[str], google_trends_data: Dict[str, Any], affiliate_data: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:

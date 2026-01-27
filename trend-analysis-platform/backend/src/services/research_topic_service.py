@@ -374,3 +374,67 @@ class ResearchTopicService:
         except Exception as e:
             logger.error(f"Error restoring research topic: {e}")
             raise
+    
+    async def get_enriched_subtopics(self, topic_id: UUID, user_id: UUID) -> List[Dict[str, Any]]:
+        """
+        Get enriched subtopics with trend data, viability scores, and SEO ease
+        
+        Args:
+            topic_id: Research topic UUID
+            user_id: User UUID
+            
+        Returns:
+            List of enriched subtopic dictionaries
+        """
+        try:
+            # Query the subtopics table directly
+            subtopics = await self.supabase.get_related_records(
+                table="subtopics",
+                foreign_key="research_topic_id",
+                foreign_id=topic_id,
+                user_id=user_id,
+                order_by={"viability_score": "desc"} # Order by viability
+            )
+            
+            if not subtopics:
+                logger.info(f"No subtopics found for topic {topic_id}")
+                return []
+            
+            logger.info(f"Retrieved {len(subtopics)} subtopics from subtopics table")
+            
+            enriched_subtopics = []
+            
+            for subtopic in subtopics:
+                # Map subtopic row to expected format
+                # Ensure fields are present and correctly typed
+                
+                # Calculate SEO ease if not present (though it might not be stored as string)
+                # If we want to use the helper helper, we need to adapt it or re-implement logic
+                # But assume 'seo_difficulty' is stored, we can map it to 'seo_ease' label if needed
+                
+                seo_difficulty = subtopic.get('seo_difficulty', 0)
+                seo_ease = 'Moderate'
+                if seo_difficulty:
+                     if seo_difficulty < 30: seo_ease = 'Easy'
+                     elif seo_difficulty < 70: seo_ease = 'Moderate'
+                     else: seo_ease = 'Hard'
+                
+                enriched_subtopics.append({
+                    'id': subtopic.get('id'),
+                    'name': subtopic.get('name'),
+                    'keywords': subtopic.get('keywords', []),
+                    'keyword_count': len(subtopic.get('keywords', []) or []),
+                    'trend_direction': subtopic.get('trend_direction', 'neutral'),
+                    'interest_over_time': subtopic.get('interest_over_time', []),
+                    'search_volume': subtopic.get('search_volume', 0),
+                    'cpc': subtopic.get('cpc', 0),
+                    'seo_ease': seo_ease,
+                    'viability_score': subtopic.get('viability_score', 0)
+                })
+            
+            logger.info(f"Returning {len(enriched_subtopics)} enriched subtopics")
+            return enriched_subtopics
+            
+        except Exception as e:
+            logger.error(f"Error getting enriched subtopics: {e}")
+            raise

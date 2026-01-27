@@ -9,6 +9,7 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from uuid import uuid4
+import re
 
 from ..models.enhanced_subtopic import EnhancedSubtopic, SubtopicSource
 from ..models.autocomplete_result import AutocompleteResult
@@ -16,7 +17,7 @@ from ..models.method_comparison import MethodComparison, MethodResult
 from ..models.comparison_metrics import ComparisonMetrics
 from ..models.search_volume_indicator import SearchVolumeIndicator, IndicatorType
 from ..integrations.google_autocomplete import GoogleAutocompleteService
-from ..integrations.llm_providers import llm_providers_manager, generate_content
+from .llm.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +34,14 @@ class EnhancedTopicDecompositionService:
     """
     
     def __init__(self, 
-                 google_autocomplete_service: Optional[GoogleAutocompleteService] = None,
-                 llm_provider: str = "openai"):
+                 google_autocomplete_service: Optional[GoogleAutocompleteService] = None):
         """
         Initialize enhanced topic decomposition service
         
         Args:
             google_autocomplete_service: Google Autocomplete service instance
-            llm_provider: LLM provider to use (openai, anthropic, google_ai)
         """
         self.google_autocomplete_service = google_autocomplete_service or GoogleAutocompleteService()
-        self.llm_provider = llm_provider
-        self.llm_service = llm_providers_manager.providers.get(llm_provider)
         self.cache: Dict[str, Dict[str, Any]] = {}
         self.cache_ttl = 3600  # 1 hour in seconds
     
@@ -83,64 +80,70 @@ class EnhancedTopicDecompositionService:
                 logger.info(f"Returning cached result for query: {query}")
                 return cached_result
             
-            # Get autocomplete data if enabled
-            autocomplete_data = None
-            if use_autocomplete:
-                autocomplete_result = await self.google_autocomplete_service.get_suggestions(query)
-                if autocomplete_result.success:
-                    autocomplete_data = autocomplete_result
-                else:
-                    logger.warning(f"Autocomplete failed for query '{query}': {autocomplete_result.error_message}")
-            else:
-                autocomplete_data = None
+            # Use new Semantic Expansion Service
+            from .semantic_expansion_service import semantic_expansion_service
             
-            # Get LLM subtopics if enabled
-            llm_subtopics = []
-            llm_error = None
-            if use_llm:
-                llm_subtopics = await self._get_llm_subtopics(query, autocomplete_data)
-                if not llm_subtopics and self.llm_service:
-                    llm_error = "LLM service returned no subtopics"
-                elif not llm_subtopics and not self.llm_service:
-                    llm_error = "LLM service not available"
+            logger.info("Calling SemanticExpansionService.expand_and_verify...")
+            verified_clusters = await semantic_expansion_service.expand_and_verify(query, user_id)
             
-            # Create enhanced subtopics
-            enhanced_subtopics = await self._create_enhanced_subtopics(
-                query, llm_subtopics, autocomplete_data, max_subtopics
-            )
+            if not verified_clusters:
+                 # Fallback/Error handling (strict policy says we should fail if no good data)
+                 raise ValueError("Strict Quality Policy: Semantic Expansion failed to generate verified profitable clusters.")
+
+            # Map to EnhancedSubtopic
+            enhanced_subtopics = []
+            for cluster in verified_clusters[:max_subtopics]:
+                # Format indicators
+                indicators = []
+                trend = cluster.get('trend_analysis') or {}
+                monetization = cluster.get('monetization') or {}
+                
+                if trend.get('label'):
+                    indicators.append(f"Trend: {trend['label']}")
+                
+                # Safely get details
+                details = monetization.get('details') or {}
+                
+                if details.get('intent'):
+                    indicators.append(f"Intent: {details['intent']}")
+                    
+                price = details.get('price_range')
+                if price:
+                    indicators.append(f"Price: {price}")
+
+                subtopic = EnhancedSubtopic(
+                    id=str(uuid4()),
+                    title=cluster.get('cluster_title', 'Unknown Cluster'),
+                    search_volume_indicators=indicators if indicators else ["Verified Profitable"],
+                    autocomplete_suggestions=cluster.get('keywords', []),
+                    relevance_score=0.95, # High confidence if it passed verification
+                    source=SubtopicSource.HYBRID,
+                    rationale=f"Primary Keyword: {cluster.get('primary_keyword')}. {monetization.get('status')} Check.",
+                    seed_keywords=cluster.get('keywords', []),
+                    target_audience="Niche Audience", # Placeholder or extract from LLM,
+                    search_volume=cluster.get('search_volume'),
+                    cpc=cluster.get('cpc'),
+                    keyword_difficulty=cluster.get('keyword_difficulty'),
+                    trend_analysis=cluster.get('trend_analysis'),
+                    monetization_data=cluster.get('monetization')
+                )
+                enhanced_subtopics.append(subtopic)
             
             # Prepare response
             processing_time = time.time() - start_time
-            enhancement_methods = []
-            warnings = []
+            enhancement_methods = ["semantic_expansion", "profit_verification"]
             
-            if use_autocomplete and autocomplete_data:
-                enhancement_methods.append("autocomplete")
-            elif use_autocomplete:
-                warnings.append("Autocomplete service not available")
-            
-            if use_llm and llm_subtopics:
-                enhancement_methods.append("llm")
-            elif use_llm and llm_error:
-                warnings.append(f"LLM service issue: {llm_error}")
-            
-            # Create response message
-            if len(enhanced_subtopics) == 0:
-                message = "No subtopics could be generated. Please check if autocomplete and LLM services are working."
-            else:
-                message = f"Topic decomposed into {len(enhanced_subtopics)} enhanced subtopics"
-                if warnings:
-                    message += f" (Warnings: {', '.join(warnings)})"
+            message = f"Topic decomposed into {len(enhanced_subtopics)} verified profitable clusters"
             
             result = {
-                "success": len(enhanced_subtopics) > 0,
+                "success": True,
                 "message": message,
                 "original_query": query,
                 "subtopics": [subtopic.to_dict() for subtopic in enhanced_subtopics],
-                "autocomplete_data": autocomplete_data.to_dict() if autocomplete_data else None,
+                "autocomplete_data": None, # Deprecated in this view
                 "processing_time": processing_time,
                 "enhancement_methods": enhancement_methods,
-                "warnings": warnings
+                "warnings": []
             }
             
             # Cache result
@@ -148,11 +151,16 @@ class EnhancedTopicDecompositionService:
             
             return result
             
+        except ValueError as e:
+            # Strict quality errors should propagate to the API layer for 503/422 handling
+            logger.warning(f"Strict quality policy triggering error propagation: {e}")
+            raise
+            
         except Exception as e:
             logger.error(f"Error in enhanced topic decomposition: {str(e)}")
             return {
                 "success": False,
-                "message": f"Error decomposing topic: {str(e)}",
+                "message": f"Quality Control Error: {str(e)}",
                 "original_query": query,
                 "subtopics": [],
                 "autocomplete_data": None,
@@ -245,10 +253,8 @@ class EnhancedTopicDecompositionService:
         start_time = time.time()
         
         try:
-            if self.llm_service:
-                subtopics = await self._get_llm_subtopics(query, None)
-            else:
-                subtopics = self._get_fallback_subtopics(query)
+            # Always try to use LLM first
+            subtopics = await self._get_llm_subtopics(query, None)
             
             processing_time = time.time() - start_time
             
@@ -303,10 +309,7 @@ class EnhancedTopicDecompositionService:
             autocomplete_result = await self.google_autocomplete_service.get_suggestions(query)
             
             # Get LLM subtopics with autocomplete context
-            if self.llm_service:
-                llm_subtopics = await self._get_llm_subtopics(query, autocomplete_result)
-            else:
-                llm_subtopics = self._get_fallback_subtopics(query)
+            llm_subtopics = await self._get_llm_subtopics(query, autocomplete_result)
             
             # Combine and enhance subtopics
             enhanced_subtopics = await self._create_enhanced_subtopics(
@@ -332,33 +335,23 @@ class EnhancedTopicDecompositionService:
                 method="Hybrid (LLM + Autocomplete)"
             )
     
-    async def _get_llm_subtopics(self, query: str, autocomplete_data: Optional[AutocompleteResult]) -> List[str]:
+    async def _get_llm_subtopics(self, query: str, autocomplete_data: Optional[AutocompleteResult]) -> List[Dict[str, Any]]:
         """Get subtopics from LLM service"""
         try:
-            if not self.llm_service:
-                logger.warning(f"LLM service not available for provider: {self.llm_provider}")
-                return []
-            
             # Create enhanced prompt with autocomplete context
             prompt = self._create_enhanced_prompt(query, autocomplete_data)
             
             # Call LLM service
-            result = await self.llm_service.generate_content(
+            response = await llm_service.generate_text(
                 prompt=prompt,
-                max_tokens=1000,
+                max_tokens=1500,
                 temperature=0.7
             )
             
-            if "error" in result:
-                logger.error(f"LLM service error: {result['error']}")
-                return []
+            content = response.content
             
             # Parse subtopics from LLM response
-            subtopics = self._parse_llm_subtopics(result["content"])
-            
-            if not subtopics:
-                logger.warning("No subtopics parsed from LLM response")
-                return []
+            subtopics = self._parse_llm_subtopics(content)
             
             return subtopics
             
@@ -369,72 +362,126 @@ class EnhancedTopicDecompositionService:
     def _create_enhanced_prompt(self, query: str, autocomplete_data: Optional[AutocompleteResult]) -> str:
         """Create enhanced prompt with autocomplete context"""
         base_prompt = f"""
-        For the topic "{query}", generate 4-6 specific subtopics for affiliate marketing research.
+        ### ROLE
+        You are a Senior Niche Strategist and Affiliate Marketing Expert. Your goal is to "explode" a broad seed topic into high-value, specific sub-niches that are primed for revenue generation via affiliate programs and low-competition SEO.
+
+        ### TASK
+        Decompose the provided "{query}" into exactly 10-12 subtopics. Each subtopic must be a specific "micro-niche" where users are likely to spend money or seek specific software solutions.
+
+        ### GUIDELINES FOR SUBTOPICS
+        1. COMMERCIAL INTENT: Prioritize subtopics where a user is looking for a "solution," "tool," or "product."
+        2. SPECIFICITY: Avoid broad terms. (e.g., instead of "Investing," use "Micro-investing for College Students").
+        3. TREND POTENTIAL: Focus on "evergreen" topics or rising trends in the current year (2026).
+        4. AFFILIATE FEASIBILITY: Ensure the niche typically has products like SaaS, courses, or physical gear associated with it.
+
+        ### SEED KEYWORD GENERATION (PRE-SEO)
+        For EACH subtopic, generate 3 "Seed Keywords."
+        - LENGTH: Keywords must be short-tail (3-4 words maximum).
+        - INTENT: Must be "Commercial" (e.g., "best budget apps") or "Informational" (e.g., "how to save for retirement").
+
+        ### OUTPUT FORMAT
+        You must verify the response is strictly in the following TEXT DELIMITED format. Do not use JSON.
+
+        [SUBTOPIC]
+        Name: <name of subtopic>
+        Rationale: <one sentence rationale>
+        Seed Keywords: <keyword 1>, <keyword 2>, <keyword 3>
+        Target Audience: <specific persona>
+        [END]
         
-        REQUIRED: Include different TYPES/CATEGORIES of "{query}" as subtopics.
-        
-        Examples for "boat":
-        - Pontoon boats
-        - Bow riders  
-        - Personal Watercraft
-        - Fishing boats
-        - Sailboats
-        - Yachts
-        - Speedboats
-        - Houseboats
-        
-        Also include commercial angles like:
-        - {query} maintenance
-        - {query} insurance
-        - {query} accessories
-        
-        Return ONLY the subtopic names, one per line, no explanations.
+        Repeat this block for each subtopic.
         """
         
         if autocomplete_data and autocomplete_data.success:
             autocomplete_context = f"""
             
-            Based on real-time search data, here are related search suggestions:
-            {', '.join(autocomplete_data.suggestions[:5])}
-            
-            Use this search data to inform your subtopic suggestions and ensure they align with what people are actually searching for.
+            ### REAL-TIME SEARCH DATA
+            Based on real-time search data, here are related search suggestions you should consider integrating:
+            {', '.join(autocomplete_data.suggestions[:10])}
             """
             base_prompt += autocomplete_context
         
         return base_prompt
     
-    def _parse_llm_subtopics(self, content: str) -> List[str]:
-        """Parse subtopics from LLM response content"""
+    def _parse_llm_subtopics(self, content: str) -> List[Dict[str, Any]]:
+        """Parse subtopics from LLM response content using flexible text delimiters"""
         try:
             subtopics = []
-            lines = content.split('\n')
             
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
+            # Normalize content
+            clean_content = content.strip()
+            
+            # Log raw content for debugging
+            logger.info("DEBUG - RAW LLM OUPUT START")
+            logger.info(clean_content)
+            logger.info("DEBUG - RAW LLM OUPUT END")
+            
+            # Split by known block headers instead of just [SUBTOPIC]
+            # We look for "Name:" as the start of a block
+            # This handles cases where [SUBTOPIC] is missing
+            
+            # Pattern: (Start of String or Newline) followed by optional list markers (1., -, *, #), then "Name:"
+            # Matches: "Name:", "1. Name:", "- Name:", "**Name**:", "## 1. Name:"
+            block_pattern = r'(?:^|\n)(?:[\s\d\.\*\-#]*?)Name(?:[\*\-#]*\s*):'
+            
+            # Find all start indices
+            starts = [m.start() for m in re.finditer(block_pattern, clean_content, re.IGNORECASE)]
+            
+            if not starts:
+                logger.warning("No 'Name:' fields found in LLM output")
+                return []
                 
-                # Remove numbering and bullet points
-                if line[0].isdigit() or line.startswith('-') or line.startswith('*'):
-                    # Extract text after numbering
-                    subtopic = line.split('.', 1)[-1].strip()
-                    if subtopic:
-                        subtopics.append(subtopic)
-                elif line.startswith('•'):
-                    # Extract text after bullet point
-                    subtopic = line[1:].strip()
-                    if subtopic:
-                        subtopics.append(subtopic)
-                elif len(line) > 10:  # Assume it's a subtopic if it's long enough
-                    subtopics.append(line)
+            blocks = []
+            for i in range(len(starts)):
+                start_idx = starts[i]
+                end_idx = starts[i+1] if i < len(starts) - 1 else len(clean_content)
+                blocks.append(clean_content[start_idx:end_idx])
             
-            # Filter and clean subtopics
-            cleaned_subtopics = []
-            for subtopic in subtopics:
-                if len(subtopic) >= 5 and len(subtopic) <= 100:  # Reasonable length
-                    cleaned_subtopics.append(subtopic.strip())
+            for block in blocks:
+                if not block.strip():
+                    continue
+                    
+                # Clean block
+                if "[END]" in block:
+                    block = block.split("[END]")[0]
+                
+                # Parse fields using robust multiline regex with Markdown support
+                # ... (Matches stay the same, but now applied to reliably split blocks) ...
+                
+                # RE-USE REGEX FROM BEFORE
+                name_match = re.search(r'(?:[\*\-#]+\s*)?Name(?:[\*\-#]+)?:\s*(.*?)(?=\n\s*(?:(?:[\*\-#]+\s*)?Rationale|(?:[\*\-#]+\s*)?(?:Seed\s+)?Keywords|(?:[\*\-#]+\s*)?Target Audience|\[END\])|$)', block, re.IGNORECASE | re.DOTALL)
+                
+                rationale_match = re.search(r'(?:[\*\-#]+\s*)?Rationale(?:[\*\-#]+)?:\s*(.*?)(?=\n\s*(?:(?:[\*\-#]+\s*)?(?:Seed\s+)?Keywords|(?:[\*\-#]+\s*)?Target Audience|\[END\])|$)', block, re.IGNORECASE | re.DOTALL)
+                
+                keywords_match = re.search(r'(?:[\*\-#]+\s*)?(?:Seed\s+)?Keywords(?:[\*\-#]+)?:\s*(.*?)(?=\n\s*(?:(?:[\*\-#]+\s*)?Target Audience|\[END\])|$)', block, re.IGNORECASE | re.DOTALL)
+                
+                audience_match = re.search(r'(?:[\*\-#]+\s*)?Target Audience(?:[\*\-#]+)?:\s*(.*?)(?=\n\s*(?:\[END\])|$)', block, re.IGNORECASE | re.DOTALL)
+                
+                if name_match:
+                    name = name_match.group(1).strip()
+                    rationale = rationale_match.group(1).strip() if rationale_match else "No rationale provided"
+                    keywords_str = keywords_match.group(1).strip() if keywords_match else ""
+                    audience = audience_match.group(1).strip() if audience_match else "General Audience"
+                    
+                    # Split keywords via comma or newline to handle bullet points
+                    # Replace newlines with commas, then split
+                    clean_kw_str = re.sub(r'[\r\n]+', ',', keywords_str)
+                    clean_kw_str = re.sub(r'[•\-\*]', '', clean_kw_str)
+                    
+                    keywords = [k.strip() for k in clean_kw_str.split(',') if k.strip()]
+                    
+                    subtopics.append({
+                        "subtopic_name": name,
+                        "rationale": rationale,
+                        "seed_keywords": keywords,
+                        "target_audience": audience
+                    })
             
-            return cleaned_subtopics[:6]  # Limit to 6 subtopics
+            logger.info(f"Successfully parsed {len(subtopics)} subtopics from LLM response")
+            return subtopics
+            
+            logger.info(f"Successfully parsed {len(subtopics)} subtopics from LLM response")
+            return subtopics
             
         except Exception as e:
             logger.error(f"Error parsing LLM subtopics: {str(e)}")
@@ -442,65 +489,98 @@ class EnhancedTopicDecompositionService:
 
     async def _create_enhanced_subtopics(self, 
                                        query: str,
-                                       llm_subtopics: List[str],
+                                       llm_subtopics: List[Dict[str, Any]],
                                        autocomplete_data: Optional[AutocompleteResult],
                                        max_subtopics: int) -> List[EnhancedSubtopic]:
         """Create enhanced subtopics with relevance scoring"""
         enhanced_subtopics = []
         
-        # Combine both autocomplete and LLM suggestions for hybrid approach
+        # Helper to find if a title exists in LLM subtopics
+        def find_in_llm(title: str) -> Optional[Dict[str, Any]]:
+            for s in llm_subtopics:
+                if s["subtopic_name"].lower() == title.lower():
+                    return s
+            return None
+
+        # Combine both autocomplete and LLM suggestions
         all_suggestions = set()
         
-        # Add autocomplete suggestions (high priority - what people actually search for)
+        # Add LLM suggestions first (they have rich data)
+        for s in llm_subtopics:
+            all_suggestions.add(s["subtopic_name"])
+            
+        # Add autocomplete suggestions 
         if autocomplete_data and autocomplete_data.success and autocomplete_data.suggestions:
-            all_suggestions.update(autocomplete_data.suggestions)
-            logger.info(f"Added {len(autocomplete_data.suggestions)} autocomplete suggestions")
+            for s in autocomplete_data.suggestions:
+                all_suggestions.add(s)
         
-        # Add LLM suggestions (strategic/creative angles)
-        if llm_subtopics:
-            all_suggestions.update(llm_subtopics)
-            logger.info(f"Added {len(llm_subtopics)} LLM suggestions")
-        
-        # Convert to list and log combined results
-        all_suggestions = list(all_suggestions)
-        logger.info(f"Combined suggestions ({len(all_suggestions)} total): {all_suggestions[:5]}...")
+        logger.info(f"Combined suggestions ({len(all_suggestions)} total)")
         
         # Create enhanced subtopics
-        for i, subtopic_title in enumerate(list(all_suggestions)[:max_subtopics]):
-            # Calculate relevance score
-            relevance_score = self._calculate_relevance_score(
-                subtopic_title, query, autocomplete_data
-            )
-            
-            # Determine source
-            source = self._determine_source(subtopic_title, llm_subtopics, autocomplete_data)
-            
-            # Create search volume indicators
-            search_volume_indicators = self._create_search_volume_indicators(
-                subtopic_title, autocomplete_data
-            )
-            
-            # Get autocomplete suggestions for this subtopic
-            autocomplete_suggestions = self._get_autocomplete_suggestions_for_subtopic(
-                subtopic_title, autocomplete_data
-            )
-            
-            # Create enhanced subtopic
-            enhanced_subtopic = EnhancedSubtopic(
-                id=str(uuid4()),
-                title=subtopic_title,
-                search_volume_indicators=search_volume_indicators,
-                autocomplete_suggestions=autocomplete_suggestions,
-                relevance_score=relevance_score,
-                source=source
-            )
-            
-            enhanced_subtopics.append(enhanced_subtopic)
+        # Priority to LLM subtopics as they come with seed keywords etc.
+        unique_titles = list(all_suggestions)
+        try:
+            for i, subtopic_title in enumerate(unique_titles):
+                # Find associated LLM data if available
+                llm_data = find_in_llm(subtopic_title)
+                
+                # Calculate relevance score
+                relevance_score = self._calculate_relevance_score(
+                    subtopic_title, query, autocomplete_data
+                )
+                
+                # Determine source
+                is_in_llm = llm_data is not None
+                is_in_autocomplete = autocomplete_data and autocomplete_data.success and subtopic_title in autocomplete_data.suggestions
+                
+                if is_in_llm and is_in_autocomplete:
+                    source = SubtopicSource.HYBRID
+                    relevance_score += 0.2  # Bonus for hybrid
+                elif is_in_llm:
+                    source = SubtopicSource.LLM
+                    relevance_score += 0.1  # Bonus for LLM over raw autocomplete
+                elif is_in_autocomplete:
+                    source = SubtopicSource.AUTOCOMPLETE
+                    # No bonus for pure autocomplete, especially fallbacks
+                else:
+                    source = SubtopicSource.LLM
+                
+                # Create search volume indicators
+                search_volume_indicators = self._create_search_volume_indicators(
+                    subtopic_title, autocomplete_data
+                )
+                
+                # Get autocomplete suggestions for this subtopic
+                autocomplete_suggestions = self._get_autocomplete_suggestions_for_subtopic(
+                    subtopic_title, autocomplete_data
+                )
+                
+                # Create enhanced subtopic
+                enhanced_subtopic = EnhancedSubtopic(
+                    id=str(uuid4()),
+                    title=subtopic_title,
+                    search_volume_indicators=search_volume_indicators,
+                    autocomplete_suggestions=autocomplete_suggestions,
+                    relevance_score=relevance_score,
+                    source=source,
+                    rationale=llm_data.get("rationale") if llm_data else None,
+                    seed_keywords=llm_data.get("seed_keywords", []) if llm_data else [],
+                    target_audience=llm_data.get("target_audience") if llm_data else None
+                )
+                
+                enhanced_subtopics.append(enhanced_subtopic)
+        except Exception as e:
+            logger.error(f"Error creating enhanced subtopics loop: {e}")
+            raise
         
         # Sort by relevance score
         enhanced_subtopics.sort(key=lambda x: x.relevance_score, reverse=True)
         
-        return enhanced_subtopics[:max_subtopics]
+        # QUALITY FILTER: Only keep subtopics that have a rationale (from LLM)
+        # unless it's a very high confidence hybrid.
+        filtered_subtopics = [s for s in enhanced_subtopics if s.rationale is not None or s.source == SubtopicSource.HYBRID]
+        
+        return filtered_subtopics[:max_subtopics]
     
     def _calculate_relevance_score(self, 
                                  subtopic: str, 
@@ -519,8 +599,10 @@ class EnhancedTopicDecompositionService:
         
         # Boost score if subtopic appears in autocomplete suggestions
         if autocomplete_data and autocomplete_data.success:
-            if subtopic in autocomplete_data.suggestions:
-                base_score += 0.3
+            # ONLY boost if it's NOT fallback data. Fallback suggestions are too generic.
+            if not getattr(autocomplete_data, 'is_fallback', False):
+                if subtopic in autocomplete_data.suggestions:
+                    base_score += 0.3
         
         # Boost score for commercial keywords
         commercial_keywords = ['best', 'review', 'buy', 'price', 'compare', 'top', 'guide']

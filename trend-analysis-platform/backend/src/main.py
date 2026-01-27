@@ -9,7 +9,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import structlog
 
 # Import API routers
-from .api import health_routes, keyword_routes, keyword_enhancer_routes, affiliate_research_routes, content_ideas_routes
+from .api import health_routes, keyword_routes, keyword_enhancer_routes, affiliate_research_routes, content_ideas_routes, research_topics_routes, llm_routes, settings_routes, enhanced_topic_routes
 from .routers import dataforseo_router
 
 # Configure structured logging
@@ -57,6 +57,12 @@ app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1", "trendtap.com", "*.trendtap.com"]
 )
 
+@app.on_event("startup")
+async def startup_event():
+    print("Startup: Listing all registered routes")
+    for route in app.routes:
+        print(f"Route: {route.path} [{route.methods}]")
+
 @app.get("/")
 async def root():
     """Root endpoint with API information"""
@@ -74,6 +80,11 @@ app.include_router(keyword_routes.router)
 app.include_router(keyword_enhancer_routes.router)
 app.include_router(affiliate_research_routes.router)
 app.include_router(content_ideas_routes.router)
+app.include_router(research_topics_routes.router)
+app.include_router(llm_routes.router)
+app.include_router(llm_routes.router)
+app.include_router(settings_routes.router)
+app.include_router(enhanced_topic_routes.router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,7 +1,7 @@
 """
 JWT service for token generation and validation with blacklist support.
 """
-import jwt
+from jose import jwt, JWTError, ExpiredSignatureError
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from uuid import uuid4
@@ -72,19 +72,21 @@ class JWTService:
                 role=payload.get("role"),
                 jti=jti
             )
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             logger.debug("Token has expired")
             return None
-        except jwt.InvalidTokenError as e:
+        except JWTError as e:
             logger.debug(f"Invalid token: {e}")
             return None
     
     def get_token_expiration(self, token: str) -> Optional[datetime]:
         """Get token expiration time."""
         try:
+            # python-jose verify_exp defaults to True, need options to disable?
+            # actually jose.jwt.decode options param format is slightly different but usually accepts dictionary
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm], options={"verify_exp": False})
             return datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
-        except jwt.InvalidTokenError:
+        except JWTError:
             return None
     
     def is_token_expired(self, token: str) -> bool:
@@ -92,9 +94,9 @@ class JWTService:
         try:
             jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             return False
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             return True
-        except jwt.InvalidTokenError:
+        except JWTError:
             return True
     
     def extract_jti(self, token: str) -> Optional[str]:
@@ -102,7 +104,7 @@ class JWTService:
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm], options={"verify_exp": False})
             return payload.get("jti")
-        except jwt.InvalidTokenError:
+        except JWTError:
             return None
     
     def get_token_payload(self, token: str) -> Optional[Dict[str, Any]]:
@@ -110,7 +112,7 @@ class JWTService:
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm], options={"verify_exp": False})
             return payload
-        except jwt.InvalidTokenError:
+        except JWTError:
             return None
     
     def is_refresh_token(self, token: str) -> bool:

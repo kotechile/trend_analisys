@@ -110,17 +110,22 @@ class AffiliateResearchService:
         search_term: str,
         niche: Optional[str] = None,
         budget_range: Optional[str] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        ignore_cache: bool = False
     ) -> Dict[str, Any]:
         """
         Search for affiliate programs based on search criteria
         """
-        # Check cache first
+        # Check cache first (unless ignored)
         cache_key = self._generate_cache_key(search_term, niche, budget_range)
-        cached_result = self._get_cached_result(cache_key)
-        if cached_result:
-            logger.info("Returning cached result", cache_key=cache_key)
-            return cached_result
+        
+        if not ignore_cache:
+            cached_result = self._get_cached_result(cache_key)
+            if cached_result:
+                logger.info("Returning cached result", cache_key=cache_key)
+                return cached_result
+        else:
+            logger.info("Ignoring cache for affiliate search", cache_key=cache_key)
         
         try:
             logger.info("Starting affiliate program search", 

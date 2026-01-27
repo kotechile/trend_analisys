@@ -19,7 +19,7 @@ This document outlines the API endpoints for the backend server and how they are
     *   **Frontend Usage:** Not used directly by the frontend.
     *   **Response:** A JSON object with the status of the Supabase connection.
 
-## Topic Decomposition
+## Topic Decomposition (OLD FRONTEND)
 
 *   **`POST /api/topic-decomposition`**
     *   **Description:** Decomposes a topic into subtopics using an LLM.
@@ -262,7 +262,7 @@ This document outlines the API endpoints for the backend server and how they are
     *   **Request Body:** A JSON object with article generation parameters.
     *   **Response:** A JSON object with the generated article and metadata.
 
-## Research Topics
+## Research Topics (NEW FRONTEND)
 
 *   **`POST /api/research-topics/`**
     *   **Description:** Creates a new research topic.

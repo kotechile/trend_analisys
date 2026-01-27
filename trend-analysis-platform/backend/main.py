@@ -38,9 +38,18 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file (following existing pattern)
 load_dotenv()
+# Force reload: Link-Only Trend Strategy Implemented
+# Date: 2026-01-18
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("backend_debug.log"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -99,23 +108,26 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"Error including DataForSEO router: {e}")
 
-# Import and include Article Generation router with RAG support
+# Import and include routers
 try:
-    from src.api.article_generation_routes import router as article_router, research_router
-    app.include_router(article_router)
-    app.include_router(research_router)
-    logger.info("Article Generation router with RAG support included successfully")
-    logger.info("Research router included successfully")
-except Exception as e:
-    logger.error(f"Error including Article Generation router: {e}")
-
-# Import and include Keyword Routes
-try:
+    from src.api.article_generation_routes import router as article_outer, research_router
+    from src.api.research_topics_routes import router as research_topics_router
+    from src.api.affiliate_research_routes import router as affiliate_research_router
     from src.api import keyword_routes
+
+    app.include_router(article_outer)
+    app.include_router(research_router)
+    app.include_router(research_topics_router)
+    app.include_router(affiliate_research_router)
     app.include_router(keyword_routes.router)
-    logger.info("Keyword routes included successfully")
+    
+    from src.api.enhanced_topic_routes import router as enhanced_topic_router
+    app.include_router(enhanced_topic_router)
+    
+    logger.info("✅ All API routers included successfully")
 except Exception as e:
-    logger.error(f"Error including Keyword routes: {e}")
+    logger.error(f"❌ Error including routers: {e}")
+
 
 class TopicDecompositionRequest(BaseModel):
     search_query: str
@@ -2357,10 +2369,10 @@ class ContentIdeasListResponse(BaseModel):
     count: int
     message: str
 
-@app.post("/api/content-ideas/list", response_model=ContentIdeasListResponse)
+@app.post("/api/content-ideas/list", response_model=List[Dict[str, Any]])
 async def list_content_ideas(request: ContentIdeasListRequest):
     """
-    List content ideas for a user, optionally filtered by topic and content type
+    Retrieve content ideas for a specific topic
     """
     try:
         logger.info(f"Listing content ideas for user: {request.user_id}, topic: {request.topic_id}")
@@ -2374,12 +2386,7 @@ async def list_content_ideas(request: ContentIdeasListRequest):
         
         logger.info(f"Found {len(ideas)} content ideas")
         
-        return ContentIdeasListResponse(
-            success=True,
-            ideas=ideas,
-            count=len(ideas),
-            message=f"Retrieved {len(ideas)} content ideas"
-        )
+        return ideas
         
     except Exception as e:
         logger.error(f"Error listing content ideas: {str(e)}")
@@ -2438,6 +2445,36 @@ async def delete_content_idea_by_id(idea_id: str, user_id: str):
     except Exception as e:
         logger.error(f"Error deleting content idea: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete content idea: {str(e)}")
+
+class PublishIdeasRequest(BaseModel):
+    idea_ids: List[str]
+    user_id: str
+
+@app.post("/api/content-ideas/publish")
+async def publish_ideas(request: PublishIdeasRequest):
+    """
+    Publish content ideas to the Titles table
+    """
+    try:
+        from src.services.content_idea_generator import ContentIdeaGenerator
+        
+        generator = ContentIdeaGenerator()
+        
+        logger.info(f"Publishing {len(request.idea_ids)} content ideas for user: {request.user_id}")
+        
+        result = await generator.publish_ideas_to_titles(
+            idea_ids=request.idea_ids,
+            user_id=request.user_id
+        )
+        
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+            
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to publish content ideas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to publish content ideas: {str(e)}")
 
 class ContentIdeasCleanupRequest(BaseModel):
     topic_id: str

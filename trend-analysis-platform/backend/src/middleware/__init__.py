@@ -2,125 +2,77 @@
 Middleware package for FastAPI application.
 """
 
-from .auth import (
+from .auth_middleware import (
     AuthenticationMiddleware,
-    TokenRefreshMiddleware,
-    AuthenticationMetricsMiddleware,
     get_current_user,
-    get_current_user_optional,
+    get_optional_user,
+    require_permission
+)
+
+from .auth import (
     require_admin,
-    require_user_role,
-    get_token_from_request,
-    verify_token_dependency,
-    auth_metrics
 )
 
 from .authorization import (
     AuthorizationMiddleware,
-    AuthorizationMetricsMiddleware,
     Permission,
     ResourceType,
-    require_permission,
     require_permissions,
     require_admin_permission,
     require_resource_ownership,
-    authz_metrics
 )
 
 from .rate_limiting import (
-    EnhancedRateLimitMiddleware,
-    RateLimitMetricsMiddleware,
-    RateLimitAlgorithm,
-    RateLimitScope,
-    RateLimitRule,
-    rate_limit_metrics
-)
-
-from .cors_security import (
-    EnhancedCORSMiddleware,
-    EnhancedSecurityHeadersMiddleware,
-    SecurityMetricsMiddleware,
-    security_metrics
-)
-
-from .logging import (
-    RequestResponseLoggingMiddleware,
-    LoggingMetricsMiddleware,
-    logging_metrics
+    rate_limit_middleware,
 )
 
 from .error_handling import (
     ErrorHandlingMiddleware,
-    ErrorRecoveryMiddleware,
-    error_metrics
+)
+
+from .logging import (
+    RequestLoggingMiddleware,
+    PerformanceLoggingMiddleware,
+    AuditLoggingMiddleware,
+    logging_middleware,
 )
 
 from .security import (
     SecurityHeadersMiddleware,
-    RateLimitMiddleware,
-    RequestLoggingMiddleware,
-    ErrorHandlingMiddleware,
+    SecurityMiddleware,
     CORSMiddleware,
-    MaintenanceModeMiddleware,
-    SecurityMetricsMiddleware,
-    security_metrics
 )
 
 __all__ = [
     # Authentication middleware
     "AuthenticationMiddleware",
-    "TokenRefreshMiddleware", 
-    "AuthenticationMetricsMiddleware",
     "get_current_user",
-    "get_current_user_optional",
+    "get_optional_user",
     "require_admin",
-    "require_user_role",
-    "get_token_from_request",
-    "verify_token_dependency",
-    "auth_metrics",
     
     # Authorization middleware
     "AuthorizationMiddleware",
-    "AuthorizationMetricsMiddleware",
     "Permission",
     "ResourceType",
     "require_permission",
     "require_permissions",
     "require_admin_permission",
     "require_resource_ownership",
-    "authz_metrics",
     
-    # Rate limiting middleware
-    "EnhancedRateLimitMiddleware",
-    "RateLimitMetricsMiddleware",
-    "RateLimitAlgorithm",
-    "RateLimitScope",
-    "RateLimitRule",
-    "rate_limit_metrics",
-    
-    # CORS and security middleware
-    "EnhancedCORSMiddleware",
-    "EnhancedSecurityHeadersMiddleware",
-    "SecurityMetricsMiddleware",
-    "security_metrics",
-    
-    # Logging middleware
-    "RequestResponseLoggingMiddleware",
-    "LoggingMetricsMiddleware",
-    "logging_metrics",
+    # Rate limiting
+    "rate_limit_middleware",
     
     # Error handling middleware
     "ErrorHandlingMiddleware",
-    "ErrorRecoveryMiddleware",
-    "error_metrics",
+    
+    # Logging
+    "RequestLoggingMiddleware",
+    "PerformanceLoggingMiddleware",
+    "AuditLoggingMiddleware",
+    "logging_middleware",
     
     # Security middleware
     "SecurityHeadersMiddleware",
-    "RateLimitMiddleware",
-    "RequestLoggingMiddleware",
-    "ErrorHandlingMiddleware",
+    "SecurityMiddleware",
     "CORSMiddleware",
-    "MaintenanceModeMiddleware",
-    "SecurityMetricsMiddleware",
-    "security_metrics",
 ]

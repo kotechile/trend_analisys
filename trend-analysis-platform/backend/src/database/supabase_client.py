@@ -5,8 +5,7 @@ Enhanced with connection management and error handling
 Note: This module now uses the singleton pattern from supabase_singleton.py
 """
 from typing import Optional, Dict, Any
-from supabase import Client, create_client
-from supabase.exceptions import APIError, AuthError
+from supabase import Client, create_client, PostgrestAPIError as APIError
 import structlog
 from datetime import datetime
 from enum import Enum
@@ -97,15 +96,6 @@ class SupabaseClient:
                 "error": str(e),
                 "last_check": datetime.utcnow().isoformat()
             }
-        except AuthError as e:
-            self.connection_status = ConnectionStatus.ERROR
-            logger.error("Supabase auth error", error=str(e))
-            return {
-                "status": "unhealthy",
-                "supabase_status": "error",
-                "error": f"Authentication error: {str(e)}",
-                "last_check": datetime.utcnow().isoformat()
-            }
         except Exception as e:
             self.connection_status = ConnectionStatus.ERROR
             logger.error("Supabase connection error", error=str(e))
@@ -124,9 +114,6 @@ class SupabaseClient:
             return result
         except APIError as e:
             logger.error("Supabase API error", error=str(e), operation=operation_func.__name__)
-            raise
-        except AuthError as e:
-            logger.error("Supabase auth error", error=str(e), operation=operation_func.__name__)
             raise
         except Exception as e:
             logger.error("Supabase operation error", error=str(e), operation=operation_func.__name__)

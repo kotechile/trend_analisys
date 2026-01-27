@@ -7,7 +7,7 @@ import logging
 from typing import Optional, Dict, Any, List, Union
 from uuid import UUID
 from supabase import Client
-from src.core.supabase_singleton import get_supabase_client
+from src.core.supabase_singleton import get_supabase_client as get_global_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SupabaseService:
     def get_client(self) -> Client:
         """Get the Supabase client instance from singleton"""
         if not self._client:
-            self._client = get_supabase_client()
+            self._client = get_global_supabase_client()
         return self._client
     
     async def execute_query(self, table: str, operation: str, **kwargs) -> Dict[str, Any]:
@@ -49,19 +49,30 @@ class SupabaseService:
                         query = query.order(order_config)
                 
                 # Add pagination
-                if "limit" in kwargs:
+                if "limit" in kwargs and kwargs["limit"] is not None:
                     query = query.limit(kwargs["limit"])
-                if "offset" in kwargs:
-                    query = query.range(kwargs["offset"], kwargs["offset"] + kwargs.get("limit", 10) - 1)
+                if "offset" in kwargs and kwargs["offset"] is not None:
+                    limit_val = kwargs.get("limit")
+                    if limit_val is None:
+                        limit_val = 10
+                    offset_val = kwargs["offset"]
+                    logger.info(f"DEBUG PAGINATION: offset={offset_val} (type={type(offset_val)}), limit_arg={kwargs.get('limit')}, limit_val={limit_val} (type={type(limit_val)})")
+                    query = query.range(offset_val, offset_val + limit_val - 1)
                 
                 result = query.execute()
                 
             elif operation == "insert":
                 data = kwargs.get("data")
-                if isinstance(data, list):
-                    result = table_ref.insert(data).execute()
+                result = table_ref.insert(data).execute()
+                
+            elif operation == "upsert":
+                data = kwargs.get("data")
+                # conflict columns can be passed via kwargs "on_conflict"
+                on_conflict = kwargs.get("on_conflict") 
+                if on_conflict:
+                    result = table_ref.upsert(data, on_conflict=on_conflict).execute()
                 else:
-                    result = table_ref.insert(data).execute()
+                    result = table_ref.upsert(data).execute()
                     
             elif operation == "update":
                 data = kwargs.get("data")
@@ -87,7 +98,7 @@ class SupabaseService:
             
             return {
                 "data": result.data,
-                "error": result.error,
+                "error": None, # execute() raises on error, so if we are here, there is no error
                 "count": getattr(result, 'count', None)
             }
             
@@ -297,9 +308,7 @@ class SupabaseService:
 # Global instance
 supabase_service = SupabaseService()
 
-def get_supabase_client() -> Client:
-    """Get the global Supabase client instance"""
-    return supabase_service.get_client()
+# Removed shadowing get_supabase_client to prevent infinite recursion
 
 def get_supabase_service() -> SupabaseService:
     """Get the global Supabase service instance"""
