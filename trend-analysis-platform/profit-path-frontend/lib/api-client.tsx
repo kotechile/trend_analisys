@@ -2,7 +2,10 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { supabase } from '@/lib/supabase';
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+// API Configuration
+const isClient = typeof window !== 'undefined';
+// Client: use relative path for Nginx to handle. Server: use internal docker hostname.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (isClient ? '' : 'http://backend:8000');
 // In a real app, API_KEY should be in env, but for this demo/legacy pattern we might default it
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'dev-key';
 
@@ -58,7 +61,11 @@ class ApiClient {
                     // For now, let's allow it but log clearly
                 }
 
-                console.log(`API Client: Sending ${config.method?.toUpperCase()} request to ${config.url}`);
+                console.log(`API Client: Config BaseURL: '${this.client.defaults.baseURL}'`);
+                console.log(`API Client: Config URL: '${config.url}'`);
+                // Calculate full URL for debugging
+                const fullUrl = config.baseURL ? `${config.baseURL.replace(/\/$/, '')}/${config.url?.replace(/^\//, '')}` : config.url;
+                console.log(`API Client: Sending ${config.method?.toUpperCase()} request to FULL URL: ${fullUrl}`);
                 return config;
             },
             (error) => {

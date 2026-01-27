@@ -31,7 +31,7 @@ export function IdeaCard({ idea, selected, onSelect, onDelete }: IdeaCardProps) 
     const Icon = idea.content_type === 'software' ? Code2 : BookOpen
 
     // Safety check for title
-    const displayTitle = idea.title || idea.name || 'Untitled Idea';
+    const displayTitle = idea.title || 'Untitled Idea';
     const displayDescription = idea.description || 'No description available';
     const volume = idea.total_search_volume || 0;
 

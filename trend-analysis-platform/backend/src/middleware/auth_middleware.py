@@ -25,7 +25,8 @@ class AuthenticationMiddleware:
     def __init__(self):
         """Initialize the authentication middleware."""
         self.auth_service = AuthenticationService()
-        self.logger = db_operation_logger
+        import logging
+        self.logger = logging.getLogger(__name__)
     
     async def authenticate_request(self, request: Request) -> Optional[Dict[str, Any]]:
         """
@@ -40,6 +41,7 @@ class AuthenticationMiddleware:
         try:
             # Extract authorization header
             authorization = request.headers.get("Authorization")
+            
             if not authorization or not authorization.startswith("Bearer "):
                 # Fallback to X-API-Key if Bearer is missing (optional logic)
                 api_key = request.headers.get("X-API-Key")
@@ -57,7 +59,9 @@ class AuthenticationMiddleware:
             
             # Validate session using Supabase
             user_data = await self._validate_session(token)
+            
             if not user_data:
+                self.logger.warning(f"Session validation failed for request to {request.url.path}")
                 return None
             
             return user_data
@@ -84,7 +88,7 @@ class AuthenticationMiddleware:
             # For testing purposes only
             if token == "test-token":
                 return {
-                    "user_id": "test-user-id",
+                    "user_id": "00000000-0000-0000-0000-000000000000",
                     "email": "test@example.com",
                     "is_active": True
                 }

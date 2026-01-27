@@ -16,6 +16,14 @@ interface ResearchSettings {
     strict_mode: boolean;
 }
 
+import { apiClient } from "@/lib/api-client";
+
+interface SettingsResponse {
+    success: boolean;
+    data?: ResearchSettings;
+    message?: string;
+}
+
 export default function ResearchSettingsPage() {
     // const { toast } = useToast(); -> Removed
     const [loading, setLoading] = useState(true);
@@ -33,8 +41,7 @@ export default function ResearchSettingsPage() {
 
     const fetchSettings = async () => {
         try {
-            const response = await fetch("http://localhost:8000/api/settings/research");
-            const result = await response.json();
+            const result = await apiClient.get<SettingsResponse>("/api/settings/research");
 
             if (result.success && result.data) {
                 setSettings(result.data);
@@ -52,15 +59,7 @@ export default function ResearchSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const response = await fetch("http://localhost:8000/api/settings/research", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(settings),
-            });
-
-            const result = await response.json();
+            const result = await apiClient.post<SettingsResponse>("/api/settings/research", settings);
 
             if (result.success) {
                 toast.success("Success", {

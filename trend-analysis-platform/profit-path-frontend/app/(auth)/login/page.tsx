@@ -75,12 +75,7 @@ export default function LoginPage() {
             setLoading(true)
             setError(null)
 
-            const isDevelopment = window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1';
-
-            const redirectUrl = isDevelopment
-                ? `http://localhost:3000/auth/callback`
-                : `${window.location.origin}/auth/callback`;
+            const redirectUrl = `${window.location.origin}/auth/callback`;
 
             console.log('Initiating OAuth with redirect:', redirectUrl);
 

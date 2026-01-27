@@ -10,7 +10,8 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY}
-        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+        # Force empty base URL to ensure client uses relative paths (Nginx)
+        - NEXT_PUBLIC_API_BASE_URL=
         - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
         - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     container_name: profit-path-frontend

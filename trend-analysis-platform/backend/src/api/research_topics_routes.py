@@ -56,6 +56,7 @@ async def get_current_user_id(request: Request) -> UUID:
     """Get current user ID from authentication context"""
     try:
         user_info = await get_current_user(request)
+        logger.info(f"DEBUG: user_id string is '{user_info.get('user_id')}'")
         return UUID(user_info["user_id"])
     except Exception as e:
         logger.error(f"Error getting current user ID: {e}")

@@ -124,6 +124,9 @@ try:
     from src.api.enhanced_topic_routes import router as enhanced_topic_router
     app.include_router(enhanced_topic_router)
     
+    from src.api.settings_routes import router as settings_router
+    app.include_router(settings_router)
+    
     logger.info("✅ All API routers included successfully")
 except Exception as e:
     logger.error(f"❌ Error including routers: {e}")
