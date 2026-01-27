@@ -8,6 +8,11 @@ services:
     build:
       context: ./profit-path-frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY}
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     container_name: profit-path-frontend
     restart: unless-stopped
     environment:
@@ -36,6 +41,7 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://redis:6379/0
+      - API_KEY=${API_KEY}
       # Secrets should be loaded from .env
     depends_on:
       - redis

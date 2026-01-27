@@ -43,7 +43,9 @@ class AuthenticationMiddleware:
             if not authorization or not authorization.startswith("Bearer "):
                 # Fallback to X-API-Key if Bearer is missing (optional logic)
                 api_key = request.headers.get("X-API-Key")
-                if api_key == "dev-key": # Mocking the dev-key bypass if requested
+                from ..core.config import settings
+                
+                if api_key and api_key == settings.api_key:
                      return {
                         "user_id": "00000000-0000-0000-0000-000000000000",
                         "email": "dev@example.com",

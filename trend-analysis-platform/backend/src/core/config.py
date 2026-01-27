@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     jwt_expiration_minutes: int = 30
     DEBUG_MODE: bool = False
     
+    # API Security
+    api_key: str = Field(default="dev-key", env="API_KEY")
+    
     # CORS
     allowed_origins: List[str] = Field(
         default=["http://localhost:3000", "https://idea-burst.com"],
