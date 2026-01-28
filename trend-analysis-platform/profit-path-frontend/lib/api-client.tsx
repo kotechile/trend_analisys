@@ -5,9 +5,10 @@ import { supabase } from '@/lib/supabase';
 // API Configuration
 const isClient = typeof window !== 'undefined';
 // Client: use relative path for Nginx to handle. Server: use internal docker hostname.
-// Client: ALWAYS use relative path specific for Nginx to handle, unless explicitly a public URL.
-// This prevents using internal 0.0.0.0:3000 addresses on the client.
-const API_BASE_URL = isClient ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://backend:8000');
+// Client: ALWAYS use relative '/api' path to leverage Nginx proxy.
+// Server: ALWAYS use internal Docker network URL 'http://backend:8000/api'.
+// We ignore process.env.NEXT_PUBLIC_API_BASE_URL temporarily to prevent 0.0.0.0 issues.
+const API_BASE_URL = isClient ? '/api' : 'http://backend:8000/api';
 // In a real app, API_KEY should be in env, but for this demo/legacy pattern we might default it
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'dev-key';
 
