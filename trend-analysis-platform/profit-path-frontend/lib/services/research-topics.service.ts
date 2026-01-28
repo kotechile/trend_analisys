@@ -9,7 +9,7 @@ import type {
 } from '@/types/research'
 
 class ResearchTopicsService {
-    private baseUrl = '/api/research-topics'
+    private baseUrl = '/research-topics'
 
     async createResearchTopic(data: ResearchTopicCreate): Promise<ResearchTopic> {
         try {

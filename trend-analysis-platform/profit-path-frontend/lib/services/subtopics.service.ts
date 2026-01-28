@@ -35,7 +35,7 @@ class SubtopicsService {
     async getSubtopics(topicId: string): Promise<Subtopic[]> {
         try {
             const response = await apiClient.get<SubtopicsResponse>(
-                `/api/research-topics/${topicId}/subtopics`
+                `/research-topics/${topicId}/subtopics`
             );
 
             // Handle both old nested format and new flat format for backward compatibility during migration
@@ -61,7 +61,7 @@ class SubtopicsService {
     async generateSubtopics(topicId: string): Promise<Subtopic[]> {
         try {
             const response = await apiClient.post<SubtopicsResponse>(
-                `/api/research-topics/${topicId}/subtopics/generate`,
+                `/research-topics/${topicId}/subtopics/generate`,
                 {},
                 { timeout: 240000 } // Increased to 4m to handle rate-limited backend
             );
@@ -78,7 +78,7 @@ class SubtopicsService {
     async enrichSubtopics(topicId: string): Promise<Subtopic[]> {
         try {
             const response = await apiClient.post<SubtopicsResponse>(
-                `/api/research-topics/${topicId}/enrich`,
+                `/research-topics/${topicId}/enrich`,
                 {},
                 { timeout: 180000 } // Extended timeout (3m) for deep research
             );
@@ -95,7 +95,7 @@ class SubtopicsService {
     async enrichSubtopic(topicId: string, subtopicId: string): Promise<Subtopic> {
         try {
             const response = await apiClient.post<Subtopic>(
-                `/api/research-topics/${topicId}/subtopics/${subtopicId}/enrich`,
+                `/research-topics/${topicId}/subtopics/${subtopicId}/enrich`,
                 {},
                 { timeout: 180000 } // Extended timeout (3m) for deep research
             );
@@ -112,7 +112,7 @@ class SubtopicsService {
     async expandSubtopicKeywords(topicId: string, subtopicId: string): Promise<{ success: boolean; keywords_found: number; keywords_saved: number }> {
         try {
             const response = await apiClient.post<{ success: boolean; keywords_found: number; keywords_saved: number }>(
-                `/api/research-topics/${topicId}/subtopics/${subtopicId}/keywords/expand`,
+                `/research-topics/${topicId}/subtopics/${subtopicId}/keywords/expand`,
                 {}
             );
             return response;
@@ -128,7 +128,7 @@ class SubtopicsService {
     async createSubtopic(topicId: string, data: SubtopicCreate): Promise<Subtopic | null> {
         try {
             const response = await apiClient.post<Subtopic>(
-                `/api/research-topics/${topicId}/subtopics`,
+                `/research-topics/${topicId}/subtopics`,
                 data
             );
             return response;
@@ -144,7 +144,7 @@ class SubtopicsService {
     async updateSubtopic(topicId: string, subtopicId: string, data: SubtopicUpdate): Promise<Subtopic | null> {
         try {
             const response = await apiClient.put<Subtopic>(
-                `/api/research-topics/${topicId}/subtopics/${subtopicId}`,
+                `/research-topics/${topicId}/subtopics/${subtopicId}`,
                 data
             );
             return response;
@@ -160,7 +160,7 @@ class SubtopicsService {
     async deleteSubtopic(topicId: string, subtopicId: string): Promise<boolean> {
         try {
             await apiClient.delete(
-                `/api/research-topics/${topicId}/subtopics/${subtopicId}`
+                `/research-topics/${topicId}/subtopics/${subtopicId}`
             );
             return true;
         } catch (error) {

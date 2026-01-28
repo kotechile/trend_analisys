@@ -20,7 +20,7 @@ class KeywordsService {
     async getSubtopicKeywords(topicId: string, subtopicId: string): Promise<Keyword[]> {
         try {
             const response = await apiClient.get<Keyword[]>(
-                `/api/research-topics/${topicId}/subtopics/${subtopicId}/keywords`
+                `/research-topics/${topicId}/subtopics/${subtopicId}/keywords`
             );
             return response;
         } catch (error) {
@@ -35,7 +35,7 @@ class KeywordsService {
     async getTopicKeywords(topicId: string): Promise<Keyword[]> {
         try {
             const response = await apiClient.get<Keyword[]>(
-                `/api/research-topics/${topicId}/keywords`
+                `/research-topics/${topicId}/keywords`
             );
             return response;
         } catch (error) {
@@ -50,7 +50,7 @@ class KeywordsService {
     async expandAllKeywords(topicId: string): Promise<KeywordExpansionResponse> {
         try {
             const response = await apiClient.post<KeywordExpansionResponse>(
-                `/api/research-topics/${topicId}/keywords/expand_all`,
+                `/research-topics/${topicId}/keywords/expand_all`,
                 {}
             );
             return response;
@@ -66,7 +66,7 @@ class KeywordsService {
     async clusterKeywords(topicId: string): Promise<ClusterKeywordsResponse> {
         try {
             const response = await apiClient.post<ClusterKeywordsResponse>(
-                `/api/research-topics/${topicId}/keywords/cluster`,
+                `/research-topics/${topicId}/keywords/cluster`,
                 {}
             );
             return response;
