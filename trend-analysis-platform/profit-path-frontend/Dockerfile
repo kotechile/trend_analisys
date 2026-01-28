@@ -58,6 +58,9 @@ RUN echo "NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY}" >> .env.production && \
     echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY}" >> .env.production && \
     echo "NEXT_PUBLIC_DEBUG=${NEXT_PUBLIC_DEBUG:-$VITE_DEBUG}" >> .env.production
 
+# Debug: Print generated .env file (Warning: might show secrets in logs if not careful, but needed for debug)
+RUN echo "--- Generated .env.production content ---" && cat .env.production
+
 RUN npm run build
 
 # =============================================================================
