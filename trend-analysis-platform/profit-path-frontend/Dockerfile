@@ -50,13 +50,13 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
 ARG VITE_DEBUG
 
-# Persist them as env vars for the build process
-# Use VITE_ variant as fallback if NEXT_PUBLIC_ is not set
-ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-$VITE_API_BASE_URL}
-ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-$VITE_SUPABASE_URL}
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY}
-ENV NEXT_PUBLIC_DEBUG=${NEXT_PUBLIC_DEBUG:-$VITE_DEBUG}
+# Generate .env.production for the build process
+# We use shell expansion in RUN because Docker ENV treats empty strings as "set", prohibiting fallback.
+RUN echo "NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY}" >> .env.production && \
+    echo "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-$VITE_API_BASE_URL}" >> .env.production && \
+    echo "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-$VITE_SUPABASE_URL}" >> .env.production && \
+    echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY}" >> .env.production && \
+    echo "NEXT_PUBLIC_DEBUG=${NEXT_PUBLIC_DEBUG:-$VITE_DEBUG}" >> .env.production
 
 RUN npm run build
 
