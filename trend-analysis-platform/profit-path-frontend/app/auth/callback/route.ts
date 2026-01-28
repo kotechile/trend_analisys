@@ -11,9 +11,18 @@ export async function GET(request: NextRequest) {
         console.log('Auth Callback: Code found, exchanging for session...')
         // Use Host header to correctly handle Traefik/Nginx proxying
         // requestUrl.origin might be internal (0.0.0.0:3000)
-        const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+        // Use Host header to correctly handle Traefik/Nginx proxying
+        // requestUrl.origin might be internal (0.0.0.0:3000)
+        let host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+
+        // Safety Fallback: If host is internal or localhost, force the production domain
+        if (!host || host.includes('0.0.0.0') || host.includes('localhost') || host.includes('backend')) {
+            console.log("Auth Callback: Host header was invalid (" + host + "), forcing ideas.aichieve.net");
+            host = 'ideas.aichieve.net';
+        }
+
         const protocol = request.headers.get('x-forwarded-proto') || 'https';
-        const baseUrl = `${protocol}://${host}`;
+        const baseUrl = `https://${host}`; // Force HTTPS for production
 
         console.log(`Auth Callback: Redirecting to calculated base: ${baseUrl}`);
         const response = NextResponse.redirect(new URL('/', baseUrl))
