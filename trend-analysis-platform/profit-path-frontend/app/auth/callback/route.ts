@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
 
     if (code) {
         console.log('Auth Callback: Code found, exchanging for session...')
-        // Use configured base URL for redirect to avoid internal Docker ports (0.0.0.0:3000)
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || requestUrl.origin;
+        // Use request origin (domain user is visiting) for redirect to avoid internal Docker ports
+        const baseUrl = requestUrl.origin;
         const response = NextResponse.redirect(new URL('/', baseUrl))
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
