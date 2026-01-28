@@ -9,8 +9,13 @@ export async function GET(request: NextRequest) {
 
     if (code) {
         console.log('Auth Callback: Code found, exchanging for session...')
-        // Use request origin (domain user is visiting) for redirect to avoid internal Docker ports
-        const baseUrl = requestUrl.origin;
+        // Use Host header to correctly handle Traefik/Nginx proxying
+        // requestUrl.origin might be internal (0.0.0.0:3000)
+        const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+        const protocol = request.headers.get('x-forwarded-proto') || 'https';
+        const baseUrl = `${protocol}://${host}`;
+
+        console.log(`Auth Callback: Redirecting to calculated base: ${baseUrl}`);
         const response = NextResponse.redirect(new URL('/', baseUrl))
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
