@@ -622,6 +622,7 @@ async def storage_status():
         "supabase_configured": bool(settings.supabase_url and settings.supabase_service_role_key),
         "supabase_url": settings.supabase_url,
         "supabase_service_role_key_present": bool(settings.supabase_service_role_key),
+        "supabase_anon_key_present": bool(__import__("os").getenv("SUPABASE_ANON_KEY")),
         "supabase_client_available": client_available
     }
     
