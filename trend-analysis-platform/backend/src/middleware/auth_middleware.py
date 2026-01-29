@@ -95,7 +95,10 @@ class AuthenticationMiddleware:
 
             # Use Supabase client to verify the token
             supabase = get_supabase_client()
-            response = supabase.auth.get_user(token)
+            
+            # Offload blocking call to threadpool
+            import asyncio
+            response = await asyncio.to_thread(supabase.auth.get_user, token)
             
             if response and response.user:
                 user = response.user
