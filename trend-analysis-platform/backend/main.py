@@ -618,10 +618,28 @@ async def storage_status():
     except Exception:
         client_available = False
     
+    key_role = "unknown"
+    try:
+        if settings.supabase_service_role_key:
+            # Decode JWT payload (no signature verification needed for debug)
+            # JWT format: header.payload.signature
+            parts = settings.supabase_service_role_key.split(".")
+            if len(parts) == 3:
+                import base64
+                import json
+                # Add padding if needed
+                padding = '=' * (4 - len(parts[1]) % 4)
+                payload_str = base64.urlsafe_b64decode(parts[1] + padding).decode('utf-8')
+                payload = json.loads(payload_str)
+                key_role = payload.get("role", "unknown")
+    except Exception as e:
+        key_role = f"error_decoding: {str(e)}"
+
     status = {
         "supabase_configured": bool(settings.supabase_url and settings.supabase_service_role_key),
         "supabase_url": settings.supabase_url,
         "supabase_service_role_key_present": bool(settings.supabase_service_role_key),
+        "supabase_service_role_key_role": key_role,
         "supabase_anon_key_present": bool(__import__("os").getenv("SUPABASE_ANON_KEY")),
         "supabase_client_available": client_available
     }
