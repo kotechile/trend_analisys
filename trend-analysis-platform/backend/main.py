@@ -637,13 +637,36 @@ async def storage_status():
 
     # Active Connection Test
     connection_test = "not_attempted"
+    insert_test = "not_attempted"
     try:
         if settings.supabase_url and settings.supabase_service_role_key:
-            # Try a lightweight query
+            # 1. Try Select
             test_res = supabase.table("research_topics").select("id").limit(1).execute()
             connection_test = "success"
+            
+            # 2. Try Insert (Write Permission Test)
+            import uuid
+            dummy_id = str(uuid.uuid4())
+            dummy_user = str(uuid.uuid4())
+            try:
+                # Use a minimal dummy payload
+                dummy_data = {
+                    "id": dummy_id,
+                    "user_id": dummy_user, 
+                    "title": "SYSTEM_CONNECTION_TEST_IGNORE",
+                    "description": "Transient test row",
+                    "status": "archived"
+                }
+                insert_res = supabase.table("research_topics").insert(dummy_data).execute()
+                insert_test = "success"
+                
+                # Cleanup
+                supabase.table("research_topics").delete().eq("id", dummy_id).execute()
+            except Exception as insert_e:
+                insert_test = f"failed_insert: {str(insert_e)}"
+                
     except Exception as e:
-        connection_test = f"failed: {str(e)}"
+        connection_test = f"failed_connect: {str(e)}"
     
     status = {
         "supabase_configured": bool(settings.supabase_url and settings.supabase_service_role_key),
@@ -652,7 +675,8 @@ async def storage_status():
         "supabase_service_role_key_role": key_role,
         "supabase_anon_key_present": bool(__import__("os").getenv("SUPABASE_ANON_KEY")),
         "supabase_client_available": client_available,
-        "connection_test": connection_test
+        "connection_test": connection_test,
+        "insert_test_result": insert_test
     }
     
     return status
