@@ -48,6 +48,10 @@ class SupabaseAuthService:
     def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Verify JWT token and get user info"""
         try:
+            if not self.client:
+                logger.error("Supabase client not initialized (missing SUPABASE_ANON_KEY)")
+                return None
+
             # Verify the token with Supabase
             response = self.client.auth.get_user(token)
             if response.user:
