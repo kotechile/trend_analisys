@@ -635,13 +635,24 @@ async def storage_status():
     except Exception as e:
         key_role = f"error_decoding: {str(e)}"
 
+    # Active Connection Test
+    connection_test = "not_attempted"
+    try:
+        if settings.supabase_url and settings.supabase_service_role_key:
+            # Try a lightweight query
+            test_res = supabase.table("research_topics").select("id").limit(1).execute()
+            connection_test = "success"
+    except Exception as e:
+        connection_test = f"failed: {str(e)}"
+    
     status = {
         "supabase_configured": bool(settings.supabase_url and settings.supabase_service_role_key),
         "supabase_url": settings.supabase_url,
         "supabase_service_role_key_present": bool(settings.supabase_service_role_key),
         "supabase_service_role_key_role": key_role,
         "supabase_anon_key_present": bool(__import__("os").getenv("SUPABASE_ANON_KEY")),
-        "supabase_client_available": client_available
+        "supabase_client_available": client_available,
+        "connection_test": connection_test
     }
     
     return status
