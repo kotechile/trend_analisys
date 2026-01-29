@@ -57,6 +57,21 @@ app.add_middleware(
     allowed_hosts=["*"]
 )
 
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi import Request
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.error(f"HTTP Error: {exc.status_code} - {exc.detail} - Path: {request.url.path}")
+    return await http_exception_handler(request, exc)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation Error: {exc.errors()} - Body: {exc.body} - Path: {request.url.path}")
+    return await request_validation_exception_handler(request, exc)
+
 @app.on_event("startup")
 async def startup_event():
     print("Startup: Listing all registered routes")
