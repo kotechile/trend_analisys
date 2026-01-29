@@ -62,6 +62,7 @@ RUN echo "NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY}" >> .env.production && \
 RUN echo "--- Generated .env.production content ---" && cat .env.production
 
 RUN npm run build
+RUN echo "Checking .next directory contents:" && ls -la .next
 
 # =============================================================================
 # STAGE 3: Runner
