@@ -26,7 +26,8 @@ async def health_check():
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
             "service": "TrendTap Backend API",
-            "version": "0.1.0"
+            "version": "1.0.1",
+            "build_id": "debug-2026-01-28-v3-NO-TRUSTED-HOST"
         }
     except Exception as e:
         logger.error("Health check failed", error=str(e))
