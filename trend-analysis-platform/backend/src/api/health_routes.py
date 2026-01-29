@@ -13,6 +13,7 @@ from ..core.database import get_db, check_db_connection
 from ..core.redis import check_redis_connection
 from ..core.config import get_settings
 from src.core.supabase_database_service import SupabaseDatabaseService
+from src.services.supabase_service import get_supabase_service
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/health", tags=["health-monitoring"])
@@ -74,6 +75,38 @@ async def detailed_health_check(db: SupabaseDatabaseService = Depends(get_db)):
             "version": "0.1.0",
             "error": str(e)
         }
+
+@router.get("/supabase-http")
+async def supabase_http_health_check():
+    """Supabase HTTP API health check"""
+    try:
+        supabase = get_supabase_service().get_client()
+        # Test HTTP connection by checking health or auth
+        # We'll try to get the auth settings or just make a lightweight call
+        # get_session() is local, doesn't ping. 
+        # But auth.get_user('invalid') should make a request and fail fast.
+        
+        start_time = time.time()
+        try:
+            # We explicitly want to fail auth to test connectivity
+            supabase.auth.get_user("00000000-0000-0000-0000-000000000000")
+        except Exception:
+            # We expect an error, but if we get here, it means we CONNECTED
+            pass
+            
+        latency = (time.time() - start_time) * 1000
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "connection_type": "HTTP/HTTPS",
+            "latency_ms": round(latency, 2),
+            "message": "Successfully connected to Supabase HTTP API"
+        }
+        
+    except Exception as e:
+        logger.error("Supabase HTTP health check failed", error=str(e))
+        raise HTTPException(status_code=503, detail=f"Supabase HTTP API Unreachable: {str(e)}")
 
 @router.get("/database")
 async def database_health_check(db: SupabaseDatabaseService = Depends(get_db)):

@@ -41,7 +41,7 @@ export default function ResearchSettingsPage() {
 
     const fetchSettings = async () => {
         try {
-            const result = await apiClient.get<SettingsResponse>("/api/settings/research");
+            const result = await apiClient.get<SettingsResponse>("/settings/research");
 
             if (result.success && result.data) {
                 setSettings(result.data);
@@ -59,7 +59,7 @@ export default function ResearchSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const result = await apiClient.post<SettingsResponse>("/api/settings/research", settings);
+            const result = await apiClient.post<SettingsResponse>("/settings/research", settings);
 
             if (result.success) {
                 toast.success("Success", {
