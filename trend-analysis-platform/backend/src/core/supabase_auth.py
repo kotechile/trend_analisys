@@ -24,11 +24,16 @@ if not settings.supabase_url:
 # We need to get anon key from environment directly as it's not in Settings
 import os
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-if not SUPABASE_ANON_KEY:
-    raise ValueError("SUPABASE_ANON_KEY environment variable is required for authentication")
+supabase_auth: Optional[Client] = None
 
-# Create Supabase client for authentication (uses anon key)
-supabase_auth: Client = create_client(settings.supabase_url, SUPABASE_ANON_KEY)
+if not SUPABASE_ANON_KEY:
+    logger.warning("SUPABASE_ANON_KEY environment variable not found. Authentication will fail.")
+else:
+    # Create Supabase client for authentication (uses anon key)
+    try:
+        supabase_auth = create_client(settings.supabase_url, SUPABASE_ANON_KEY)
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase Auth client: {e}")
 
 # Security scheme
 security = HTTPBearer()
