@@ -14,7 +14,7 @@ It provides all necessary endpoints including:
 """
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
@@ -70,7 +70,8 @@ async def root():
     """Root endpoint with API information"""
     return {
         "message": "Idea Burst API",
-        "version": "1.0.0",
+        "version": "1.0.1",
+        "build_id": "debug-2026-01-28-v4-ACTUAL-ENTRYPOINT",
         "status": "running",
         "docs": "/docs",
         "health": "/health"
@@ -85,11 +86,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security middleware
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"]
-)
+
 
 # Import and include DataForSEO router
 try:
