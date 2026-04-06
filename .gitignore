@@ -19,3 +19,38 @@ build/
 
 # macOS
 .DS_Store
+
+# Files containing keys and secrets
+# Documentation files with actual keys (not placeholders)
+trend-analysis-platform/backend/ENVIRONMENT_SETUP.md
+SUPABASE_SWITCH_TO_SBCONTENT.md
+SUPABASE_MIGRATION_TO_SELFHOSTED.md
+SECURITY_KEY_GUIDELINES.md
+
+# Environment example files that contain actual keys
+trend-analysis-platform/frontend/env.example
+
+# Test files that might contain keys
+*test*credentials*.py
+*check*credentials*.py
+*debug*credentials*.py
+*add*credentials*.py
+*setup*credentials*.py
+*get*keys*.py
+*setup*keys*.py
+*insert*keys*.py
+*add*keys*.py
+
+# Configuration files with keys
+*config*.md
+*setup*.md
+*ENV*.md
+*ENVIRONMENT*.md
+*MIGRATION*.md
+*SWITCH*.md
+
+# Files with JWT tokens or database passwords
+**/env.example
+**/.env.local
+**/.env.production
+**/.env.development

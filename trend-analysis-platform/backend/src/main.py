@@ -79,7 +79,8 @@ async def root():
     """Root endpoint with API information"""
     return {
         "message": "TrendTap API",
-        "version": "1.0.0",
+        "version": "1.0.1",
+        "build_id": "debug-2026-01-28-v2", # User can verify this
         "status": "running",
         "docs": "/docs"
     }
